@@ -4,7 +4,7 @@
 
 An opinionated PySide6-based MDI application framework designed to accelerate the development of professional desktop applications. 
 
-![OPAQUE Framework Screenshot](resources/screenshot.png)
+![OPAQUE Framework Screenshot](resources/example.gif)
 
 ## Features
 

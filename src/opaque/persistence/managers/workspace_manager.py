@@ -113,7 +113,7 @@ class WorkspaceManager:
             # Find the window that owns this settings group
             target_window: Optional['BaseFeatureWindow'] = None
             for window in registered_windows.values():
-                if window.settings_model_class and window.settings.get_settings_group() == group_name:
+                if window.settings and window.settings.get_settings_group() == group_name:
                     target_window = window
                     break
 
@@ -134,7 +134,7 @@ class WorkspaceManager:
 
     def _extract_workspace_settings(self, window: 'BaseFeatureWindow') -> Dict[str, Any]:
         """Extracts settings with 'workspace' scope from a window's settings model."""
-        if not window.settings_model_class:
+        if not window.settings:
             return {}
 
         settings_model = window.settings
