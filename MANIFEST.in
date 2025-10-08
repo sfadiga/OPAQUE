@@ -1,0 +1,39 @@
+# Include important files
+include README.md
+include LICENSE
+include pyproject.toml
+
+# Include all source code
+recursive-include src/opaque *.py
+recursive-include src/opaque *.pyi
+include src/opaque/py.typed
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.so
+global-exclude *.dylib
+global-exclude *.dll
+
+# Explicitly exclude examples and tests
+prune examples
+prune tests
+prune docs
+prune resources
+prune .venv
+prune .git
+prune .github
+prune .vscode
+
+# Exclude development files
+exclude .gitignore
+exclude .gitattributes
+exclude *.sh
+exclude *.ps1
+exclude *.bat
+exclude setup.py
+exclude DESIGN_NOTES.md
+exclude cicd.ps1
+exclude cicd.sh
+exclude package-lock.json

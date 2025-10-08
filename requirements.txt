@@ -1,0 +1,6 @@
+pyside6
+qt-material
+QDarkStyle
+qt-themes
+build
+wheel

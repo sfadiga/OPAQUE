@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opaque-framework"
+version = "1.0.0"
+description = "OPAQUE - Opinionated Python Application with Qt UI for Engineering. A flexible MDI application framework for PySide6."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Sandro Fadiga", email = "sfadiga@gmail.com"}
+]
+keywords = ["gui", "qt", "pyside6", "mdi", "framework", "desktop", "application"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces",
+]
+dependencies = [
+    "PySide6>=6.0.0",
+    "qt-material>=2.14",
+    "QDarkStyle>=3.2.0",
+]
+
+[project.optional-dependencies]
+themes = [
+    "qt-themes>=1.0.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-qt>=4.0",
+    "black>=22.0",
+    "pylint>=2.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/opaque-framework"
+"Bug Tracker" = "https://github.com/yourusername/opaque-framework/issues"
+"Documentation" = "https://github.com/yourusername/opaque-framework#readme"
+"Source Code" = "https://github.com/yourusername/opaque-framework"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["opaque*"]
+exclude = ["tests*", "examples*", "docs*"]
+
+[tool.setuptools.package-data]
+opaque = ["py.typed"]
