@@ -21,6 +21,7 @@ class UIType(Enum):
     DROPDOWN = "dropdown"
     TEXTAREA = "textarea"
     SLIDER = "slider"
+    FILE_SELECTOR = "file_selector" # TODO TBD
 
 
 class Field:
@@ -116,21 +117,3 @@ class ChoiceField(Field):
     """Field for values from a list of choices."""
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.DROPDOWN, **kwargs)
-
-
-def settings_field(**kwargs: Any) -> 'Field':
-    """Factory function to create a Field marked as a setting."""
-    kwargs['settings'] = True
-    return Field(**kwargs)
-
-
-def workspace_field(**kwargs: Any) -> 'Field':
-    """Factory function to create a Field marked as a workspace state."""
-    kwargs['workspace'] = True
-    return Field(**kwargs)
-
-
-def binding_field(**kwargs: Any) -> 'Field':
-    """Factory function to create a Field marked for data binding."""
-    kwargs['binding'] = True
-    return Field(**kwargs)

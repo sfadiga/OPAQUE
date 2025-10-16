@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 from datetime import datetime
 from PySide6.QtGui import QIcon
 from opaque.core.model import BaseModel
-from opaque.models.annotations import settings_field, workspace_field
+from opaque.models.annotations import BoolField, IntField, StringField
 
 
 class DataViewerModel(BaseModel):
@@ -21,19 +21,30 @@ class DataViewerModel(BaseModel):
     # ----------------------------------
 
     # Settings that persist across sessions
-    auto_refresh = settings_field(
-        default_value=True, description="Auto-refresh data on startup")
-    refresh_interval = settings_field(
-        default_value=30, description="Refresh interval in seconds")
-    max_items = settings_field(
-        default_value=100, description="Maximum items to display")
+    auto_refresh = BoolField(default=True, binding=True,
+                             settings=True, description="Auto-refresh data on startup")
+    refresh_interval = IntField(
+        default=30,
+        description="Refresh interval in seconds",
+        binding=True,
+        settings=True,
+        min_value=0,
+        max_value=100
+    )
+
+    max_items = IntField(
+        default=100, description="Maximum items to display",  settings=True,
+        binding=True,
+        min_value=10,
+        max_value=100)
 
     # Workspace state that saves with workspace
-    last_filter = workspace_field(
-        default_value="", description="Last applied filter")
-    sort_column = workspace_field(
-        default_value="id", description="Column to sort by")
-    sort_order = workspace_field(default_value="asc", description="Sort order")
+    last_filter = StringField(
+        default="", worskpace=True, description="Last applied filter")
+    sort_column = StringField(
+        default="id", worskpace=True, description="Column to sort by")
+    sort_order = StringField(
+        default="asc", worskpace=True, description="Sort order")
 
     def __init__(self, feature_id: str):
         """Initialize the model."""

@@ -10,7 +10,7 @@
 """
 from PySide6.QtGui import QIcon
 from opaque.core.model import BaseModel
-from opaque.models.annotations import settings_field
+from opaque.models.annotations import BoolField, IntField, StringField
 
 
 class LoggingModel(BaseModel):
@@ -21,12 +21,20 @@ class LoggingModel(BaseModel):
     FEATURE_TOOLTIP = "Shows application logs and messages."
     DEFAULT_VISIBILITY = False
 
-    show_timestamps = settings_field(
-        default_value=True, description="Prepend a timestamp to each log message.")
-    log_level = settings_field(
-        default_value="INFO", description="The minimum level of message to display.")
-    max_lines = settings_field(default_value=1000, min_value=100, max_value=10000,
-                               description="Maximum number of lines to keep in the log.")
+    show_timestamps = BoolField(
+        default=True,
+        description="Prepend a timestamp to each log message.",
+        settings=True,
+        binding=True
+    )
+
+    log_level = StringField(
+        default="INFO",   settings=True,
+        binding=True, description="The minimum level of message to display.")
+
+    max_lines = IntField(default=1000,   settings=True,
+                         binding=True, min_value=100, max_value=10000,
+                         description="Maximum number of lines to keep in the log.")
 
     def __init__(self, feature_id: str):
         super().__init__(feature_id)
