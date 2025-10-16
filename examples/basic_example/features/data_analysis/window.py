@@ -15,7 +15,7 @@ from typing import Optional, Type
 sys.path.insert(0, os.path.join(os.path.dirname(
     __file__), '..', '..', '..', '..', 'src'))
 
-from opaque import BaseFeatureWindow, BaseModel
+from opaque import BaseView, BaseModel
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QSpinBox, QLineEdit, QLabel
 from PySide6.QtGui import QIcon
 
@@ -83,7 +83,7 @@ class DataAnalysisWidget(QWidget):
         print(f"Zoom level set to: {level}")
 
 
-class DataAnalysisWindow(BaseFeatureWindow):
+class DataAnalysisWindow(BaseView):
     """Feature window for Data Analysis."""
 
     # --- Feature Interface ---
@@ -95,7 +95,6 @@ class DataAnalysisWindow(BaseFeatureWindow):
 
     def __init__(self, feature_id: str, **kwargs):
         super().__init__(feature_id, **kwargs)
-        self.setWindowTitle(self.tr("Data Analysis"))
 
         # Create and set the central widget
         self.analysis_widget = DataAnalysisWidget()
@@ -103,7 +102,7 @@ class DataAnalysisWindow(BaseFeatureWindow):
 
         # Load settings after the widget is initialized
         if self.settings:
-            self._load_settings()
+            self.load_settings()
 
     def feature_name(self) -> str:
         return self.FEATURE_NAME

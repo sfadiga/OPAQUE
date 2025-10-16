@@ -12,7 +12,7 @@
 
 from typing import TYPE_CHECKING
 
-from opaque.models.worskpace.workspace_model import WorkspaceStateModel
+from opaque.models.workspace.workspace_model import WorkspaceStateModel
 from opaque.models.base.field_descriptors import StringField, ListField, FloatField, DictField
 
 if TYPE_CHECKING:

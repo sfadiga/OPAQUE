@@ -68,7 +68,6 @@ class ThemeManager:
     def apply_theme(self, theme_name: str) -> None:
         """Applies a theme to the application by name."""
         if not theme_name or theme_name == 'Default':
-            self._app.setStyleSheet("")
             return
 
         # Check if it's a qt-themes theme
@@ -84,7 +83,6 @@ class ThemeManager:
             except Exception as e:
                 print(
                     f"Warning: Could not apply qt-themes theme '{actual_theme_name}': {e}")
-                self._app.setStyleSheet("")
             return
 
         if theme_name in self._qt_material_themes:
@@ -102,4 +100,3 @@ class ThemeManager:
             except ImportError:
                 print(
                     "Warning: QLightStyle not available in this version of QDarkStyleSheet.")
-                self._app.setStyleSheet("")
