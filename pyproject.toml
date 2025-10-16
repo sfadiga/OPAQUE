@@ -61,4 +61,4 @@ include = ["opaque*"]
 exclude = ["tests*", "examples*", "docs*"]
 
 [tool.setuptools.package-data]
-opaque = ["py.typed"]
+opaque = ["py.typed", "core/py.typed"]

@@ -7,6 +7,7 @@ include pyproject.toml
 recursive-include src/opaque *.py
 recursive-include src/opaque *.pyi
 include src/opaque/py.typed
+include src/opaque/core/py.typed
 
 # Exclude unnecessary files
 global-exclude __pycache__

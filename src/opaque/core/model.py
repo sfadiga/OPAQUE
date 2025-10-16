@@ -16,6 +16,8 @@ from opaque.models.annotations import Field
 
 
 class BaseModel(AbstractModel):
+    _fields: Dict[str, Field]
+    _values: Dict[str, Any]
 
     def __init__(self, feature_id: str) -> None:
         super().__init__()
@@ -46,6 +48,10 @@ class BaseModel(AbstractModel):
             return
 
         if name in self._fields:
+            field = self._fields[name]
+            if not field.validate(value):
+                raise ValueError(f"Invalid value for {name}: {value}")
+
             _values = super().__getattribute__('_values')
             old_value = _values.get(name)
             if old_value != value:

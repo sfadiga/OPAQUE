@@ -52,7 +52,7 @@ OPAQUE/
 │       │   ├── theme_manager.py
 │       │   └── workspace_manager.py
 │       ├── models/
-│       │   ├── field_descriptors.py
+│       │   ├── annotations.py
 │       │   └── ...
 │       └── widgets/
 │           ├── dialogs/
@@ -112,7 +112,7 @@ class MyApp(BaseApplication):
 ### Settings Models
 OPAQUE provides a declarative way to define settings with field descriptors:
 ```python
-from opaque import BaseModel, BoolField, IntField, StringField, FloatField, ChoiceField
+from opaque.models.annotations import BaseModel, BoolField, IntField, StringField, FloatField, ChoiceField
 
 class MyFeatureSettings(BaseModel):
     # Boolean field with description (searchable in settings dialog)
@@ -168,12 +168,12 @@ Create `features/calculator/model.py`:
 ```python
 from PySide6.QtGui import QIcon
 from opaque.core.model import BaseModel
-from opaque.models.annotations import Field
+from opaque.models.annotations import FloatField
 
 class CalculatorModel(BaseModel):
-    num1: float = Field(default=0.0)
-    num2: float = Field(default=0.0)
-    result: float = Field(default=0.0)
+    num1 = FloatField(default=0.0)
+    num2 = FloatField(default=0.0)
+    result = FloatField(default=0.0)
 
     def feature_name(self) -> str:
         return "Calculator"
@@ -337,7 +337,7 @@ When you follow this guide, OPAQUE automatically provides:
 Create custom field descriptors for specialized data:
 
 ```python
-from opaque.models.field_descriptors import Field
+from opaque.models.annotations import Field
 
 class ColorField(Field):
     """Custom field for color values"""

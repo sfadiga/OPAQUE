@@ -10,12 +10,12 @@
 """
 
 
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QSplitter,
     QListWidget, QListWidgetItem, QScrollArea, QWidget, QDialogButtonBox, QFormLayout,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QPushButton, QMessageBox, QHBoxLayout, QLabel
+    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QMessageBox, QLabel
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -104,7 +104,7 @@ class SettingsDialog(QDialog):
 
         # Special handling for application theme
         app_settings_window = self.windows.get('application')
-        if app_settings_window and hasattr(app_settings_window.model, 'theme'):
+        if app_settings_window and hasattr(app_settings_window, 'model') and hasattr(app_settings_window.model, 'theme'):
             self.theme_manager.apply_theme(
                 str(app_settings_window.model.theme))
 
@@ -120,21 +120,22 @@ class SettingsDialog(QDialog):
         for feature_id, window in self.windows.items():
             if hasattr(window, 'model') and window.model:
                 target_model = window.model
-                fields = target_model.get_fields()
-                labels = []
-                for name, field in fields.items():
-                    if field.is_setting:
-                        label = field.description or name
-                        labels.append(label.lower())
-                if labels:
-                    self._settings_cache[feature_id] = labels
+                if hasattr(target_model, 'get_fields'):
+                    fields = target_model.get_fields()
+                    labels = []
+                    for name, field in fields.items():
+                        if hasattr(field, 'is_setting') and field.is_setting:
+                            label = field.description or name
+                            labels.append(label.lower())
+                    if labels:
+                        self._settings_cache[feature_id] = labels
 
     def _populate_groups_list(self) -> None:
         """Populates the list using window titles for display."""
         for feature_id, window in self.windows.items():
             if feature_id in self._settings_cache:
                 # Get feature name from model if available, otherwise use a default
-                if window.model and hasattr(window.model, 'feature_name'):
+                if hasattr(window, 'model') and window.model and hasattr(window.model, 'feature_name'):
                     name = window.model.feature_name()
                 else:
                     name = feature_id.replace("_", " ").title()
@@ -247,69 +248,70 @@ class SettingsDialog(QDialog):
         container.setLayout(layout)
 
         # Dynamically generate widgets based on field annotations
-        fields = target_model.get_fields()
-        for name, field in fields.items():
-            if not field.is_setting:
-                continue
+        if hasattr(target_model, 'get_fields'):
+            fields = target_model.get_fields()
+            for name, field in fields.items():
+                if not hasattr(field, 'is_setting') or not field.is_setting:
+                    continue
 
-            current_value = getattr(target_model, name)
-            label_text = self.tr(field.description) or name
-            label_widget = QLabel(label_text)
-            self._current_form_widgets[label_text.lower()] = label_widget
+                current_value = getattr(target_model, name)
+                label_text = self.tr(field.description) or name
+                label_widget = QLabel(label_text)
+                self._current_form_widgets[label_text.lower()] = label_widget
 
-            widget = None
-            if field.ui_type == "checkbox":
-                widget = QCheckBox()
-                widget.setChecked(bool(current_value))
-                widget.stateChanged.connect(
-                    lambda state, model=target_model, name=name: setattr(
-                        model, name, bool(state == Qt.Checked))
-                )
-            elif field.ui_type == "spinbox":
-                widget = QSpinBox()
-                if field.min_value is not None:
-                    widget.setMinimum(field.min_value)
-                if field.max_value is not None:
-                    widget.setMaximum(field.max_value)
-                widget.setValue(int(current_value))
-                widget.valueChanged.connect(
-                    lambda value, model=target_model, name=name: setattr(
-                        model, name, value)
-                )
-            elif field.ui_type == "doublespinbox":
-                widget = QDoubleSpinBox()
-                if field.min_value is not None:
-                    widget.setMinimum(field.min_value)
-                if field.max_value is not None:
-                    widget.setMaximum(field.max_value)
-                widget.setValue(float(current_value))
-                widget.valueChanged.connect(
-                    lambda value, model=target_model, name=name: setattr(
-                        model, name, value)
-                )
-            elif field.ui_type == "combobox" or field.choices:
-                widget = QComboBox()
-                if field.choices:
-                    widget.addItems([str(c) for c in field.choices])
-                widget.setCurrentText(str(current_value))
-                widget.currentTextChanged.connect(
-                    lambda text, model=target_model, name=name: setattr(
-                        model, name, text)
-                )
-            elif field.ui_type == "color_picker":
-                widget = ColorPicker(initial_color=str(current_value))
-                widget.colorChanged.connect(
-                    lambda color, model=target_model, name=name: setattr(
-                        model, name, color)
-                )
-            else:  # Default to QLineEdit for "text"
-                widget = QLineEdit(str(current_value))
-                widget.textChanged.connect(
-                    lambda text, model=target_model, name=name: setattr(
-                        model, name, text)
-                )
+                widget = None
+                if hasattr(field, 'ui_type') and field.ui_type == "checkbox":
+                    widget = QCheckBox()
+                    widget.setChecked(bool(current_value))
+                    widget.stateChanged.connect(
+                        lambda state, model=target_model, name=name: setattr(
+                            model, name, bool(state == Qt.Checked))
+                    )
+                elif hasattr(field, 'ui_type') and field.ui_type == "spinbox":
+                    widget = QSpinBox()
+                    if hasattr(field, 'min_value') and field.min_value is not None:
+                        widget.setMinimum(field.min_value)
+                    if hasattr(field, 'max_value') and field.max_value is not None:
+                        widget.setMaximum(field.max_value)
+                    widget.setValue(int(current_value))
+                    widget.valueChanged.connect(
+                        lambda value, model=target_model, name=name: setattr(
+                            model, name, value)
+                    )
+                elif hasattr(field, 'ui_type') and field.ui_type == "doublespinbox":
+                    widget = QDoubleSpinBox()
+                    if hasattr(field, 'min_value') and field.min_value is not None:
+                        widget.setMinimum(field.min_value)
+                    if hasattr(field, 'max_value') and field.max_value is not None:
+                        widget.setMaximum(field.max_value)
+                    widget.setValue(float(current_value))
+                    widget.valueChanged.connect(
+                        lambda value, model=target_model, name=name: setattr(
+                            model, name, value)
+                    )
+                elif (hasattr(field, 'ui_type') and field.ui_type == "combobox") or (hasattr(field, 'choices') and field.choices):
+                    widget = QComboBox()
+                    if hasattr(field, 'choices') and field.choices:
+                        widget.addItems([str(c) for c in field.choices])
+                    widget.setCurrentText(str(current_value))
+                    widget.currentTextChanged.connect(
+                        lambda text, model=target_model, name=name: setattr(
+                            model, name, text)
+                    )
+                elif hasattr(field, 'ui_type') and field.ui_type == "color_picker":
+                    widget = ColorPicker(initial_color=str(current_value))
+                    widget.colorChanged.connect(
+                        lambda color, model=target_model, name=name: setattr(
+                            model, name, color)
+                    )
+                else:  # Default to QLineEdit for "text"
+                    widget = QLineEdit(str(current_value))
+                    widget.textChanged.connect(
+                        lambda text, model=target_model, name=name: setattr(
+                            model, name, text)
+                    )
 
-            if widget:
-                layout.addRow(label_widget, widget)
+                if widget:
+                    layout.addRow(label_widget, widget)
 
         self.scroll_area.setWidget(container)

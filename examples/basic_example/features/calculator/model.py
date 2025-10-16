@@ -1,9 +1,10 @@
 """
 Calculator Model - Handles the calculator state and business logic
 """
+from typing import List
 from PySide6.QtGui import QIcon
 
-from opaque.models.annotations import Field
+from opaque.models.annotations import IntField, BoolField, StringField, ListField, UIType
 from opaque.core.model import BaseModel
 
 
@@ -19,49 +20,47 @@ class CalculatorModel(BaseModel):
     # ----------------------------------
 
     # Settings - persisted to user settings
-    decimal_places = Field(
+    decimal_places = IntField(
         default=2,
         description="Number of decimal places to display",
         settings=True,
         min_value=0,
-        max_value=10,
-        ui_type="spinbox"
+        max_value=10
     )
 
-    scientific_notation = Field(
+    scientific_notation = BoolField(
         default=False,
         description="Use scientific notation for large numbers",
         settings=True,
-        binding=True,
-        ui_type="checkbox"
+        binding=True
     )
 
     # theme can be altered in settings and also saved in the workspace
-    theme_color = Field(
+    theme_color = StringField(
         default="#4CAF50",
         description="Calculator theme color",
         settings=True,
         workspace=True,
         binding=True,
-        ui_type="color_picker"
+        ui_type=UIType.COLOR_PICKER
     )
 
     # Workspace state - persisted to workspace file
-    current_value = Field(
+    current_value = StringField(
         default="0",
         description="Current display value",
         workspace=True,
         binding=True
     )
 
-    last_operation = Field(
+    last_operation = StringField(
         default="",
         description="Last operation performed",
         workspace=True,
         binding=True
     )
 
-    history = Field(
+    history = ListField(
         default=[],
         description="Calculation history",
         workspace=True,
@@ -169,7 +168,7 @@ class CalculatorModel(BaseModel):
             self.clear_on_next = True
 
 
-        except Exception as e:
+        except Exception:
             self.current_value = "Error"
             self.clear_on_next = True
 
@@ -210,7 +209,7 @@ class CalculatorModel(BaseModel):
             self.current_value = "0"
 
 
-    def get_history(self) -> list:
+    def get_history(self) -> List[str]:
         """Get calculation history."""
         return self.history if hasattr(self, 'history') and self.history else []
 
