@@ -11,11 +11,11 @@
 """
 
 
-from typing import List, Optional, Type, Dict, Union
+from typing import Optional, Type, Dict
 from abc import abstractmethod
 from pathlib import Path
 
-from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow
+from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
 from PySide6.QtGui import QAction, QIcon, QCloseEvent
 from PySide6.QtCore import Qt
 
@@ -26,10 +26,10 @@ from opaque.widgets.dialogs.settings import SettingsDialog
 from opaque.managers.workspace_manager import WorkspaceManager
 from opaque.managers.settings_manager import SettingsManager
 from opaque.managers.theme_manager import ThemeManager
-from opaque.models.model import AbstractModel
+from opaque.managers.single_instance_manager import SingleInstanceManager
+from opaque.models.application_model import ApplicationModel
 from opaque.core.services import ServiceLocator, BaseService
 from opaque.core.presenter import BasePresenter
-
 
 class BaseApplication(QMainWindow):
     """
@@ -57,14 +57,16 @@ class BaseApplication(QMainWindow):
 
         # Set up the main window
         self.setWindowTitle(self.application_title())
-        #self.setMinimumSize(1280, 720)
+        self.setWindowIcon(self.application_icon())
+        # self.setMinimumSize(1280, 720) # TODO make this an application settigns ?
 
         # Set the MDI area as the central widget
         self.mdi_area = OpaqueMdiArea()
         self.setCentralWidget(self.mdi_area)
 
         # Create and add the toolbar
-        self.toolbar: OpaqueMainToolbar = OpaqueMainToolbar(self.tr("Features"), self)
+        self.toolbar: OpaqueMainToolbar = OpaqueMainToolbar(
+            self.tr("Features"), self)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
 
         self._registered_presenters: Dict[str, BasePresenter] = {}
@@ -72,22 +74,26 @@ class BaseApplication(QMainWindow):
 
         # Initialize managers with custom paths from abstract methods
         self._workspace_manager: WorkspaceManager = WorkspaceManager()
-        self._settings_manager: SettingsManager = SettingsManager(self.settings_file_path())
+        self._settings_manager: SettingsManager = SettingsManager(
+            self.settings_file_path())
 
         # Initialize service locator
         self._service_locator: ServiceLocator = ServiceLocator()
 
-        # Initialize global settings
-        self._init_global_settings()
+        # Initialize application settings
+        self._init_application_settings()
 
         # --- Theme Management ---
         self.theme_manager: ThemeManager = ThemeManager(QApplication.instance())
         # Dynamically populate the theme choices
-        if hasattr(self.global_settings, 'theme'):
-            self.global_settings.__class__.theme.choices = self.theme_manager.list_themes()
+        if hasattr(self.application_settings, 'theme'):
+            theme_field = self.application_settings.get_fields().get('theme')
+            if theme_field:
+                theme_field.choices = self.theme_manager.list_themes()
         # Apply theme on startup
-        if hasattr(self.global_settings, 'theme'):
-            self.theme_manager.apply_theme(self.global_settings.theme)
+        if hasattr(self.application_settings, 'theme'):
+            self.theme_manager.apply_theme(
+                str(self.application_settings.theme))
             # Update toolbar highlighting to match theme
             if hasattr(self, 'toolbar'):
                 self.toolbar.update_theme()
@@ -95,26 +101,14 @@ class BaseApplication(QMainWindow):
 
         self._setup_file_menu()
 
-        #self.mdi_area.subWindowActivated.connect(self._on_sub_window_activated)
-
-    #def _on_sub_window_activated(self, window: Optional[BaseView]) -> None:
-    #    """
-    #    Handles the activation of a subwindow to update the toolbar.
-    #    """
-    #    if window:
-    #        feature_name = window.feature_name()
-    #        self.toolbar.set_active_feature(feature_name)
-    #    else:
-    #        self.toolbar.clear_active_feature()
-
-    def _init_global_settings(self) -> None:
-        """Initialize global settings using the model from global_settings_model()"""
-        settings_model_class = self.global_settings_model()
+    def _init_application_settings(self) -> None:
+        """Initialize application settings using the model from application_settings_model()"""
+        settings_model_class = self.application_settings_model()
         if settings_model_class:
-            self.global_settings = settings_model_class(feature_id='global')
+            self.application_settings = settings_model_class()
             # Register and load saved settings
-            self._settings_manager.register_feature_settings(
-                'global', self.global_settings)
+            self._settings_manager.register_model(
+                'application', self.application_settings)
 
     def _setup_file_menu(self) -> None:
         menu_bar = self.menuBar()
@@ -178,127 +172,53 @@ class BaseApplication(QMainWindow):
         """
         self._service_locator.register_service(service)
 
-    def get_service(self, name: str) -> Optional[BaseService]:
+    def application_settings_model(self) -> Type[ApplicationModel]:
         """
-        Get a service from the service locator.
-
-        Args:
-            name: Service identifier
-
-        Returns:
-            Service instance or None if not found
-        """
-        return self._service_locator.get_service(name)
-
-    def global_settings_model(self) -> Optional[Type[AbstractModel]]:
-        """
-        Return the global settings model class for the application.
-        Override this to provide custom global settings.
-
-        By default, returns the framework's GlobalSettings which includes:
-        - theme: Application theme selection
-        - language: UI language (future)
+        Return the application settings model class for the application.
+        Override this to provide a custom application settings model that
+        inherits from ApplicationModel.
 
         Example:
-            return MyGlobalSettings  # Your custom global settings model
+            return MyAppSettingsModel
         """
-        # Import here to avoid circular dependency
-        from opaque.models.app_settings_model import ApplicationSettings
-        return ApplicationSettings
+        return ApplicationModel
 
     def show_settings_dialog(self) -> None:
         """
         Gathers all features with settings and displays the settings dialog.
         Handles theme application and saving on dialog acceptance.
         """
-        # Collect settings from both legacy windows and MVP presenters
-        windows_with_settings = []
+        # Collect all active presenters' views
+        views_with_settings = [
+            presenter.view for presenter in self._active_presenters.values()
+        ]
 
-        # MVP presenters - collect settings from their models
-        for feature_name, presenter in self._active_presenters.items():
-            if hasattr(presenter, 'model') and presenter.model:
-                # Check if model has annotated settings fields
-                from src.opaque.models.annotations import get_settings_fields
-                settings_fields = get_settings_fields(presenter.model)
-                if settings_fields:
-                    # Create a wrapper for MVP model settings
-                    model_wrapper = QWidget()
-                    model_wrapper.setWindowTitle(feature_name)
-                    setattr(model_wrapper, 'feature_id', feature_name)
-                    setattr(model_wrapper, 'settings', presenter.model)
-                    setattr(model_wrapper, '_is_mvp_model', True)
-                    windows_with_settings.append(model_wrapper)
+        # Add application settings if they exist
+        if hasattr(self, 'application_settings') and self.application_settings:
+            # Create a dummy view for application settings
+            class AppSettingsView(BaseView):
+                def set_model(self, model):
+                    self._model = model
+            app_settings_view = AppSettingsView("application")
+            app_settings_view.set_model(self.application_settings)
+            views_with_settings.insert(0, app_settings_view)
 
-        # Add global settings if they exist
-        dialog_list = []
-        if hasattr(self, 'global_settings') and self.global_settings:
-            # Create a wrapper for global settings to work with the dialog
-            global_wrapper = QWidget()
-            global_wrapper.setWindowTitle(self.tr('Global Settings'))
-            setattr(global_wrapper, 'feature_id', 'global')
-            setattr(global_wrapper, 'settings', self.global_settings)
-            dialog_list.append(global_wrapper)
-
-        # Add feature windows with settings
-        dialog_list.extend(windows_with_settings)
-
-        if not dialog_list:
+        if not views_with_settings:
             return  # No settings to show
 
-        dialog = SettingsDialog(dialog_list, self.theme_manager, self)
+        dialog = SettingsDialog(
+            views_with_settings, self._settings_manager, self.theme_manager, self)
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            # Save global settings
-            if hasattr(self, 'global_settings') and self.global_settings:
-                # Only collect actual field values, not methods or Field descriptors
-                settings_dict = {}
-                for k in dir(self.global_settings):
-                    if not k.startswith('_'):
-                        value = getattr(self.global_settings, k)
-                        # Skip methods and complex objects
-                        if not callable(value) and not hasattr(value, '__dict__'):
-                            settings_dict[k] = value
-                self._settings_manager.update_feature_settings(
-                    'global', settings_dict)
-            # Save feature settings
-            for window in windows_with_settings:
-                if window.settings:
-                    feature_id = getattr(
-                        window, 'feature_id', window.windowTitle())
-                    # Only collect actual field values, not methods or Field descriptors
-                    settings_dict = {}
-                    for k in dir(window.settings):
-                        if not k.startswith('_'):
-                            value = getattr(window.settings, k)
-                            # Skip methods and complex objects
-                            if not callable(value) and not hasattr(value, '__dict__'):
-                                settings_dict[k] = value
-                    self._settings_manager.update_feature_settings(
-                        feature_id, settings_dict)
-            # Apply theme if it exists in global settings
-            if hasattr(self, 'global_settings') and hasattr(self.global_settings, 'theme'):
-                self.theme_manager.apply_theme(self.global_settings.theme)
-                # Update toolbar highlighting to match new theme
+            # Apply theme if it exists in application settings
+            if hasattr(self, 'application_settings') and hasattr(self.application_settings, 'theme'):
+                self.theme_manager.apply_theme(
+                    str(self.application_settings.theme))
                 if hasattr(self, 'toolbar'):
                     self.toolbar.update_theme()
         else:
             # On cancel, revert any changes by reloading from disk
-            self._settings_manager.load_settings()
-            if hasattr(self, 'global_settings') and self.global_settings:
-                settings = self._settings_manager.get_feature_settings(
-                    'global')
-                for key, value in settings.items():
-                    if hasattr(self.global_settings, key):
-                        setattr(self.global_settings, key, value)
-            for window in windows_with_settings:
-                if window.settings:
-                    feature_id = getattr(
-                        window, 'feature_id', window.windowTitle())
-                    settings = self._settings_manager.get_feature_settings(
-                        feature_id)
-                    for key, value in settings.items():
-                        if hasattr(window.settings, key):
-                            setattr(window.settings, key, value)
+            self._settings_manager.load_all_settings()
 
     def save_workspace(self) -> None:
         file_path, _ = QFileDialog.getSaveFileName(
@@ -397,3 +317,21 @@ class BaseApplication(QMainWindow):
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement organization_name()")
+
+
+    def try_acquire_lock(self):
+        # The application name must be known before creating the QApplication
+        # to ensure the single instance check is reliable.
+        instance_manager = SingleInstanceManager(app_name=self.application_name(), port=49153)
+        return instance_manager.try_acquire_lock()
+
+    def show_already_running_message(self):
+        """Show a message box informing the user that another instance is already running."""
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.setWindowTitle("Application Already Running")
+        msg.setText(f"Another instance of {self.application_name()} is already running.")
+        msg.setInformativeText("Please use the existing instance or close it before starting a new one.")
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.setWindowFlags(Qt.WindowType.SplashScreen | Qt.WindowType.WindowStaysOnTopHint)
+        msg.exec()

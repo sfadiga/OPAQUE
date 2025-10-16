@@ -59,33 +59,34 @@ class BaseService(ABC):
 class ServiceLocator:
     """
     Service locator pattern implementation for managing application services.
+    This is a singleton that provides static methods for service management.
     """
+    _services: dict[str, BaseService] = {}
 
-    def __init__(self):
-        """Initialize the service locator"""
-        self._services: dict[str, BaseService] = {}
-
-    def register_service(self, service: BaseService) -> None:
+    @classmethod
+    def register_service(cls, service: BaseService) -> None:
         """
         Register a service with the locator.
 
         Args:
-            name: Service identifier
-            service: Service instance
+            service: Service instance to register
 
         Raises:
-            ValueError: If service with same name already exists
+            ValueError: If a service with the same name already exists
+                        or if the service is not initialized.
         """
-        if service.name in self._services:
+        if service.name in cls._services:
             raise ValueError(f"Service '{service.name}' is already registered")
 
-        # A service must be initialized before registered
         if not service.is_initialized:
-            raise ValueError(f"Service '{service.name}' must be initialized before registered")
+            raise ValueError(
+                f"Service '{service.name}' must be initialized before being registered"
+            )
 
-        self._services[service.name] = service
+        cls._services[service.name] = service
 
-    def get_service(self, name: str) -> Optional[BaseService]:
+    @classmethod
+    def get_service(cls, name: str) -> Optional[BaseService]:
         """
         Get a registered service by name.
 
@@ -95,9 +96,10 @@ class ServiceLocator:
         Returns:
             Service instance or None if not found
         """
-        return self._services.get(name)
+        return cls._services.get(name)
 
-    def remove_service(self, name: str) -> bool:
+    @classmethod
+    def remove_service(cls, name: str) -> bool:
         """
         Remove a service from the locator.
 
@@ -105,19 +107,20 @@ class ServiceLocator:
             name: Service identifier
 
         Returns:
-            True if service was removed, False if not found
+            True if the service was removed, False if not found
         """
-        if name in self._services:
-            service = self._services[name]
+        if name in cls._services:
+            service = cls._services[name]
             service.cleanup()
-            del self._services[name]
+            del cls._services[name]
             return True
         return False
 
-    def cleanup_all(self) -> None:
+    @classmethod
+    def cleanup_all(cls) -> None:
         """
         Clean up all registered services.
         """
-        for service in self._services.values():
+        for service in cls._services.values():
             service.cleanup()
-        self._services.clear()
+        cls._services.clear()

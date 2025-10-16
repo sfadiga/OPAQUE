@@ -2,9 +2,6 @@
 Calculator View - Handles the UI for the calculator
 """
 from typing import List, Optional, Callable, Any
-import os
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton,
@@ -29,21 +26,9 @@ class CalculatorView(BaseView):
     toggle_sign_clicked = Signal()
     clear_history_clicked = Signal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
-        super().__init__(parent)
+    def __init__(self, feature_id: str, parent: Optional[QWidget] = None):
+        super().__init__(feature_id, parent)
         self._setup_ui()
-
-    def feature_id(self) -> str:
-        """Return the feature ID."""
-        return "calculator"
-
-    def feature_name(self) -> str:
-        """Return the feature name."""
-        return "Calculator"
-
-    def feature_icon(self) -> Optional[QIcon]:
-        """Return the feature icon."""
-        return None  # No icon for now
 
     def _setup_ui(self):
         """Setup the calculator UI."""

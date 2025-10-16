@@ -1,10 +1,6 @@
 """
 Data Viewer View - UI components and user interaction
 """
-import os
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
-
 from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QTableWidget,
     QTableWidgetItem, QLabel, QWidget, QFileDialog,
@@ -26,22 +22,15 @@ class DataViewerView(BaseView):
     export_clicked = Signal()
     import_clicked = Signal()
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, feature_id: str, parent: Optional[QWidget] = None):
         """Initialize the view."""
-        super().__init__(parent)
+        super().__init__(feature_id, parent)
         self.init_ui()
 
     def feature_id(self) -> str:
         """Return the feature ID."""
         return "data_viewer"
 
-    def feature_name(self) -> str:
-        """Return the feature name."""
-        return "Data Viewer"
-
-    def feature_icon(self) -> None:
-        """Return the feature icon."""
-        return None  # No icon for now
 
     def init_ui(self):
         """Initialize the UI components."""
@@ -99,7 +88,7 @@ class DataViewerView(BaseView):
         # Set the layout
         container = QWidget()
         container.setLayout(layout)
-        self.set_content(container
+        self.set_content(container)
 
     def update_table(self, data: List[Dict[str, Any]]):
         """Update the table with data."""

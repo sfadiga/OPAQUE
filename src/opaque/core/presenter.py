@@ -22,15 +22,37 @@ class BasePresenter(ABC):
     Presenters handle the interaction between Model and View,
     containing the presentation logic and coordinating updates.
     """
+    model_class: Optional[Type[BaseModel]] = None
+    view_class: Optional[Type[BaseView]] = None
 
-    def __init__(self):
+    def __init__(
+            self,
+            feature_id: str,
+            model: Optional[BaseModel] = None,
+            view: Optional[BaseView] = None
+    ) -> None:
         """
         Initialize the presenter.
         """
 
-        # Extending class must initialize its model and view
-        self._model: BaseModel = None
-        self._view: BaseView = None
+        # unique id for each feature of the project
+        self._feature_id = feature_id
+
+        if model:
+            self._model = model
+        elif self.model_class:
+            self._model = self.model_class(feature_id)
+        else:
+            raise NotImplementedError(
+                "Presenter must have a model or model_class.")
+
+        if view:
+            self._view = view
+        elif self.view_class:
+            self._view = self.view_class(feature_id)
+        else:
+            raise NotImplementedError(
+                "Presenter must have a view or view_class.")
 
         # Attach presenter to model as observer
         self._model.attach(self)

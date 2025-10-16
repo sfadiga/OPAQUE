@@ -21,7 +21,7 @@ FORMS_PATH=$SOURCE_PATH/"forms"
 RESOURCES_PATH="resources"
 RELEASE_PATH="dist"
 TESTS_PATH="tests"
-ENTRYPOINT="examples/mvp_example/main.py"
+ENTRYPOINT="examples/basic_example/main.py"
 
 function _read_version_from_file() 
 {

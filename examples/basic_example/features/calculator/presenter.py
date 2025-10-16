@@ -1,17 +1,11 @@
 """
 Calculator Presenter - Coordinates between Model and View
 """
-from opaque.core.application import BaseApplication
 from opaque.core.presenter import BasePresenter
-from typing import Any
+from opaque.core.services import ServiceLocator
 
 from .model import CalculatorModel
 from .view import CalculatorView
-
-import os
-import sys
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', 'src'))
 
 
 class CalculatorPresenter(BasePresenter):
@@ -19,16 +13,11 @@ class CalculatorPresenter(BasePresenter):
     model_class = CalculatorModel
     view_class = CalculatorView
 
-    def __init__(self, model: CalculatorModel, view: CalculatorView):
+    def __init__(self, feature_id: str, model: CalculatorModel, view: CalculatorView):
         """
         Initialize the calculator presenter.
         """
-
-        # Initialize base presenter
-        super().__init__(model=model, view=view)
-
-        # Log initialization if logging service is available
-        self._log("info", "Calculator initialized")
+        super().__init__(feature_id=feature_id, model=model, view=view)
 
     def bind_events(self):
         """Bind view events to presenter methods (required by BasePresenter)."""
@@ -79,23 +68,21 @@ class CalculatorPresenter(BasePresenter):
         self.model.set_operation(operation)
 
         # Use calculation service if available
-        if self.app:
-            calc_service = self.app.get_service("calculation")
-            if calc_service:
-                # Store in service history
-                calc_service._add_to_history(f"Operation: {operation}")
+        calc_service = ServiceLocator.get_service("calculation")
+        if calc_service:
+            # Store in service history
+            calc_service._add_to_history(f"Operation: {operation}")
 
     def _on_equals_clicked(self):
         """Handle equals button click."""
         self.model.execute_operation()
 
         # Use calculation service if available
-        if self.app:
-            calc_service = self.app.get_service("calculation")
-            if calc_service and self.model.current_value != "Error":
-                # Store result in service
-                calc_service._add_to_history(
-                    f"Result: {self.model.current_value}")
+        calc_service = ServiceLocator.get_service("calculation")
+        if calc_service and self.model.current_value != "Error":
+            # Store result in service
+            calc_service._add_to_history(
+                f"Result: {self.model.current_value}")
 
     def _on_clear_clicked(self):
         """Handle clear button click."""
@@ -120,10 +107,9 @@ class CalculatorPresenter(BasePresenter):
 
     def _log(self, level: str, message: str):
         """Log a message using the logging service if available."""
-        #if self.app:
-        #    logging_service = self.app.get_service("logging")
-        #    if logging_service:
-        #        logging_service.log(level, f"[Calculator] {message}")
+        logging_service = ServiceLocator.get_service("logging")
+        if logging_service:
+            logging_service.log(level, f"[Calculator] {message}")
 
     def on_view_show(self):
         """Show the calculator view."""

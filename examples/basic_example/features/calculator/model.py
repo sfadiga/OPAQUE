@@ -3,12 +3,7 @@ Calculator Model - Handles the calculator state and business logic
 """
 from PySide6.QtGui import QIcon
 
-import os
-import sys
-sys.path.insert(0, os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', 'src'))
-
-from opaque.models.annotations import settings_field, workspace_field
+from opaque.models.annotations import Field
 from opaque.core.model import BaseModel
 
 
@@ -16,7 +11,7 @@ class CalculatorModel(BaseModel):
     """Model for the calculator feature using annotations for persistence."""
 
     # --- Feature Interface ---
-    FEATURE_NAME = "calculator"
+    FEATURE_NAME = "Calculator"
     FEATURE_TITLE = "Calculator"
     FEATURE_ICON = "document-properties"
     FEATURE_DESCRIPTION = "A Simple Calculator"
@@ -24,40 +19,61 @@ class CalculatorModel(BaseModel):
     # ----------------------------------
 
     # Settings - persisted to user settings
-    decimal_places = settings_field(
-        default_value=2,
-        description="Number of decimal places to display"
+    decimal_places = Field(
+        default=2,
+        description="Number of decimal places to display",
+        settings=True,
+        min_value=0,
+        max_value=10,
+        ui_type="spinbox"
     )
 
-    scientific_notation = settings_field(
-        default_value=False,
-        description="Use scientific notation for large numbers"
+    scientific_notation = Field(
+        default=False,
+        description="Use scientific notation for large numbers",
+        settings=True,
+        binding=True,
+        ui_type="checkbox"
     )
 
-    theme_color = settings_field(
-        default_value="#4CAF50",
-        description="Calculator theme color"
+    # theme can be altered in settings and also saved in the workspace
+    theme_color = Field(
+        default="#4CAF50",
+        description="Calculator theme color",
+        settings=True,
+        workspace=True,
+        binding=True,
+        ui_type="color_picker"
     )
 
     # Workspace state - persisted to workspace file
-    current_value = workspace_field(
-        default_value="0",
-        description="Current display value"
+    current_value = Field(
+        default="0",
+        description="Current display value",
+        workspace=True,
+        binding=True
     )
 
-    last_operation = workspace_field(
-        default_value="",
-        description="Last operation performed"
+    last_operation = Field(
+        default="",
+        description="Last operation performed",
+        workspace=True,
+        binding=True
     )
 
-    history = workspace_field(
-        default_value=[],
-        description="Calculation history"
+    history = Field(
+        default=[],
+        description="Calculation history",
+        workspace=True,
+        binding=True
     )
 
-    def __init__(self):
-        super().__init__()
-        self.current_value = 0
+    def __init__(self, feature_id: str):
+        super().__init__(feature_id)
+        self.clear_on_next = False
+        self.pending_operation = None
+        self.pending_value = None
+        self.current_value = "0"
         self.last_operation = ""
 
     # --- Model Interface --------------------------------
@@ -80,8 +96,6 @@ class CalculatorModel(BaseModel):
 
     # ----------------------------------------------------
 
-
-
     def initialize(self):
         """Initialize the model (required by BaseModel)."""
         self._reset_state()
@@ -100,7 +114,6 @@ class CalculatorModel(BaseModel):
         """Clear only the current entry."""
         self.current_value = "0"
         self.clear_on_next = False
-        self.notify("current_value", self.current_value)
 
     def append_digit(self, digit: str):
         """Append a digit to the current value."""
@@ -116,7 +129,6 @@ class CalculatorModel(BaseModel):
         else:
             self.current_value += digit
 
-        self.notify("current_value", self.current_value)
 
     def set_operation(self, operation: str):
         """Set the pending operation."""
@@ -129,7 +141,6 @@ class CalculatorModel(BaseModel):
         self.clear_on_next = True
         self.last_operation = operation
 
-        self.notify("operation", operation)
 
     def execute_operation(self):
         """Execute the pending operation."""
@@ -157,13 +168,10 @@ class CalculatorModel(BaseModel):
             self.pending_value = None
             self.clear_on_next = True
 
-            self.notify("current_value", self.current_value)
-            self.notify("history", self.history)
 
         except Exception as e:
             self.current_value = "Error"
             self.clear_on_next = True
-            self.notify("error", str(e))
 
     def _calculate(self, a: float, b: float, operation: str) -> float:
         """Perform the actual calculation."""
@@ -201,7 +209,6 @@ class CalculatorModel(BaseModel):
         else:
             self.current_value = "0"
 
-        self.notify("current_value", self.current_value)
 
     def get_history(self) -> list:
         """Get calculation history."""
@@ -210,4 +217,3 @@ class CalculatorModel(BaseModel):
     def clear_history(self):
         """Clear calculation history."""
         self.history = []
-        self.notify("history", self.history)

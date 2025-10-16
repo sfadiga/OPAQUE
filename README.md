@@ -36,89 +36,48 @@ cd opaque-framework
 pip install -e .
 ```
 
-### Basic Usage
-
-```python
-from opaque import BaseApplication, BaseFeatureWindow
-from PySide6.QtWidgets import QApplication
-import sys
-
-class MyFeatureWindow(BaseFeatureWindow):
-    def feature_name(self) -> str:
-        return "My Feature"
-    
-    def feature_icon(self):
-        return QIcon.fromTheme("document-open")
-    
-    def feature_tooltip(self) -> str:
-        return "My custom feature window"
-    
-    def feature_visibility(self) -> bool:
-        return True
-    
-    def feature_settings_model(self):
-        return None  # Or return your settings model class
-    
-    def feature_state_model(self):
-        return None  # Or return your state model class
-    
-    def __init__(self, feature_id: str, **kwargs):
-        super().__init__(feature_id, **kwargs)
-        # Add your UI components here
-
-class MyApplication(BaseApplication):
-    def application_name(self) -> str:
-        return "MyApp"
-    
-    def organization_name(self) -> str:
-        return "MyCompany"
-    
-    def application_title(self) -> str:
-        return "My OPAQUE Application"
-    
-    def register_features(self):
-        feature = MyFeatureWindow(feature_id="my_feature_1")
-        self.register_window(feature)
-
-if __name__ == "__main__":
-    # The framework automatically handles QApplication setup
-    app = QApplication(sys.argv)
-    main_win = MyApplication()
-    main_win.show()
-    sys.exit(app.exec())
-```
-
 ## Project Structure
 
 ```
-opaque_framework/
+OPAQUE/
 ├── src/
-│   └── opaque/              # Framework package
-│       ├── ui/              # UI components
-│       │   ├── core/        # Core windows and widgets
-│       │   ├── dialogs/     # Dialog implementations
-│       │   └── layouts/     # Custom layouts
-│       ├── models/          # Data models
-│       │   └── base/        # Base model and field descriptors
-│       ├── persistence/     # Persistence layer
-│       │   └── managers/    # Settings and workspace managers
-│       ├── managers/        # Application managers
-│       └── settings/        # Settings implementations
+│   └── opaque/
+│       ├── core/
+│       │   ├── application.py
+│       │   ├── model.py
+│       │   ├── view.py
+│       │   └── presenter.py
+│       ├── managers/
+│       │   ├── settings_manager.py
+│       │   ├── theme_manager.py
+│       │   └── workspace_manager.py
+│       ├── models/
+│       │   ├── field_descriptors.py
+│       │   └── ...
+│       └── widgets/
+│           ├── dialogs/
+│           │   └── settings.py
+│           └── mdi_window.py
 ├── examples/
-│   └── basic_example/       # Example application
-├── pyproject.toml           # Package configuration
-├── MANIFEST.in              # Package manifest
-└── LICENSE                  # MIT License
+│   └── basic_example/
+├── resources/
+├── pyproject.toml
+└── LICENSE
 ```
 
 ## Key Concepts
 
-### Feature Windows
-Feature windows are the building blocks of your application. Each window:
-- Extends `BaseFeatureWindow`
-- Implements required methods for integration
-- Can have associated settings and state models
-- Automatically integrates with the toolbar and MDI area
+### The MVP Architecture
+OPAQUE is built on the Model-View-Presenter (MVP) pattern, which separates application logic from the user interface. This promotes a clean, maintainable, and testable codebase.
+
+- **Model (`BaseModel`)**: Represents the application's data and business logic. It is completely independent of the UI and notifies the Presenter of any changes to its state.
+
+- **View (`BaseView`)**: The user interface component. It is responsible for displaying data from the Model and routing user input to the Presenter. The View is passive and does not contain any application logic.
+
+- **Presenter (`BasePresenter`)**: Acts as the bridge between the Model and the View. It retrieves data from the Model, formats it for display, and updates the View. It also handles user input from the View and updates the Model accordingly.
+
+### Features
+In OPAQUE, a "feature" is a self-contained unit of functionality implemented using the MVP pattern. Each feature consists of a Model, a View, and a Presenter. Features are registered with the main application and automatically integrated into the UI, appearing as buttons in the main toolbar.
 
 ### Global Settings
 OPAQUE provides a clean global settings system for application-wide configuration:
@@ -187,195 +146,129 @@ Save and restore complete workspace states including:
 
 ## Step-by-Step Guide: Creating a Feature
 
-This guide walks you through creating a complete feature for your OPAQUE application. We'll build a "Text Editor" feature with settings persistence and state management.
+This guide walks you through creating a "Calculator" feature using the MVP pattern.
 
 ### Step 1: Create the Feature Directory Structure
 
 ```
 my_app/
 ├── features/
-│   └── text_editor/
+│   └── calculator/
 │       ├── __init__.py
-│       ├── window.py       # Feature window implementation
-│       ├── settings.py     # Settings model (optional)
-│       └── state.py        # State model (optional)
+│       ├── model.py
+│       ├── view.py
+│       └── presenter.py
 └── main.py
 ```
 
-### Step 2: Define the Settings Model (optional)
+### Step 2: Define the Model
 
-Create `features/text_editor/settings.py`:
+Create `features/calculator/model.py`:
 
 ```python
-from opaque import BaseModel, BoolField, IntField, StringField
+from PySide6.QtGui import QIcon
+from opaque.core.model import BaseModel
+from opaque.models.annotations import Field
 
-class TextEditorSettings(BaseModel):
-    """Settings for the Text Editor feature"""
-    
-    # Define your settings fields
-    word_wrap = BoolField(default=True, label="Word Wrap")
-    font_size = IntField(default=12, min_value=8, max_value=72, label="Font Size")
-    font_family = StringField(default="Consolas", label="Font Family")
-    auto_save = BoolField(default=False, label="Auto Save")
-    
-    def apply_to_ui(self, window):
-        """Apply settings to the UI when loaded"""
-        if hasattr(window, 'text_edit'):
-            window.text_edit.setWordWrapMode(
-                Qt.TextWrapMode.WrapAtWordBoundaryOrAnywhere if self.word_wrap 
-                else Qt.TextWrapMode.NoWrap
-            )
-            font = window.text_edit.font()
-            font.setPointSize(self.font_size)
-            font.setFamily(self.font_family)
-            window.text_edit.setFont(font)
-    
-    def extract_from_ui(self, window):
-        """Extract current UI state to settings before saving"""
-        if hasattr(window, 'text_edit'):
-            self.word_wrap = window.text_edit.wordWrapMode() != Qt.TextWrapMode.NoWrap
-            font = window.text_edit.font()
-            self.font_size = font.pointSize()
-            self.font_family = font.family()
+class CalculatorModel(BaseModel):
+    num1: float = Field(default=0.0)
+    num2: float = Field(default=0.0)
+    result: float = Field(default=0.0)
+
+    def feature_name(self) -> str:
+        return "Calculator"
+
+    def feature_icon(self) -> QIcon:
+        return QIcon.fromTheme("accessories-calculator")
+
+    def feature_description(self) -> str:
+        return "A simple calculator feature."
+
+    def feature_modal(self) -> bool:
+        return False
+
+    def add(self):
+        self.result = self.num1 + self.num2
+
+    def subtract(self):
+        self.result = self.num1 - self.num2
 ```
 
-### Step 3: Define the State Model (optional)
+### Step 3: Create the View
 
-Create `features/text_editor/state.py`:
-
-```python
-from opaque import BaseModel, StringField, IntField
-
-class TextEditorState(BaseModel):
-    """State for the Text Editor feature"""
-    
-    # Define state fields
-    content = StringField(default="", label="Content")
-    cursor_position = IntField(default=0, label="Cursor Position")
-    file_path = StringField(default="", label="File Path")
-    
-    def capture_state(self, window):
-        """Capture current state from the window"""
-        if hasattr(window, 'text_edit'):
-            self.content = window.text_edit.toPlainText()
-            self.cursor_position = window.text_edit.textCursor().position()
-            self.file_path = getattr(window, 'current_file', "")
-    
-    def restore_state(self, window):
-        """Restore state to the window"""
-        if hasattr(window, 'text_edit'):
-            window.text_edit.setPlainText(self.content)
-            cursor = window.text_edit.textCursor()
-            cursor.setPosition(min(self.cursor_position, len(self.content)))
-            window.text_edit.setTextCursor(cursor)
-            window.current_file = self.file_path
-```
-
-### Step 4: Create the Feature Window
-
-Create `features/text_editor/window.py`:
+Create `features/calculator/view.py`:
 
 ```python
-from typing import Optional, Type
-from PySide6.QtWidgets import QTextEdit, QVBoxLayout, QWidget, QToolBar, QFileDialog
-from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt
-from opaque import BaseFeatureWindow, BaseModel
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel
+from opaque.core.view import BaseView
 
-from .settings import TextEditorSettings
-from .state import TextEditorState
-
-class TextEditorWindow(BaseFeatureWindow):
-    """A text editor feature window"""
-    
-    # Feature metadata
-    FEATURE_NAME = "Text Editor"
-    FEATURE_ICON = "accessories-text-editor"  # Standard icon name
-    FEATURE_TOOLTIP = "Edit text files"
-    DEFAULT_VISIBILITY = True
-    
-    def __init__(self, feature_id: str, **kwargs):
-        super().__init__(feature_id, **kwargs)
-        self.setWindowTitle(self.tr("Text Editor"))
-        self.current_file = ""
-        
-        # Create the UI
+class CalculatorView(BaseView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Calculator")
         self._setup_ui()
-        
-        # Load settings if they exist
-        if self.settings:
-            self._load_settings()
-    
+
     def _setup_ui(self):
-        """Set up the user interface"""
-        # Create main widget and layout
         main_widget = QWidget()
         layout = QVBoxLayout(main_widget)
-        
-        # Create toolbar
-        toolbar = QToolBar()
-        
-        # Add actions
-        open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
-        open_action.triggered.connect(self._open_file)
-        toolbar.addAction(open_action)
-        
-        save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
-        save_action.triggered.connect(self._save_file)
-        toolbar.addAction(save_action)
-        
-        layout.addWidget(toolbar)
-        
-        # Create text editor
-        self.text_edit = QTextEdit()
-        layout.addWidget(self.text_edit)
-        
-        # Set the widget
-        self.setWidget(main_widget)
-    
-    def _open_file(self):
-        """Open a file dialog and load selected file"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Open File", "", "Text Files (*.txt);;All Files (*.*)"
-        )
-        if file_path:
-            with open(file_path, 'r') as f:
-                self.text_edit.setPlainText(f.read())
-            self.current_file = file_path
-            self.setWindowTitle(f"Text Editor - {file_path}")
-    
-    def _save_file(self):
-        """Save the current file"""
-        if not self.current_file:
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, "Save File", "", "Text Files (*.txt);;All Files (*.*)"
-            )
-            if file_path:
-                self.current_file = file_path
-        
-        if self.current_file:
-            with open(self.current_file, 'w') as f:
-                f.write(self.text_edit.toPlainText())
-            self.setWindowTitle(f"Text Editor - {self.current_file}")
-    
-    # Required method implementations
-    def feature_name(self) -> str:
-        return self.FEATURE_NAME
-    
-    def feature_icon(self) -> QIcon:
-        return QIcon.fromTheme(self.FEATURE_ICON)
-    
-    def feature_tooltip(self) -> str:
-        return self.FEATURE_TOOLTIP
-    
-    def feature_visibility(self) -> bool:
-        return self.DEFAULT_VISIBILITY
-    
-    def feature_settings_model(self) -> Optional[Type[BaseModel]]:
-        return TextEditorSettings
-    
-    def feature_state_model(self) -> Optional[Type[BaseModel]]:
-        return TextEditorState
+
+        self.num1_input = QLineEdit()
+        self.num2_input = QLineEdit()
+        self.add_button = QPushButton("Add")
+        self.subtract_button = QPushButton("Subtract")
+        self.result_label = QLabel("Result: 0.0")
+
+        layout.addWidget(QLabel("Number 1:"))
+        layout.addWidget(self.num1_input)
+        layout.addWidget(QLabel("Number 2:"))
+        layout.addWidget(self.num2_input)
+        layout.addWidget(self.add_button)
+        layout.addWidget(self.subtract_button)
+        layout.addWidget(self.result_label)
+
+        self.set_content(main_widget)
+```
+
+### Step 4: Create the Presenter
+
+Create `features/calculator/presenter.py`:
+
+```python
+from opaque.core.presenter import BasePresenter
+from .model import CalculatorModel
+from .view import CalculatorView
+
+class CalculatorPresenter(BasePresenter):
+    def __init__(self, model: CalculatorModel, view: CalculatorView):
+        super().__init__(model, view)
+
+    def bind_events(self):
+        self.view.add_button.clicked.connect(self.on_add)
+        self.view.subtract_button.clicked.connect(self.on_subtract)
+        self.view.num1_input.textChanged.connect(self.on_num1_changed)
+        self.view.num2_input.textChanged.connect(self.on_num2_changed)
+
+    def on_add(self):
+        self.model.add()
+
+    def on_subtract(self):
+        self.model.subtract()
+
+    def on_num1_changed(self, text: str):
+        try:
+            self.model.num1 = float(text)
+        except ValueError:
+            self.model.num1 = 0.0
+
+    def on_num2_changed(self, text: str):
+        try:
+            self.model.num2 = float(text)
+        except ValueError:
+            self.model.num2 = 0.0
+
+    def update(self, property_name: str, value: any):
+        if property_name == "result":
+            self.view.result_label.setText(f"Result: {value}")
 ```
 
 ### Step 5: Register the Feature in Your Application
@@ -383,41 +276,40 @@ class TextEditorWindow(BaseFeatureWindow):
 Create `main.py`:
 
 ```python
-from PySide6.QtWidgets import QApplication
-from opaque import BaseApplication
 import sys
-
-from features.text_editor.window import TextEditorWindow
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
+from opaque.core.application import BaseApplication
+from features.calculator.model import CalculatorModel
+from features.calculator.view import CalculatorView
+from features.calculator.presenter import CalculatorPresenter
 
 class MyApplication(BaseApplication):
-    """Main application class"""
-    
     def application_name(self) -> str:
-        """Return the application name for settings persistence."""
-        return "MyTextEditorApp"
-    
+        return "MyCalculatorApp"
+
     def organization_name(self) -> str:
-        """Return the organization name for settings persistence."""
         return "MyCompany"
-    
+
     def application_title(self) -> str:
-        """Return the main window title."""
-        return "My Text Editor App"
-    
+        return "My Calculator App"
+
+    def application_description(self) -> str:
+        return "A simple calculator app."
+
+    def application_icon(self) -> QIcon:
+        return QIcon.fromTheme("accessories-calculator")
+
     def register_features(self):
-        """Register all features for this application."""
-        # Create and register the text editor feature
-        text_editor = TextEditorWindow(feature_id="text_editor_1")
-        self.register_window(text_editor)
-        
-        # Add more features as needed
-        # another_feature = AnotherFeatureWindow(feature_id="feature_2")
-        # self.register_window(another_feature)
+        calc_model = CalculatorModel()
+        calc_view = CalculatorView()
+        calc_presenter = CalculatorPresenter(model=calc_model, view=calc_view)
+        self.register_feature(calc_presenter)
 
 if __name__ == "__main__":
-    # The framework automatically handles QApplication setup
     app = QApplication(sys.argv)
     main_window = MyApplication()
+    main_window.register_features()
     main_window.show()
     sys.exit(app.exec())
 ```
@@ -432,13 +324,11 @@ python main.py
 
 When you follow this guide, OPAQUE automatically provides:
 
-✅ **Toolbar Integration** - Your feature appears as a button in the main toolbar  
-✅ **MDI Management** - Your window can be minimized, maximized, and arranged  
-✅ **Settings Dialog** - Your settings appear in the application settings dialog  
-✅ **Settings Persistence** - Settings are saved/loaded automatically  
-✅ **Workspace Support** - Save/load complete workspace states  
-✅ **Theme Support** - Your feature inherits the application theme  
-✅ **Window State** - Window positions and sizes are remembered  
+✅ **Toolbar Integration**: Your feature appears as a button in the main toolbar.
+✅ **MDI Management**: Your feature's window can be docked, tabbed, and floated.
+✅ **Settings Persistence**: If your model includes fields for settings, they are automatically saved and loaded.
+✅ **Workspace Management**: The state of your feature can be saved and restored as part of a workspace.
+✅ **Theme Support**: Your feature's UI automatically adapts to the selected theme.
 
 ## Advanced Features
 
@@ -447,9 +337,9 @@ When you follow this guide, OPAQUE automatically provides:
 Create custom field descriptors for specialized data:
 
 ```python
-from opaque.models.base.field_descriptors import FieldDescriptor
+from opaque.models.field_descriptors import Field
 
-class ColorField(FieldDescriptor):
+class ColorField(Field):
     """Custom field for color values"""
     
     def __init__(self, default="#000000", **kwargs):
@@ -463,45 +353,47 @@ class ColorField(FieldDescriptor):
 
 ### Multiple Feature Instances
 
-Register multiple instances of the same feature:
+Register multiple instances of the same feature by creating separate MVP triads:
 
 ```python
-def init_features(self):
-    # Create multiple text editors
+def register_features(self):
     for i in range(3):
-        editor = TextEditorWindow(feature_id=f"text_editor_{i}")
-        self.register_window(editor)
+        model = CalculatorModel()
+        model.num1 = i * 10
+        view = CalculatorView()
+        presenter = CalculatorPresenter(model=model, view=view)
+        self.register_feature(presenter)
 ```
 
 ### Dynamic Feature Loading
 
-Load features based on configuration or plugins:
+Load features based on a configuration file or other dynamic sources:
 
 ```python
-def init_features(self):
-    # Load features from a configuration file
+def register_features(self):
     import json
     with open("features.json") as f:
         feature_config = json.load(f)
     
-    for feature in feature_config["enabled_features"]:
-        if feature == "text_editor":
-            self.register_window(TextEditorWindow(feature_id="text_editor"))
-        elif feature == "data_viewer":
-            self.register_window(DataViewerWindow(feature_id="data_viewer"))
+    for feature_name in feature_config["enabled_features"]:
+        if feature_name == "calculator":
+            model = CalculatorModel()
+            view = CalculatorView()
+            presenter = CalculatorPresenter(model=model, view=view)
+            self.register_feature(presenter)
+        # Add other features here
 ```
 
 ## Tips and Best Practices
 
-1. **Feature IDs** - Use unique, descriptive IDs for each feature instance
-2. **Settings Models** - Keep settings focused on user preferences, not runtime state
-3. **State Models** - Use for data that should persist across sessions
-4. **Field Descriptions** - Always provide descriptive labels for settings fields (enables search)
-5. **UI Updates** - Always check for attribute existence in `apply_to_ui` and `extract_from_ui`
-6. **Translations** - Use `self.tr()` for all user-visible strings
-7. **Icons** - Use theme icons for better integration across different themes
-8. **Error Handling** - Add try-except blocks in file operations and state restoration
-9. **PySide6 Only** - Framework is designed specifically for PySide6, not PyQt
+1.  **Separation of Concerns**: Keep logic in the Presenter, data in the Model, and UI code in the View.
+2.  **Model Independence**: The Model should not have any knowledge of the View or Presenter.
+3.  **View Passivity**: The View should be as "dumb" as possible, only displaying data and emitting signals on user interaction.
+4.  **Field Annotations**: Use the `@Field` annotation in your models to define properties that should be automatically handled by the settings and persistence layers.
+5.  **Translations**: Use `self.tr()` for all user-visible strings to support internationalization.
+6.  **Icons**: Use theme icons (e.g., `QIcon.fromTheme("document-open")`) for better integration across different themes.
+7.  **Error Handling**: Implement robust error handling in your Presenter and Model to ensure a stable application.
+8.  **PySide6 Only**: The framework is designed specifically for PySide6 and is not compatible with PyQt.
 
 ## Examples
 

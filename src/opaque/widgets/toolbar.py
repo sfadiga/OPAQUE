@@ -109,7 +109,7 @@ class OpaqueMainToolbar(QToolBar):
         feature.view.windowFocused.connect(lambda: self._set_active(button))
 
         # 4. Window is unfocused -> Highlight button
-        #feature_window.windowUnfocused.connect(lambda: self._set_inactive(button))
+        # feature_window.windowUnfocused.connect(lambda: self._set_inactive(button))
 
         # 5. Window is closed -> Un-highlight button
         feature.view.windowClosed.connect(lambda: self._set_inactive(button))

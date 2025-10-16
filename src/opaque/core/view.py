@@ -9,13 +9,14 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from PySide6.QtGui import QIcon, QCloseEvent
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
 from opaque.widgets.mdi_window import OpaqueMdiSubWindow
+from opaque.models.model import AbstractModel
 
 
 class BaseView(OpaqueMdiSubWindow):
@@ -28,8 +29,14 @@ class BaseView(OpaqueMdiSubWindow):
     view_shown = Signal()
     view_closed = Signal()
 
-    def __init__(self, parent=None, **kwargs: Any) -> None:
-        super().__init__(parent, **kwargs)
+    def __init__(self, feature_id: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent=parent)
+        self._content_widget = None
+        self._feature_id: str = feature_id
+
+    @property
+    def feature_id(self):
+        return self._feature_id
 
     def set_content(self, widget: QWidget):
         """Set the central content widget for the view."""

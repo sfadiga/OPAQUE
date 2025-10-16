@@ -29,19 +29,33 @@ class Field:
     # @param scope Scope of the field ('global' or 'workspace')
     # @throws ValueError If scope is not 'global' or 'workspace'
     def __init__(self,
-                 default: Any = None,
+                 default_value: Any = None,
                  required: bool = False,
                  validator: Optional[Callable[[Any], bool]] = None,
                  description: str = "",
-                 scope: str = 'global') -> None:
+                 scope: str = 'global',
+                 is_setting: bool = False,
+                 is_workspace: bool = False,
+                 is_binding: bool = False,
+                 ui_type: Optional[str] = None,
+                 min_value: Optional[Any] = None,
+                 max_value: Optional[Any] = None,
+                 choices: Optional[List[Any]] = None) -> None:
         if scope not in ('global', 'workspace'):
             raise ValueError("Scope must be either 'global' or 'workspace'")
-        self.default: Any = default
+        self.default: Any = default_value
         self.required: bool = required
         self.validator: Optional[Callable[[Any], bool]] = validator
         self.description: str = description
         self.scope: str = scope
         self.name: Optional[str] = None
+        self.is_setting: bool = is_setting
+        self.is_workspace: bool = is_workspace
+        self.is_binding: bool = is_binding
+        self.ui_type: Optional[str] = ui_type
+        self.min_value: Optional[Any] = min_value
+        self.max_value: Optional[Any] = max_value
+        self.choices: Optional[List[Any]] = choices
 
     # @brief Set the name of the field when attached to a class.
     # @param owner The class that owns this descriptor
@@ -143,7 +157,7 @@ class DictField(Field):
     # @brief Initialize a dictionary field.
     # @param kwargs Additional arguments passed to Field constructor
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(default={}, **kwargs)
+        super().__init__(default_value={}, **kwargs)
 
 # @brief Boolean field.
 #
@@ -189,5 +203,4 @@ class ChoiceField(Field):
     # @param choices Optional list of valid choices
     # @param kwargs Additional arguments passed to Field constructor
     def __init__(self, choices: Optional[List[Any]] = None, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.choices: List[Any] = choices if choices is not None else []
+        super().__init__(choices=choices, **kwargs)

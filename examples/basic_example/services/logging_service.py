@@ -1,10 +1,6 @@
 """
 Example Logging Service
 """
-import os
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
-
 from opaque.core.services import BaseService
 from datetime import datetime
 
@@ -63,3 +59,7 @@ class LoggingService(BaseService):
         info = super().get_info()
         info['log_count'] = len(self._logs)
         return info
+
+    def cleanup(self):
+        """Clean up the service."""
+        pass

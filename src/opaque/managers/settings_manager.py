@@ -15,8 +15,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from PySide6.QtCore import QObject, Signal
 
-from ..models.field_descriptors import Field
-
 
 class SettingsManager(QObject):
     """Manages application settings persistence."""
@@ -43,9 +41,9 @@ class SettingsManager(QObject):
         self._feature_models: Dict[str, Any] = {}
         self.load_settings()
 
-    def register_feature_model(self, feature_id: str, model: Any) -> None:
+    def register_model(self, feature_id: str, model: Any) -> None:
         """
-        Register a feature model for annotation-based settings collection.
+        Register a model for settings management.
 
         Args:
             feature_id: Unique identifier for the feature
@@ -53,22 +51,16 @@ class SettingsManager(QObject):
         """
         self._feature_models[feature_id] = model
 
-        # Collect annotated settings fields
-        settings_data = self._collect_annotated_settings(model)
-
-        # Merge with existing settings
-        if feature_id not in self._settings:
-            self._settings[feature_id] = {}
-
         # Initialize model with saved settings
-        for field_name, field_value in settings_data.items():
-            if field_name in self._settings[feature_id]:
-                # Use saved value
-                setattr(model, field_name,
-                        self._settings[feature_id][field_name])
-            else:
-                # Use default value from annotation
-                self._settings[feature_id][field_name] = field_value
+        if feature_id in self._settings:
+            fields = model.get_fields()
+            for key, value in self._settings[feature_id].items():
+                if key in fields and fields[key].is_setting:
+                    # Check if the property is settable
+                    if hasattr(model.__class__, key) and isinstance(getattr(model.__class__, key), property):
+                        if getattr(model.__class__, key).fset is None:
+                            continue  # Skip read-only properties
+                    setattr(model, key, value)
 
     def _collect_annotated_settings(self, model: Any) -> Dict[str, Any]:
         """
@@ -81,50 +73,21 @@ class SettingsManager(QObject):
             Dictionary of field names and their current values
         """
         settings_data = {}
-
-        # Check class attributes for settings_field annotations
-        for name in dir(model.__class__):
-            if not name.startswith('_'):
-                try:
-                    attr = getattr(model.__class__, name)
-                    if hasattr(attr, '_is_settings_field') and attr._is_settings_field:
-                        # Get current value from instance
-                        if hasattr(model, name):
-                            settings_data[name] = getattr(model, name)
-                        else:
-                            # Use default from annotation
-                            settings_data[name] = attr.default
-                except AttributeError:
-                    continue
-
+        fields = model.get_fields()
+        for name, field in fields.items():
+            if field.is_setting:
+                settings_data[name] = getattr(model, name)
         return settings_data
 
     def register_feature_settings(self, feature_id: str, settings_model: Any) -> None:
         """
-        Register feature settings using legacy BaseModel approach.
+        Register feature settings.
 
         Args:
             feature_id: Unique identifier for the feature
-            settings_model: Settings model instance (legacy approach)
+            settings_model: Settings model instance
         """
-        # Extract default settings from model
-        settings_data = {}
-
-        # Legacy approach: iterate through class attributes
-        for name in dir(settings_model.__class__):
-            if not name.startswith('_'):
-                attr = getattr(settings_model.__class__, name)
-                if isinstance(attr, Field):
-                    settings_data[name] = attr.default
-
-        # Update with saved settings if they exist
-        if feature_id in self._settings:
-            for key, value in self._settings[feature_id].items():
-                if key in settings_data:
-                    setattr(settings_model, key, value)
-                    settings_data[key] = value
-
-        self._settings[feature_id] = settings_data
+        self.register_model(feature_id, settings_model)
 
     def get_feature_settings(self, feature_id: str) -> Dict[str, Any]:
         """
@@ -177,14 +140,37 @@ class SettingsManager(QObject):
                 print(f"Error loading settings: {e}")
                 self._settings = {}
 
+    def save_feature_settings(self, feature_id: str, model: Any) -> None:
+        """
+        Save settings for a specific feature model.
+
+        Args:
+            feature_id: Unique identifier for the feature
+            model: Model instance with annotated fields
+        """
+        settings_data = self._collect_annotated_settings(model)
+
+        if feature_id not in self._settings:
+            self._settings[feature_id] = {}
+        self._settings[feature_id].update(settings_data)
+        self.save_settings()
+
+    def load_all_settings(self) -> None:
+        """Load all settings from file and update models."""
+        self.load_settings()
+        for feature_id, model in self._feature_models.items():
+            if feature_id in self._settings:
+                for key, value in self._settings[feature_id].items():
+                    if hasattr(model, key):
+                        # Check if the property is settable
+                        if hasattr(model.__class__, key) and isinstance(getattr(model.__class__, key), property):
+                            if getattr(model.__class__, key).fset is None:
+                                continue  # Skip read-only properties
+                        setattr(model, key, value)
+
     def save_settings(self) -> None:
         """Save settings to file."""
         try:
-            # Collect current values from registered models
-            for feature_id, model in self._feature_models.items():
-                settings_data = self._collect_annotated_settings(model)
-                self._settings[feature_id] = settings_data
-
             with open(self.settings_file, 'w') as f:
                 json.dump(self._settings, f, indent=2)
         except IOError as e:

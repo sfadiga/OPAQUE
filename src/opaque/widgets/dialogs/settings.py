@@ -21,19 +21,23 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
 from opaque.core.view import BaseView
+from opaque.managers.settings_manager import SettingsManager
 from opaque.managers.theme_manager import ThemeManager
+from opaque.widgets.color_picker import ColorPicker
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, windows_with_settings: List[BaseView], theme_manager: ThemeManager, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, windows_with_settings: List[BaseView], settings_manager: SettingsManager, theme_manager: ThemeManager, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(self.tr("Settings"))
         self.setMinimumSize(800, 600)
         self.windows: Dict[str, BaseView] = {
             w.feature_id: w for w in windows_with_settings}
+        self.settings_manager = settings_manager
         self.theme_manager: ThemeManager = theme_manager
         # To hold a reference to the combo box
         self.theme_combo_box: Optional[QComboBox] = None
+        self.language_combo_box: Optional[QComboBox] = None
 
         # Cache for settings field labels for searching
         self._settings_cache: Dict[str, List[str]] = {}
@@ -68,12 +72,15 @@ class SettingsDialog(QDialog):
         self.scroll_area.setWidget(self.settings_widget_container)
         splitter.addWidget(self.scroll_area)
 
-        # Dialog buttons (OK, Cancel)
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
+        # Dialog buttons (OK, Cancel, Apply)
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel | QDialogButtonBox.Apply
+        )
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+        self.button_box.button(QDialogButtonBox.Apply).clicked.connect(
+            self._apply_settings)
+        layout.addWidget(self.button_box)
 
         # Set initial splitter sizes
         splitter.setSizes([150, 450])
@@ -82,23 +89,59 @@ class SettingsDialog(QDialog):
         if self.groups_list.count() > 0:
             self.groups_list.setCurrentRow(0)
 
+    def accept(self) -> None:
+        """Apply settings and accept the dialog."""
+        self._apply_settings(show_success_message=False)
+        super().accept()
+
+    def _apply_settings(self, show_success_message: bool = True) -> None:
+        """Saves all current settings."""
+        for feature_id, window in self.windows.items():
+            if hasattr(window, 'model') and window.model:
+                self.settings_manager.save_feature_settings(
+                    feature_id, window.model
+                )
+
+        # Special handling for application theme
+        app_settings_window = self.windows.get('application')
+        if app_settings_window and hasattr(app_settings_window.model, 'theme'):
+            self.theme_manager.apply_theme(
+                str(app_settings_window.model.theme))
+
+        if show_success_message:
+            # Inform user of success
+            msg_box = QMessageBox(self)
+            msg_box.setText(self.tr("Settings applied successfully."))
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.exec()
+
     def _build_settings_cache(self) -> None:
         """Build a cache of all settings field labels for searching."""
         for feature_id, window in self.windows.items():
-            if window.settings:
-                fields = window.settings.get_fields()
+            if hasattr(window, 'model') and window.model:
+                target_model = window.model
+                fields = target_model.get_fields()
                 labels = []
                 for name, field in fields.items():
-                    label = field.description or name
-                    labels.append(label.lower())
-                self._settings_cache[feature_id] = labels
+                    if field.is_setting:
+                        label = field.description or name
+                        labels.append(label.lower())
+                if labels:
+                    self._settings_cache[feature_id] = labels
 
     def _populate_groups_list(self) -> None:
         """Populates the list using window titles for display."""
         for feature_id, window in self.windows.items():
-            item = QListWidgetItem(window.windowTitle())
-            item.setData(Qt.UserRole, feature_id)  # Store the unique ID
-            self.groups_list.addItem(item)
+            if feature_id in self._settings_cache:
+                # Get feature name from model if available, otherwise use a default
+                if window.model and hasattr(window.model, 'feature_name'):
+                    name = window.model.feature_name()
+                else:
+                    name = feature_id.replace("_", " ").title()
+
+                item = QListWidgetItem(name)
+                item.setData(Qt.UserRole, feature_id)  # Store the unique ID
+                self.groups_list.addItem(item)
 
     def _filter_groups(self, text: str) -> None:
         """
@@ -190,150 +233,83 @@ class SettingsDialog(QDialog):
         feature_id = selected_items[0].data(Qt.UserRole)
         window = self.windows.get(feature_id)
 
-        if not window or not window.settings:
+        if not window or not hasattr(window, 'model') or not window.model:
             return
 
-        target_model = window.settings
+        target_model = window.model
 
         # Clear previous form widgets tracking
         self._current_form_widgets.clear()
 
         # Create a new container widget and form layout
         container = QWidget()
-        layout = QFormLayout(container)
+        layout = QFormLayout()
+        container.setLayout(layout)
 
-        # Dynamically generate widgets based on field type
+        # Dynamically generate widgets based on field annotations
         fields = target_model.get_fields()
         for name, field in fields.items():
+            if not field.is_setting:
+                continue
+
             current_value = getattr(target_model, name)
-            field_type = field.__class__.__name__
-
             label_text = self.tr(field.description) or name
-
-            # Create a QLabel for the field (for search highlighting)
             label_widget = QLabel(label_text)
             self._current_form_widgets[label_text.lower()] = label_widget
 
-            if field_type == 'BoolField':
+            widget = None
+            if field.ui_type == "checkbox":
                 widget = QCheckBox()
-                widget.setChecked(current_value)
+                widget.setChecked(bool(current_value))
                 widget.stateChanged.connect(
                     lambda state, model=target_model, name=name: setattr(
-                        model, name, state == Qt.Checked)
+                        model, name, bool(state == Qt.Checked))
                 )
-                layout.addRow(label_widget, widget)
-
-            elif field_type == 'StringField':
-                widget = QLineEdit(str(current_value))
-                widget.textChanged.connect(
-                    lambda text, model=target_model, name=name: setattr(
-                        model, name, text)
-                )
-                layout.addRow(label_widget, widget)
-
-            elif field_type == 'IntField':
+            elif field.ui_type == "spinbox":
                 widget = QSpinBox()
                 if field.min_value is not None:
                     widget.setMinimum(field.min_value)
                 if field.max_value is not None:
                     widget.setMaximum(field.max_value)
-                widget.setValue(current_value)
+                widget.setValue(int(current_value))
                 widget.valueChanged.connect(
                     lambda value, model=target_model, name=name: setattr(
                         model, name, value)
                 )
-                layout.addRow(label_widget, widget)
-
-            elif field_type == 'FloatField':
+            elif field.ui_type == "doublespinbox":
                 widget = QDoubleSpinBox()
                 if field.min_value is not None:
                     widget.setMinimum(field.min_value)
                 if field.max_value is not None:
                     widget.setMaximum(field.max_value)
-                widget.setValue(current_value)
+                widget.setValue(float(current_value))
                 widget.valueChanged.connect(
                     lambda value, model=target_model, name=name: setattr(
                         model, name, value)
                 )
+            elif field.ui_type == "combobox" or field.choices:
+                widget = QComboBox()
+                if field.choices:
+                    widget.addItems([str(c) for c in field.choices])
+                widget.setCurrentText(str(current_value))
+                widget.currentTextChanged.connect(
+                    lambda text, model=target_model, name=name: setattr(
+                        model, name, text)
+                )
+            elif field.ui_type == "color_picker":
+                widget = ColorPicker(initial_color=str(current_value))
+                widget.colorChanged.connect(
+                    lambda color, model=target_model, name=name: setattr(
+                        model, name, color)
+                )
+            else:  # Default to QLineEdit for "text"
+                widget = QLineEdit(str(current_value))
+                widget.textChanged.connect(
+                    lambda text, model=target_model, name=name: setattr(
+                        model, name, text)
+                )
+
+            if widget:
                 layout.addRow(label_widget, widget)
 
-            elif field_type == 'ChoiceField':
-                combo_box = QComboBox()
-                if field.choices:
-                    combo_box.addItems(field.choices)
-                combo_box.setCurrentText(str(current_value))
-
-                # For global settings, don't connect directly - wait for Apply
-                if feature_id == 'global':
-                    # Store reference for Apply button
-                    if name == 'theme':
-                        self.theme_combo_box = combo_box
-                    elif name == 'language':
-                        self.language_combo_box = combo_box
-                    layout.addRow(label_widget, combo_box)
-                else:
-                    # For feature settings, connect directly
-                    combo_box.currentTextChanged.connect(
-                        lambda text, model=target_model, name=name: setattr(
-                            model, name, text)
-                    )
-                    layout.addRow(label_widget, combo_box)
-
-        # Add Apply button for global settings
-        if feature_id == 'global':
-            apply_button = QPushButton(self.tr("Apply Global Settings"))
-            apply_button.clicked.connect(self._on_apply_global_settings)
-            layout.addRow("", apply_button)
-
         self.scroll_area.setWidget(container)
-
-    def _on_apply_global_settings(self) -> None:
-        """Applies global settings for preview and asks for confirmation."""
-        global_window = self.windows.get('global')
-        if not global_window or not global_window.settings:
-            return
-
-        # Store original values
-        original_theme = global_window.settings.theme if hasattr(
-            global_window.settings, 'theme') else None
-        original_language = global_window.settings.language if hasattr(
-            global_window.settings, 'language') else None
-
-        # Apply new values temporarily
-        if hasattr(self, 'theme_combo_box') and self.theme_combo_box:
-            new_theme = self.theme_combo_box.currentText()
-            if original_theme and new_theme != original_theme:
-                self.theme_manager.apply_theme(new_theme)
-                # Update toolbar highlighting to match new theme
-                if self.parent() and hasattr(self.parent(), 'toolbar'):
-                    self.parent().toolbar.update_theme()
-
-        if hasattr(self, 'language_combo_box') and self.language_combo_box:
-            new_language = self.language_combo_box.currentText()
-            # Language change would be applied here in the future
-
-        # Ask for confirmation
-        reply = QMessageBox.question(
-            self,
-            self.tr('Apply Global Settings'),
-            self.tr('Do you want to keep these global settings?'),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-
-        if reply == QMessageBox.Yes:
-            # Update the model so changes persist
-            if hasattr(self, 'theme_combo_box') and self.theme_combo_box:
-                global_window.settings.theme = self.theme_combo_box.currentText()
-            if hasattr(self, 'language_combo_box') and self.language_combo_box:
-                global_window.settings.language = self.language_combo_box.currentText()
-        else:
-            # Revert changes
-            if original_theme and hasattr(self, 'theme_combo_box') and self.theme_combo_box:
-                self.theme_manager.apply_theme(original_theme)
-                self.theme_combo_box.setCurrentText(original_theme)
-                # Update toolbar highlighting to match reverted theme
-                if self.parent() and hasattr(self.parent(), 'toolbar'):
-                    self.parent().toolbar.update_theme()
-            if original_language and hasattr(self, 'language_combo_box') and self.language_combo_box:
-                self.language_combo_box.setCurrentText(original_language)

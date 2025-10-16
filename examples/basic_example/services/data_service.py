@@ -2,11 +2,7 @@
 Example Data Service
 """
 from typing import Dict, Any, List
-
-import os
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
-from opaque.core import BaseService
+from opaque.core.services import BaseService
 
 
 class DataService(BaseService):
@@ -93,3 +89,7 @@ class DataService(BaseService):
         info['data_count'] = self.get_data_count()
         info['keys'] = list(self._data_store.keys())
         return info
+
+    def cleanup(self):
+        """Clean up the service."""
+        pass
