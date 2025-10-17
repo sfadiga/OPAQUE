@@ -8,11 +8,12 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-from opaque.models.model import AbstractModel
-from opaque.models.annotations import Field
+from PySide6.QtGui import QIcon
+from opaque.core.model import BaseModel
+from opaque.models.annotations import Field, UIType
 
 
-class ApplicationModel(AbstractModel):
+class ApplicationModel(BaseModel):
     """
     Base model for application-wide settings.
     Developers can subclass this to add their own global settings.
@@ -22,14 +23,14 @@ class ApplicationModel(AbstractModel):
     theme = Field(
         default="light",
         description="Application theme",
-        ui_type="combobox",
+        ui_type=UIType.COMBOBOX,
         settings=True
     )
 
     language = Field(
         default="en",
         description="UI Language",
-        ui_type="combobox",
+        ui_type=UIType.COMBOBOX,
         choices=["en", "es", "fr"],
         settings=True
     )
@@ -39,3 +40,11 @@ class ApplicationModel(AbstractModel):
         Return the feature name for the settings dialog.
         """
         return self.FEATURE_NAME
+
+    def feature_icon(self) -> QIcon:
+        """
+        Return the feature icon for the settings dialog.
+        """
+        if self.app():
+            return self.app().application_icon()
+        return QIcon.fromTheme("tool")

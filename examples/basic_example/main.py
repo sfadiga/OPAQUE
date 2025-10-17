@@ -4,17 +4,13 @@ This example demonstrates the new MVP (Model-View-Presenter) pattern
 along with the annotation system for settings and workspace persistence.
 It also shows how to configure custom paths for settings and workspace files.
 """
+from opaque.core.application import BaseApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QMessageBox
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
-from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt
-
-from opaque.core.application import BaseApplication
-from opaque.core.exceptions import ApplicationAlreadyRunningError
-from services.calculation_service import CalculationService
-from features.calculator.presenter import CalculatorPresenter
 
 
 class MVPExampleApplication(BaseApplication):
@@ -42,10 +38,15 @@ class MVPExampleApplication(BaseApplication):
         """
         return Path.home() / ".opaque" / "mvp_example" / "settings.json"
 
+    def __init__(self):
+        super().__init__()
+        self.register_features()
+
     def register_features(self):
         """Register MVP features and services."""
 
         # Register services first
+        from services.calculation_service import CalculationService
         from services.logging_service import LoggingService
         from services.data_service import DataService
         logging_service = LoggingService()
@@ -65,7 +66,8 @@ class MVPExampleApplication(BaseApplication):
         calc_feature_id = "calculator"
         calc_model = CalculatorModel(calc_feature_id)
         calc_view = CalculatorView(calc_feature_id)
-        calc_presenter = CalculatorPresenter(calc_feature_id, calc_model, calc_view)
+        calc_presenter = CalculatorPresenter(
+            calc_feature_id, calc_model, calc_view, self)
         self.register_feature(calc_presenter)
 
         from features.logging.model import LoggingModel
@@ -74,7 +76,7 @@ class MVPExampleApplication(BaseApplication):
         log_feature_id = "logging"
         log_model = LoggingModel(log_feature_id)
         log_view = LoggingView(log_feature_id)
-        log_presenter = LoggingPresenter(log_feature_id, log_model, log_view)
+        log_presenter = LoggingPresenter(log_feature_id, log_model, log_view, self)
         self.register_feature(log_presenter)
 
         from features.data_viewer.model import DataViewerModel
@@ -83,7 +85,7 @@ class MVPExampleApplication(BaseApplication):
         data_feature_id = "data"
         data_model = DataViewerModel(data_feature_id)
         data_view = DataViewerView(data_feature_id)
-        data_presenter = DataViewerPresenter(data_feature_id, data_model, data_view)
+        data_presenter = DataViewerPresenter(data_feature_id, data_model, data_view, self)
         self.register_feature(data_presenter)
 
 
@@ -95,7 +97,6 @@ if __name__ == "__main__":
         if not main_window.try_acquire_lock():
             main_window.show_already_running_message()
             sys.exit(1)
-        main_window.register_features()
         main_window.show()
         sys.exit(app.exec())
     except Exception as e:

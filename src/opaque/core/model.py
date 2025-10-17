@@ -9,62 +9,31 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from typing import Dict, Any
+from typing import Dict, Optional, TYPE_CHECKING
 from PySide6.QtGui import QIcon
 from opaque.models.model import AbstractModel
-from opaque.models.annotations import Field
+
+if TYPE_CHECKING:
+    from opaque.core.application import BaseApplication
 
 
 class BaseModel(AbstractModel):
-    _fields: Dict[str, Field]
-    _values: Dict[str, Any]
+
 
     def __init__(self, feature_id: str) -> None:
         super().__init__()
         self._feature_id = feature_id
-        # Use super's setattr to avoid our override during initialization
-        super().__setattr__('_fields', {})
-        super().__setattr__('_values', {})
-
-        # Collect fields from the class and its parents
-        for cls in reversed(self.__class__.__mro__):
-            for name, attr in cls.__dict__.items():
-                if isinstance(attr, Field):
-                    self._fields[name] = attr
-                    # Initialize with default value
-                    self._values[name] = attr.default
-
-    def __getattribute__(self, name: str) -> Any:
-        _fields = super().__getattribute__('_fields')
-        if name != '_fields' and _fields and name in _fields:
-            _values = super().__getattribute__('_values')
-            return _values.get(name)
-        return super().__getattribute__(name)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        # This check prevents the method from running during __init__ before _fields is set.
-        if '_fields' not in self.__dict__ or name in ('_fields', '_values'):
-            super().__setattr__(name, value)
-            return
-
-        if name in self._fields:
-            field = self._fields[name]
-            if not field.validate(value):
-                raise ValueError(f"Invalid value for {name}: {value}")
-
-            _values = super().__getattribute__('_values')
-            old_value = _values.get(name)
-            if old_value != value:
-                _values[name] = value
-                if hasattr(self, 'notify'):
-                    self.notify(name, value)
-        else:
-            super().__setattr__(name, value)
-
+        self._app: Optional['BaseApplication'] = None
 
     @property
     def feature_id(self):
         return self._feature_id
+
+    def set_application(self, app: 'BaseApplication'):
+        self._app = app
+
+    def app(self) -> Optional['BaseApplication']:
+        return self._app
 
     # --- FEATURE API (Override in subclasses) ---
 

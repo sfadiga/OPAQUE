@@ -1,8 +1,13 @@
 """
 Calculator Presenter - Coordinates between Model and View
 """
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from opaque.core.application import BaseApplication
+
 from opaque.core.presenter import BasePresenter
 from opaque.core.services import ServiceLocator
+
 
 from .model import CalculatorModel
 from .view import CalculatorView
@@ -13,11 +18,11 @@ class CalculatorPresenter(BasePresenter):
     model_class = CalculatorModel
     view_class = CalculatorView
 
-    def __init__(self, feature_id: str, model: CalculatorModel, view: CalculatorView):
+    def __init__(self, feature_id: str, model: CalculatorModel, view: CalculatorView, app: 'BaseApplication'):
         """
         Initialize the calculator presenter.
         """
-        super().__init__(feature_id=feature_id, model=model, view=view)
+        super().__init__(feature_id=feature_id, model=model, view=view, app=app)
 
     def bind_events(self):
         """Bind view events to presenter methods (required by BasePresenter)."""

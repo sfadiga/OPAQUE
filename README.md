@@ -2,19 +2,20 @@
 
 **OPAQUE** - **O**pinionated **P**ython **A**pplication with **Q**t **U**I for **E**ngineering
 
-An opinionated PySide6-based MDI application framework designed to accelerate the development of professional desktop applications. 
+An opinionated PySide6-based MDI application framework designed to accelerate the development of professional desktop applications following the Model-View-Presenter (MVP) pattern.
 
 ![OPAQUE Framework Screenshot](resources/example.gif)
 
 ## Features
 
-- 🪟 **MDI Window Management** - Multiple Document Interface with dockable windows
-- 🎨 **Theme Management** - 40+ themes including qt-material, qt-themes, and QDarkStyle
-- 💾 **Persistence Layer** - Automatic saving/loading of settings and workspace state
-- 🌍 **Internationalization** - Built-in i18n support with language selection
-- ⚙️ **Global Settings** - Extensible application-wide settings with preview
-- 🔍 **Enhanced Settings Search** - Search through both group names and individual settings
-- 📦 **State Management** - Save and restore complete workspace states
+- 🪟 **MDI Window Management** - Multiple Document Interface with dockable windows.
+- 🏗️ **MVP Architecture** - Clean separation of concerns between data (Model), UI (View), and logic (Presenter).
+- 🎨 **Theme Management** - 40+ themes including qt-material, qt-themes, and QDarkStyle.
+- 💾 **Persistence Layer** - Automatic saving/loading of settings and workspace state.
+- ⚙️ **Global & Feature Settings** - Extensible settings system with a unified dialog.
+- 🔍 **Enhanced Settings Search** - Search through both group names and individual settings.
+- 📦 **State Management** - Save and restore complete workspace states.
+- 🔧 **Service Locator** - Manages shared services across the application.
 
 ## Quick Start
 
@@ -29,425 +30,223 @@ pip install opaque-framework[themes]
 
 # For development
 pip install opaque-framework[dev]
-
-# Install from source (development)
-git clone https://github.com/yourusername/opaque-framework.git
-cd opaque-framework
-pip install -e .
 ```
 
-## Project Structure
-
-```
-OPAQUE/
-├── src/
-│   └── opaque/
-│       ├── core/
-│       │   ├── application.py
-│       │   ├── model.py
-│       │   ├── view.py
-│       │   └── presenter.py
-│       ├── managers/
-│       │   ├── settings_manager.py
-│       │   ├── theme_manager.py
-│       │   └── workspace_manager.py
-│       ├── models/
-│       │   ├── annotations.py
-│       │   └── ...
-│       └── widgets/
-│           ├── dialogs/
-│           │   └── settings.py
-│           └── mdi_window.py
-├── examples/
-│   └── basic_example/
-├── resources/
-├── pyproject.toml
-└── LICENSE
-```
-
-## Key Concepts
-
-### The MVP Architecture
-OPAQUE is built on the Model-View-Presenter (MVP) pattern, which separates application logic from the user interface. This promotes a clean, maintainable, and testable codebase.
-
-- **Model (`BaseModel`)**: Represents the application's data and business logic. It is completely independent of the UI and notifies the Presenter of any changes to its state.
-
-- **View (`BaseView`)**: The user interface component. It is responsible for displaying data from the Model and routing user input to the Presenter. The View is passive and does not contain any application logic.
-
-- **Presenter (`BasePresenter`)**: Acts as the bridge between the Model and the View. It retrieves data from the Model, formats it for display, and updates the View. It also handles user input from the View and updates the Model accordingly.
-
-### Features
-In OPAQUE, a "feature" is a self-contained unit of functionality implemented using the MVP pattern. Each feature consists of a Model, a View, and a Presenter. Features are registered with the main application and automatically integrated into the UI, appearing as buttons in the main toolbar.
-
-### Global Settings
-OPAQUE provides a clean global settings system for application-wide configuration:
-- **Built-in settings**: 
-  - Theme selection (40+ themes from qt-material, qt-themes, QDarkStyle)
-  - UI language (7 languages: en_US, es_ES, fr_FR, de_DE, pt_BR, ja_JP, zh_CN)
-- **Extensible**: Add your own global settings by extending `GlobalSettings`
-- **Apply button**: Preview changes before committing with confirmation dialog
-- **Automatic persistence**: Saved and loaded like feature settings
-- **Theme-aware toolbar**: Button highlighting adapts to current theme
-
-### Settings Dialog
-The enhanced settings dialog provides:
-- **Smart Search**: Search through both group names and individual setting labels
-- **Visual Highlighting**: Matching settings are highlighted in bold with accent color
-- **Auto-Selection**: First matching group is automatically selected when searching
-- **Apply & Preview**: Test global settings before committing changes
+### Basic Usage
 
 ```python
-from opaque import GlobalSettings, BoolField, IntField, StringField, ChoiceField
-
-class MyGlobalSettings(GlobalSettings):
-    # Inherits theme and language, adds custom settings
-    auto_save = BoolField(default=True, description="Enable auto-save")
-    auto_save_interval = IntField(default=5, min_value=1, max_value=60)
-
-class MyApp(BaseApplication):
-    def global_settings_model(self):
-        return MyGlobalSettings  # Use custom global settings
-```
-
-### Settings Models
-OPAQUE provides a declarative way to define settings with field descriptors:
-```python
-from opaque.models.annotations import BaseModel, BoolField, IntField, StringField, FloatField, ChoiceField
-
-class MyFeatureSettings(BaseModel):
-    # Boolean field with description (searchable in settings dialog)
-    auto_refresh = BoolField(default=True, description="Auto refresh")
-    
-    # Integer field with min/max constraints
-    interval = IntField(default=60, min_value=1, max_value=3600, description="Refresh interval (seconds)")
-    
-    # String field for text input
-    output_path = StringField(default="./output", description="Output directory")
-    
-    # Float field for decimal values
-    zoom_level = FloatField(default=1.0, min_value=0.1, max_value=5.0, description="Zoom level")
-    
-    # Choice field for dropdown selection
-    theme_variant = ChoiceField(
-        default="auto",
-        choices=["auto", "light", "dark"],
-        description="Theme variant"
-    )
-```
-
-**Note**: The `description` parameter is used by the settings dialog's search feature to help users find settings quickly.
-
-### State Management
-Save and restore complete workspace states including:
-- Window positions and sizes
-- Feature-specific state data
-- Application settings (both global and feature-specific)
-- Active workspace configuration
-
-## Step-by-Step Guide: Creating a Feature
-
-This guide walks you through creating a "Calculator" feature using the MVP pattern.
-
-### Step 1: Create the Feature Directory Structure
-
-```
-my_app/
-├── features/
-│   └── calculator/
-│       ├── __init__.py
-│       ├── model.py
-│       ├── view.py
-│       └── presenter.py
-└── main.py
-```
-
-### Step 2: Define the Model
-
-Create `features/calculator/model.py`:
-
-```python
-from PySide6.QtGui import QIcon
-from opaque.core.model import BaseModel
-from opaque.models.annotations import FloatField
-
-class CalculatorModel(BaseModel):
-    num1 = FloatField(default=0.0)
-    num2 = FloatField(default=0.0)
-    result = FloatField(default=0.0)
-
-    def feature_name(self) -> str:
-        return "Calculator"
-
-    def feature_icon(self) -> QIcon:
-        return QIcon.fromTheme("accessories-calculator")
-
-    def feature_description(self) -> str:
-        return "A simple calculator feature."
-
-    def feature_modal(self) -> bool:
-        return False
-
-    def add(self):
-        self.result = self.num1 + self.num2
-
-    def subtract(self):
-        self.result = self.num1 - self.num2
-```
-
-### Step 3: Create the View
-
-Create `features/calculator/view.py`:
-
-```python
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel
-from opaque.core.view import BaseView
-
-class CalculatorView(BaseView):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Calculator")
-        self._setup_ui()
-
-    def _setup_ui(self):
-        main_widget = QWidget()
-        layout = QVBoxLayout(main_widget)
-
-        self.num1_input = QLineEdit()
-        self.num2_input = QLineEdit()
-        self.add_button = QPushButton("Add")
-        self.subtract_button = QPushButton("Subtract")
-        self.result_label = QLabel("Result: 0.0")
-
-        layout.addWidget(QLabel("Number 1:"))
-        layout.addWidget(self.num1_input)
-        layout.addWidget(QLabel("Number 2:"))
-        layout.addWidget(self.num2_input)
-        layout.addWidget(self.add_button)
-        layout.addWidget(self.subtract_button)
-        layout.addWidget(self.result_label)
-
-        self.set_content(main_widget)
-```
-
-### Step 4: Create the Presenter
-
-Create `features/calculator/presenter.py`:
-
-```python
-from opaque.core.presenter import BasePresenter
-from .model import CalculatorModel
-from .view import CalculatorView
-
-class CalculatorPresenter(BasePresenter):
-    def __init__(self, model: CalculatorModel, view: CalculatorView):
-        super().__init__(model, view)
-
-    def bind_events(self):
-        self.view.add_button.clicked.connect(self.on_add)
-        self.view.subtract_button.clicked.connect(self.on_subtract)
-        self.view.num1_input.textChanged.connect(self.on_num1_changed)
-        self.view.num2_input.textChanged.connect(self.on_num2_changed)
-
-    def on_add(self):
-        self.model.add()
-
-    def on_subtract(self):
-        self.model.subtract()
-
-    def on_num1_changed(self, text: str):
-        try:
-            self.model.num1 = float(text)
-        except ValueError:
-            self.model.num1 = 0.0
-
-    def on_num2_changed(self, text: str):
-        try:
-            self.model.num2 = float(text)
-        except ValueError:
-            self.model.num2 = 0.0
-
-    def update(self, property_name: str, value: any):
-        if property_name == "result":
-            self.view.result_label.setText(f"Result: {value}")
-```
-
-### Step 5: Register the Feature in Your Application
-
-Create `main.py`:
-
-```python
+# main.py
 import sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon
 from opaque.core.application import BaseApplication
-from features.calculator.model import CalculatorModel
-from features.calculator.view import CalculatorView
-from features.calculator.presenter import CalculatorPresenter
+from features.my_feature.presenter import MyFeaturePresenter
 
 class MyApplication(BaseApplication):
     def application_name(self) -> str:
-        return "MyCalculatorApp"
+        return "MyApp"
 
     def organization_name(self) -> str:
         return "MyCompany"
 
     def application_title(self) -> str:
-        return "My Calculator App"
-
-    def application_description(self) -> str:
-        return "A simple calculator app."
+        return "My OPAQUE Application"
 
     def application_icon(self) -> QIcon:
-        return QIcon.fromTheme("accessories-calculator")
+        return QIcon("path/to/your/icon.ico")
+    
+    def application_description(self) -> str:
+        return "A simple application created with the OPAQUE framework."
 
-    def register_features(self):
-        calc_model = CalculatorModel()
-        calc_view = CalculatorView()
-        calc_presenter = CalculatorPresenter(model=calc_model, view=calc_view)
-        self.register_feature(calc_presenter)
+    def __init__(self):
+        super().__init__()
+        self._register_features()
+
+    def _register_features(self):
+        # Register features using their presenters
+        my_feature_presenter = MyFeaturePresenter(feature_id="my_feature_1")
+        self.register_feature(my_feature_presenter)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_window = MyApplication()
-    main_window.register_features()
-    main_window.show()
+    main_win = MyApplication()
+    main_win.show()
     sys.exit(app.exec())
 ```
 
-### Step 6: Run Your Application
+## Project Structure
 
-```bash
-python main.py
+```
+src/
+└── opaque/
+    ├── core/               # Core MVP components (BaseApplication, BaseModel, BaseView, BasePresenter)
+    ├── managers/           # Managers for settings, themes, workspace, etc.
+    ├── models/             # Data models and field annotations
+    └── widgets/            # Custom UI widgets (Toolbar, MDI area, dialogs)
+examples/
+└── basic_example/          # Example application demonstrating framework features
+pyproject.toml              # Package configuration
+```
+
+## Key Concepts
+
+### Model-View-Presenter (MVP)
+
+OPAQUE is built on the MVP pattern to ensure a clean separation of concerns.
+
+-   **Model**: Manages the application's data and business logic. It knows nothing about the UI. In OPAQUE, models inherit from `BaseModel` and use `Field` annotations to define their properties.
+-   **View**: Displays the data from the model and sends user actions to the presenter. It is passive and does not contain any application logic. Views inherit from `BaseView`.
+-   **Presenter**: Acts as the middleman between the Model and the View. It retrieves data from the model, formats it for display in the view, and processes user input. Presenters inherit from `BasePresenter`.
+
+### Feature Registration
+
+Features are self-contained components of your application, each following the MVP pattern. You register a feature by creating an instance of its presenter and passing it to the `register_feature` method of your main application class.
+
+### Settings and State Management
+
+-   **Settings**: User-configurable options that persist across sessions. Defined in a model using `Field(settings=True)`.
+-   **Workspace State**: Data that captures the current state of a feature, like open files or current values. Defined using `Field(workspace=True)`.
+
+Settings are automatically handled by the `SettingsManager` and displayed in a unified settings dialog.
+
+## Step-by-Step Guide: Creating a Feature
+
+This guide walks you through creating a "Text Editor" feature.
+
+### Step 1: Define the Model
+
+The model defines the data and state for the feature.
+
+`features/text_editor/model.py`:
+```python
+from opaque.core.model import BaseModel
+from opaque.models.annotations import BoolField, IntField, StringField
+from PySide6.QtGui import QIcon
+
+class TextEditorModel(BaseModel):
+    FEATURE_NAME = "Text Editor"
+
+    # Settings
+    word_wrap = BoolField(default=True, description="Enable word wrap", settings=True)
+    font_size = IntField(default=12, min_value=8, max_value=72, description="Font size", settings=True)
+
+    # Workspace State
+    content = StringField(default="", workspace=True)
+    file_path = StringField(default="", workspace=True)
+
+    def feature_name(self) -> str:
+        return self.FEATURE_NAME
+
+    def feature_icon(self) -> QIcon:
+        return QIcon.fromTheme("accessories-text-editor")
+```
+
+### Step 2: Create the View
+
+The view defines the UI components for the feature.
+
+`features/text_editor/view.py`:
+```python
+from opaque.core.view import BaseView
+from PySide6.QtWidgets import QTextEdit, QVBoxLayout, QWidget, QToolBar, QAction
+from PySide6.QtGui import QIcon
+
+class TextEditorView(BaseView):
+    def __init__(self, feature_id: str):
+        super().__init__(feature_id)
+        self.setWindowTitle("Text Editor")
+
+        main_widget = QWidget()
+        layout = QVBoxLayout(main_widget)
+
+        self.toolbar = QToolBar()
+        self.open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
+        self.save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
+        self.toolbar.addAction(self.open_action)
+        self.toolbar.addAction(self.save_action)
+        layout.addWidget(self.toolbar)
+
+        self.text_edit = QTextEdit()
+        layout.addWidget(self.text_edit)
+
+        self.set_content(main_widget)
+```
+
+### Step 3: Implement the Presenter
+
+The presenter connects the model and the view, handling the logic.
+
+`features/text_editor/presenter.py`:
+```python
+from opaque.core.presenter import BasePresenter
+from .model import TextEditorModel
+from .view import TextEditorView
+from PySide6.QtWidgets import QFileDialog
+
+class TextEditorPresenter(BasePresenter):
+    def __init__(self, feature_id: str):
+        model = TextEditorModel(feature_id)
+        view = TextEditorView(feature_id)
+        super().__init__(feature_id, model, view)
+
+    def bind_events(self):
+        self.view.open_action.triggered.connect(self._open_file)
+        self.view.save_action.triggered.connect(self._save_file)
+        self.view.text_edit.textChanged.connect(self._on_text_changed)
+
+    def update(self, property_name: str, value: any):
+        if property_name == "content":
+            self.view.text_edit.setPlainText(value)
+        elif property_name == "font_size":
+            font = self.view.text_edit.font()
+            font.setPointSize(value)
+            self.view.text_edit.setFont(font)
+
+    def _on_text_changed(self):
+        self.model.content = self.view.text_edit.toPlainText()
+
+    def _open_file(self):
+        path, _ = QFileDialog.getOpenFileName(self.view, "Open File")
+        if path:
+            with open(path, 'r') as f:
+                self.model.content = f.read()
+            self.model.file_path = path
+
+    def _save_file(self):
+        path = self.model.file_path
+        if not path:
+            path, _ = QFileDialog.getSaveFileName(self.view, "Save File")
+        
+        if path:
+            with open(path, 'w') as f:
+                f.write(self.model.content)
+            self.model.file_path = path
+```
+
+### Step 4: Register the Feature
+
+Finally, register the feature in your main application.
+
+`main.py`:
+```python
+# ... (imports and MyApplication class definition)
+    def _register_features(self):
+        text_editor_presenter = TextEditorPresenter(feature_id="text_editor_1")
+        self.register_feature(text_editor_presenter)
 ```
 
 ## What You Get Automatically
 
-When you follow this guide, OPAQUE automatically provides:
-
-✅ **Toolbar Integration**: Your feature appears as a button in the main toolbar.
-✅ **MDI Management**: Your feature's window can be docked, tabbed, and floated.
-✅ **Settings Persistence**: If your model includes fields for settings, they are automatically saved and loaded.
-✅ **Workspace Management**: The state of your feature can be saved and restored as part of a workspace.
-✅ **Theme Support**: Your feature's UI automatically adapts to the selected theme.
-
-## Advanced Features
-
-### Custom Field Types
-
-Create custom field descriptors for specialized data:
-
-```python
-from opaque.models.annotations import Field
-
-class ColorField(Field):
-    """Custom field for color values"""
-    
-    def __init__(self, default="#000000", **kwargs):
-        super().__init__(default=default, **kwargs)
-    
-    def validate(self, value):
-        if not isinstance(value, str) or not value.startswith("#"):
-            raise ValueError("Color must be a hex string")
-        return value
-```
-
-### Multiple Feature Instances
-
-Register multiple instances of the same feature by creating separate MVP triads:
-
-```python
-def register_features(self):
-    for i in range(3):
-        model = CalculatorModel()
-        model.num1 = i * 10
-        view = CalculatorView()
-        presenter = CalculatorPresenter(model=model, view=view)
-        self.register_feature(presenter)
-```
-
-### Dynamic Feature Loading
-
-Load features based on a configuration file or other dynamic sources:
-
-```python
-def register_features(self):
-    import json
-    with open("features.json") as f:
-        feature_config = json.load(f)
-    
-    for feature_name in feature_config["enabled_features"]:
-        if feature_name == "calculator":
-            model = CalculatorModel()
-            view = CalculatorView()
-            presenter = CalculatorPresenter(model=model, view=view)
-            self.register_feature(presenter)
-        # Add other features here
-```
-
-## Tips and Best Practices
-
-1.  **Separation of Concerns**: Keep logic in the Presenter, data in the Model, and UI code in the View.
-2.  **Model Independence**: The Model should not have any knowledge of the View or Presenter.
-3.  **View Passivity**: The View should be as "dumb" as possible, only displaying data and emitting signals on user interaction.
-4.  **Field Annotations**: Use the `@Field` annotation in your models to define properties that should be automatically handled by the settings and persistence layers.
-5.  **Translations**: Use `self.tr()` for all user-visible strings to support internationalization.
-6.  **Icons**: Use theme icons (e.g., `QIcon.fromTheme("document-open")`) for better integration across different themes.
-7.  **Error Handling**: Implement robust error handling in your Presenter and Model to ensure a stable application.
-8.  **PySide6 Only**: The framework is designed specifically for PySide6 and is not compatible with PyQt.
-
-## Examples
-
-Check the `examples/` directory for complete working examples:
-- **basic_example** - Demonstrates data analysis and logging features with settings and state management
-- **custom_global_settings_example** - Shows how to extend global settings with custom fields
-
-To run examples:
-```bash
-# Basic example
-python examples/basic_example/main.py
-
-# Custom global settings example
-python examples/custom_global_settings_example.py
-```
+✅ **Toolbar Integration**: Your feature appears as a button in the main toolbar.  
+✅ **MDI Management**: Your window can be docked, floated, and arranged.  
+✅ **Settings Dialog**: Your feature's settings appear automatically.  
+✅ **Persistence**: Settings and workspace state are saved and loaded.  
+✅ **Theme Support**: Your feature inherits the application theme.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
+Contributions are welcome! Please feel free to submit pull requests or open issues.
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Support
-
-For questions and support, please open an issue on GitHub or contact the maintainers.
-
-## Theme Support
-
-OPAQUE includes 40+ professional themes from multiple sources:
-
-- **qt-material** (20+ themes): Material design themes with various color schemes
-- **qt-themes** (15 themes): Modern themes including Catppuccin, Dracula, Nord, Github, and more
-- **QDarkStyle**: Professional dark and light themes
-- **Default**: System native theme
-
-The toolbar automatically adapts its button highlighting to match the current theme's accent color.
-
-## Requirements
-
-- Python 3.8+
-- PySide6 >= 6.0.0
-- qt-material >= 2.14
-- QDarkStyle >= 3.2.0
-- qt-themes >= 1.0.0 (optional, for additional themes)
-
-## Package Information
-
-- **Package Name**: `opaque-framework`
-- **Version**: 1.0.0
-- **License**: MIT
-- **PyPI**: https://pypi.org/project/opaque-framework/ (once published)
-
----
-
-Built with ❤️ (and a LOT of AI help) using PySide6 and Python
+MIT License - See the LICENSE file for details.

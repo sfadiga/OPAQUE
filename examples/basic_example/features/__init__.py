@@ -1,3 +1,0 @@
-"""
-MVP Example Features Package
-"""

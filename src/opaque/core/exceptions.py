@@ -9,7 +9,24 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+class ModelNotDefinedError(Exception):
+    """Raised when a model is not defined for a feature."""
+    def __init__(self, feature_id: str, message: str | None = None):
+        self.feature_id = feature_id
+        if message is None:
+            message = f"Model not defined for feature '{feature_id}'"
+        super().__init__(message)
+
+class ViewNotDefinedError(Exception):
+    """Raised when a view is not defined for a feature."""
+    def __init__(self, feature_id: str, message: str | None = None):
+        self.feature_id = feature_id
+        if message is None:
+            message = f"View not defined for feature '{feature_id}'"
+        super().__init__(message)
 
 class ApplicationAlreadyRunningError(Exception):
     """Raised when another instance of the application is already running."""
     pass
+
+

@@ -14,6 +14,7 @@ from typing import Any, Optional, Type
 
 from opaque.core.view import BaseView
 from opaque.core.model import BaseModel
+from opaque.core.exceptions import ModelNotDefinedError, ViewNotDefinedError
 
 
 class BasePresenter(ABC):
@@ -22,14 +23,13 @@ class BasePresenter(ABC):
     Presenters handle the interaction between Model and View,
     containing the presentation logic and coordinating updates.
     """
-    model_class: Optional[Type[BaseModel]] = None
-    view_class: Optional[Type[BaseView]] = None
 
     def __init__(
             self,
             feature_id: str,
-            model: Optional[BaseModel] = None,
-            view: Optional[BaseView] = None
+            model: BaseModel,
+            view: BaseView,
+            app: Any
     ) -> None:
         """
         Initialize the presenter.
@@ -37,22 +37,25 @@ class BasePresenter(ABC):
 
         # unique id for each feature of the project
         self._feature_id = feature_id
+        # avoid circular import issue
+        from opaque.core.application import BaseApplication
+        if not isinstance(app, BaseApplication):
+            raise TypeError("Application reference is not BaseApplication type")
 
-        if model:
-            self._model = model
-        elif self.model_class:
-            self._model = self.model_class(feature_id)
-        else:
-            raise NotImplementedError(
-                "Presenter must have a model or model_class.")
+        self._app: BaseApplication = app
 
-        if view:
-            self._view = view
-        elif self.view_class:
-            self._view = self.view_class(feature_id)
-        else:
-            raise NotImplementedError(
-                "Presenter must have a view or view_class.")
+        # a presenter must have be associated with a view and a model
+        # if there is a need for a presenter without one of those 
+        # just pass a dummy implementation of the BaseView / BaseModel
+        if not model:
+            raise ModelNotDefinedError(feature_id=feature_id)
+        self._model = model
+        self._model.set_application(self._app)
+
+        if not view:
+            raise ViewNotDefinedError(feature_id=feature_id)
+        self._view = view
+        self._view.set_application(self._app)
 
         # Attach presenter to model as observer
         self._model.attach(self)
@@ -71,6 +74,15 @@ class BasePresenter(ABC):
 
         # Bind events
         self.bind_events()
+
+    def __hash__(self) -> int:
+        """Prensenter feature_id will be used to identify a prensenter"""
+        return hash(self.feature_id)
+
+    @property
+    def feature_id(self) -> str:
+        """Get the feature id"""
+        return self._feature_id
 
     @property
     def model(self) -> BaseModel:

@@ -1,6 +1,9 @@
 """
 Data Viewer Presenter - Coordinates between Model and View
 """
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from opaque.core.application import BaseApplication
 from opaque.core.presenter import BasePresenter
 from opaque.core.services import ServiceLocator
 from .model import DataViewerModel
@@ -10,14 +13,14 @@ from .view import DataViewerView
 class DataViewerPresenter(BasePresenter):
     """Presenter for the data viewer feature."""
 
-    def __init__(self, feature_id:str, model: DataViewerModel, view: DataViewerView):
+    def __init__(self, feature_id: str, model: DataViewerModel, view: DataViewerView, app: 'BaseApplication'):
         """
         Initialize the data viewer presenter.
         """
-        super().__init__(feature_id=feature_id, model=model, view=view)
+        super().__init__(feature_id=feature_id, model=model, view=view, app=app)
         self._update_view()
         self._log("info", "Data Viewer initialized")
-    
+
     def bind_events(self):
         """Bind view events to presenter methods (required by BasePresenter)."""
         self.view.refresh_clicked.connect(self._on_refresh)
@@ -26,11 +29,11 @@ class DataViewerPresenter(BasePresenter):
         self.view.clear_clicked.connect(self._on_clear)
         self.view.export_clicked.connect(self._on_export)
         self.view.import_clicked.connect(self._on_import)
-    
+
     def update(self, property_name: str, value):
         """Handle model property changes (called by BaseModel)."""
         self._update_view()
-        
+
         # Update status based on property
         if property_name == "data":
             self.view.set_status(f"Data updated: {len(value)} items")
@@ -38,17 +41,17 @@ class DataViewerPresenter(BasePresenter):
         elif property_name == "error":
             self.view.set_status(f"Error: {value}")
             self._log("error", f"Data viewer error: {value}")
-    
+
     def _update_view(self):
         """Update view with current model state."""
         data = self.model.get_data()
         self.view.update_table(data)
         self.view.update_item_count(len(data))
-        
+
         # Update filters if they've changed
         if hasattr(self.model, 'filters'):
             self.view.update_filters(self.model.filters)
-    
+
     def _on_refresh(self):
         """Handle refresh button click."""
         data_service = ServiceLocator.get_service("data")
@@ -59,7 +62,7 @@ class DataViewerPresenter(BasePresenter):
         else:
             self.model.generate_sample_data()
             self._log("info", "Sample data generated")
-    
+
     def _on_add_item(self):
         """Handle add item button click."""
         item_data = self.view.get_new_item_data()
@@ -68,7 +71,7 @@ class DataViewerPresenter(BasePresenter):
             data_service = ServiceLocator.get_service("data")
             if data_service:
                 data_service.add_data(item_data['id'], item_data)
-    
+
     def _on_remove_item(self):
         """Handle remove item button click."""
         selected_id = self.view.get_selected_item_id()
@@ -77,7 +80,7 @@ class DataViewerPresenter(BasePresenter):
             data_service = ServiceLocator.get_service("data")
             if data_service:
                 data_service.remove_data(selected_id)
-    
+
     def _on_clear(self):
         """Handle clear button click."""
         self.model.clear_data()
@@ -85,7 +88,7 @@ class DataViewerPresenter(BasePresenter):
         if data_service:
             data_service.clear_data()
         self._log("info", "All data cleared")
-    
+
     def _on_export(self):
         """Handle export button click."""
         # Get export path from view
@@ -98,7 +101,7 @@ class DataViewerPresenter(BasePresenter):
             else:
                 self.view.set_status("Export failed")
                 self._log("error", "Data export failed")
-    
+
     def _on_import(self):
         """Handle import button click."""
         import_path = self.view.get_import_path()
@@ -114,18 +117,18 @@ class DataViewerPresenter(BasePresenter):
             else:
                 self.view.set_status("Import failed")
                 self._log("error", "Data import failed")
-    
+
     def _log(self, level: str, message: str):
         """Log a message using the logging service if available."""
         logging_service = ServiceLocator.get_service("logging")
         if logging_service:
             logging_service.log(level, f"[DataViewer] {message}")
-    
+
     def on_view_show(self):
         """Show the data viewer view."""
         # Load initial data
         self._on_refresh()
-    
+
     def cleanup(self):
         """Clean up resources."""
         self._log("info", "Data Viewer shutting down")

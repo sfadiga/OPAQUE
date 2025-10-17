@@ -191,13 +191,3 @@ class AbstractModel(ABC, metaclass=ModelMeta):
     def cleanup(self) -> None:
         """Clean up model resources. Override if needed."""
         self._observers.clear()
-
-    @property
-    def feature_id(self) -> str:
-        """
-        Return the feature ID.
-        This is used to uniquely identify the feature in the application.
-        """
-        if hasattr(self, 'FEATURE_NAME'):
-            return self.FEATURE_NAME
-        return self.__class__.__name__.lower().replace("model", "")

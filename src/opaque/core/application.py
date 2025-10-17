@@ -20,16 +20,17 @@ from PySide6.QtGui import QAction, QIcon, QCloseEvent
 from PySide6.QtCore import Qt
 
 from opaque.widgets.mdi_window import OpaqueMdiArea
-from opaque.core.view import BaseView
 from opaque.widgets.toolbar import OpaqueMainToolbar
 from opaque.widgets.dialogs.settings import SettingsDialog
 from opaque.managers.workspace_manager import WorkspaceManager
 from opaque.managers.settings_manager import SettingsManager
 from opaque.managers.theme_manager import ThemeManager
 from opaque.managers.single_instance_manager import SingleInstanceManager
-from opaque.models.application_model import ApplicationModel
+
 from opaque.core.services import ServiceLocator, BaseService
 from opaque.core.presenter import BasePresenter
+
+from opaque.core.application_settings.presenter import ApplicationPresenter
 
 class BaseApplication(QMainWindow):
     """
@@ -53,7 +54,7 @@ class BaseApplication(QMainWindow):
         # Make this window accessible to views via QApplication
         app = QApplication.instance()
         if app:
-            app.main_window = self
+            app.main_window = self  # type: ignore
 
         # Set up the main window
         self.setWindowTitle(self.application_title())
@@ -74,41 +75,30 @@ class BaseApplication(QMainWindow):
 
         # Initialize managers with custom paths from abstract methods
         self._workspace_manager: WorkspaceManager = WorkspaceManager()
-        self._settings_manager: SettingsManager = SettingsManager(
-            self.settings_file_path())
+        self._settings_manager: SettingsManager = SettingsManager(self.settings_file_path())
+        q_app = QApplication.instance()
+        if not isinstance(q_app, QApplication):
+            raise RuntimeError("QApplication not initialized")
+        self.theme_manager: ThemeManager = ThemeManager(q_app)
 
         # Initialize service locator
         self._service_locator: ServiceLocator = ServiceLocator()
 
+        # app settings
+        self.app_settings_presenter = None
+
         # Initialize application settings
         self._init_application_settings()
-
-        # --- Theme Management ---
-        self.theme_manager: ThemeManager = ThemeManager(QApplication.instance())
-        # Dynamically populate the theme choices
-        if hasattr(self.application_settings, 'theme'):
-            theme_field = self.application_settings.get_fields().get('theme')
-            if theme_field:
-                theme_field.choices = self.theme_manager.list_themes()
-        # Apply theme on startup
-        if hasattr(self.application_settings, 'theme'):
-            self.theme_manager.apply_theme(
-                str(self.application_settings.theme))
-            # Update toolbar highlighting to match theme
-            if hasattr(self, 'toolbar'):
-                self.toolbar.update_theme()
-        # ----------------------
 
         self._setup_file_menu()
 
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
-        settings_model_class = self.application_settings_model()
-        if settings_model_class:
-            self.application_settings = settings_model_class()
-            # Register and load saved settings
-            self._settings_manager.register_model(
-                'application', self.application_settings)
+        presenter = self.get_app_settings_presenter()
+        # an oversimplification for adding application to the settings dialog
+        self._active_presenters[presenter.feature_id] = presenter
+        # Register and load saved settings
+        self._settings_manager.register_model(presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
         menu_bar = self.menuBar()
@@ -148,6 +138,9 @@ class BaseApplication(QMainWindow):
 
         self._registered_presenters[feature_name] = presenter
 
+        # Register the model with the settings manager
+        self._settings_manager.register_model(presenter.feature_id, presenter.model)
+
         # Add toolbar button for the feature
         self.toolbar.add_feature(presenter)
 
@@ -172,48 +165,35 @@ class BaseApplication(QMainWindow):
         """
         self._service_locator.register_service(service)
 
-    def application_settings_model(self) -> Type[ApplicationModel]:
+    def get_app_settings_presenter(self) -> ApplicationPresenter:
         """
-        Return the application settings model class for the application.
-        Override this to provide a custom application settings model that
-        inherits from ApplicationModel.
+        Return the application settings presenter class for the application.
+        Override this to provide a custom application settings presenter that
+        inherits from ApplicationPresenter.
 
         Example:
-            return MyAppSettingsModel
+            return ApplicationPresenter
         """
-        return ApplicationModel
+        from opaque.core.application_settings.model import ApplicationModel
+        from opaque.core.application_settings.view import ApplicationView
+        feature_id = "application"
+        model = ApplicationModel(feature_id)
+        view = ApplicationView(feature_id)
+        self.app_settings_presenter = ApplicationPresenter(feature_id, model, view, self)
+        return self.app_settings_presenter
 
     def show_settings_dialog(self) -> None:
         """
         Gathers all features with settings and displays the settings dialog.
         Handles theme application and saving on dialog acceptance.
         """
-        # Collect all active presenters' views
-        views_with_settings = [
-            presenter.view for presenter in self._active_presenters.values()
-        ]
-
-        # Add application settings if they exist
-        if hasattr(self, 'application_settings') and self.application_settings:
-            # Create a dummy view for application settings
-            class AppSettingsView(BaseView):
-                def set_model(self, model):
-                    self._model = model
-            app_settings_view = AppSettingsView("application")
-            app_settings_view.set_model(self.application_settings)
-            views_with_settings.insert(0, app_settings_view)
-
-        if not views_with_settings:
-            return  # No settings to show
-
-        dialog = SettingsDialog(
-            views_with_settings, self._settings_manager, self.theme_manager, self)
+        dialog = SettingsDialog(list(self._active_presenters.values()), self._settings_manager, self)
 
         if dialog.exec() == QDialog.DialogCode.Accepted:
             # Apply theme if it exists in application settings
-            if hasattr(self, 'application_settings') and hasattr(self.application_settings, 'theme'):
-                self.theme_manager.apply_theme(
-                    str(self.application_settings.theme))
+            if hasattr(self, 'application_presenter') and hasattr(self.app_settings_presenter.model, 'theme'):
+                self.app_settings_presenter.theme_manager.apply_theme(
+                    str(self.app_settings_presenter.model.theme))
                 if hasattr(self, 'toolbar'):
                     self.toolbar.update_theme()
         else:

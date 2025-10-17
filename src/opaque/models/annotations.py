@@ -13,11 +13,12 @@ from typing import Any, List, Optional, Callable
 
 
 class UIType(Enum):
-    """Enumeration for standard UI widget types for settings generation."""
     TEXT = "text"
-    SPINBOX = "spinbox"
     CHECKBOX = "checkbox"
+    SPINBOX = "spinbox"
+    DOUBLE_SPINBOX = "doublespinbox"
     COLOR_PICKER = "color_picker"
+    COMBOBOX = "combobox"
     DROPDOWN = "dropdown"
     TEXTAREA = "textarea"
     SLIDER = "slider"

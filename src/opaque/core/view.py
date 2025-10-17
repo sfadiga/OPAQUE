@@ -9,14 +9,16 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
-from PySide6.QtGui import QIcon, QCloseEvent
+from PySide6.QtGui import QCloseEvent, QShowEvent
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
 from opaque.widgets.mdi_window import OpaqueMdiSubWindow
-from opaque.models.model import AbstractModel
+
+if TYPE_CHECKING:
+    from opaque.core.application import BaseApplication
 
 
 class BaseView(OpaqueMdiSubWindow):
@@ -33,17 +35,24 @@ class BaseView(OpaqueMdiSubWindow):
         super().__init__(parent=parent)
         self._content_widget = None
         self._feature_id: str = feature_id
+        self._app: Optional['BaseApplication'] = None
 
     @property
     def feature_id(self):
         return self._feature_id
+
+    def set_application(self, app: 'BaseApplication'):
+        self._app = app
+
+    def app(self) -> Optional['BaseApplication']:
+        return self._app
 
     def set_content(self, widget: QWidget):
         """Set the central content widget for the view."""
         self._content_widget = widget
         self.setWidget(self._content_widget)
 
-    def showEvent(self, event):
+    def showEvent(self, event: QShowEvent):
         """Handle show event"""
         super().showEvent(event)
         self.view_shown.emit()
