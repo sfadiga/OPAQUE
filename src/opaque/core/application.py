@@ -11,22 +11,20 @@
 """
 
 
-from typing import Optional, Type, Dict
+from typing import Optional, Type, Dict, cast
 from abc import abstractmethod
 from pathlib import Path
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
 from PySide6.QtGui import QAction, QIcon, QCloseEvent
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QByteArray
 
 from opaque.widgets.mdi_window import OpaqueMdiArea
 from opaque.widgets.toolbar import OpaqueMainToolbar
 from opaque.widgets.dialogs.settings import SettingsDialog
-from opaque.managers.workspace_manager import WorkspaceManager
-from opaque.managers.settings_manager import SettingsManager
 from opaque.managers.theme_manager import ThemeManager
 from opaque.managers.single_instance_manager import SingleInstanceManager
-
+from opaque.services import SettingsService, WorkspaceService
 from opaque.core.services import ServiceLocator, BaseService
 from opaque.core.presenter import BasePresenter
 
@@ -73,16 +71,14 @@ class BaseApplication(QMainWindow):
         self._registered_presenters: Dict[str, BasePresenter] = {}
         self._active_presenters: Dict[str, BasePresenter] = {}
 
-        # Initialize managers with custom paths from abstract methods
-        self._workspace_manager: WorkspaceManager = WorkspaceManager()
-        self._settings_manager: SettingsManager = SettingsManager(self.settings_file_path())
+        # Initialize service locator and services
+        self._service_locator: ServiceLocator = ServiceLocator()
+        self._init_services()
+
         q_app = QApplication.instance()
         if not isinstance(q_app, QApplication):
             raise RuntimeError("QApplication not initialized")
         self.theme_manager: ThemeManager = ThemeManager(q_app)
-
-        # Initialize service locator
-        self._service_locator: ServiceLocator = ServiceLocator()
 
         # app settings
         self.app_settings_presenter = None
@@ -92,13 +88,28 @@ class BaseApplication(QMainWindow):
 
         self._setup_file_menu()
 
+        # Restore workspace
+        self._restore_workspace()
+
+    def _init_services(self) -> None:
+        """Initialize and register core services."""
+        settings_service = SettingsService(self.settings_file_path())
+        settings_service.initialize()
+        self.register_service(settings_service)
+
+        workspace_service = WorkspaceService()
+        workspace_service.initialize()
+        self.register_service(workspace_service)
+
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
         presenter = self.get_app_settings_presenter()
         # an oversimplification for adding application to the settings dialog
         self._active_presenters[presenter.feature_id] = presenter
         # Register and load saved settings
-        self._settings_manager.register_model(presenter.feature_id, presenter.model)
+        settings_service: SettingsService = self._service_locator.get_service("settings")
+        if settings_service:
+            settings_service.manager.register_model(presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
         menu_bar = self.menuBar()
@@ -139,7 +150,9 @@ class BaseApplication(QMainWindow):
         self._registered_presenters[feature_name] = presenter
 
         # Register the model with the settings manager
-        self._settings_manager.register_model(presenter.feature_id, presenter.model)
+        settings_service = cast(SettingsService, self._service_locator.get_service("settings"))
+        if settings_service:
+            settings_service.manager.register_model(presenter.feature_id, presenter.model)
 
         # Add toolbar button for the feature
         self.toolbar.add_feature(presenter)
@@ -187,18 +200,15 @@ class BaseApplication(QMainWindow):
         Gathers all features with settings and displays the settings dialog.
         Handles theme application and saving on dialog acceptance.
         """
-        dialog = SettingsDialog(list(self._active_presenters.values()), self._settings_manager, self)
+        settings_service = cast(SettingsService, self._service_locator.get_service("settings"))
+        if not settings_service:
+            return
 
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            # Apply theme if it exists in application settings
-            if hasattr(self, 'application_presenter') and hasattr(self.app_settings_presenter.model, 'theme'):
-                self.app_settings_presenter.theme_manager.apply_theme(
-                    str(self.app_settings_presenter.model.theme))
-                if hasattr(self, 'toolbar'):
-                    self.toolbar.update_theme()
-        else:
+        dialog = SettingsDialog(list(self._active_presenters.values()), parent=self)
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             # On cancel, revert any changes by reloading from disk
-            self._settings_manager.load_all_settings()
+            settings_service.manager.load_all_settings()
 
     def save_workspace(self) -> None:
         file_path, _ = QFileDialog.getSaveFileName(
@@ -206,8 +216,9 @@ class BaseApplication(QMainWindow):
                 "Workspace Files (*.wks)")
         )
         if file_path:
-            from pathlib import Path
-            self._workspace_manager.export_workspace(Path(file_path))
+            workspace_service = cast(WorkspaceService, self._service_locator.get_service("workspace"))
+            if workspace_service:
+                workspace_service.manager.export_workspace(Path(file_path))
 
     def load_workspace(self, file_path: Optional[str] = None) -> None:
         if not file_path:
@@ -216,11 +227,66 @@ class BaseApplication(QMainWindow):
                     "Workspace Files (*.wks)")
             )
         if file_path:
-            from pathlib import Path
-            self._workspace_manager.import_workspace(Path(file_path))
+            workspace_service = cast(WorkspaceService, self._service_locator.get_service("workspace"))
+            if workspace_service:
+                workspace_service.manager.import_workspace(Path(file_path))
+
+    def _save_workspace_state(self) -> None:
+        """Save the current workspace state."""
+        workspace_service = cast(WorkspaceService, self._service_locator.get_service("workspace"))
+        if not workspace_service:
+            return
+
+        # Save main window state
+        workspace_service.manager.save_window_state(
+            "main_window",
+            self.saveGeometry().toBase64(),
+            self.saveState().toBase64()
+        )
+
+        # Save open features
+        open_features = [p.feature_id for p in self._active_presenters.values()]
+        workspace_service.manager.save_open_features(open_features)
+
+        # Save window states
+        for presenter in self._active_presenters.values():
+            workspace_service.manager.save_window_state(
+                presenter.feature_id,
+                presenter.view.saveGeometry(),
+                QByteArray()
+            )
+
+    def _restore_workspace(self) -> None:
+        """Restore the workspace state."""
+        workspace_service = cast(WorkspaceService, self._service_locator.get_service("workspace"))
+        if not workspace_service:
+            return
+
+        # Restore main window state
+        geometry, state = workspace_service.manager.get_window_state("main_window")
+        if geometry:
+            self.restoreGeometry(QByteArray.fromBase64(geometry))
+        if state:
+            self.restoreState(QByteArray.fromBase64(state))
+
+        # Restore open features
+        open_features = workspace_service.manager.get_open_features()
+        for feature_id in open_features:
+            # This assumes presenters are already registered
+            presenter = self._registered_presenters.get(feature_id)
+            if presenter and feature_id not in self._active_presenters:
+                self.register_feature(presenter)
+
+        # Restore window states
+        for presenter in self._active_presenters.values():
+            geometry, _ = workspace_service.manager.get_window_state(presenter.feature_id)
+            if geometry:
+                presenter.view.restoreGeometry(geometry)
 
     def closeEvent(self, event: QCloseEvent):
         """Handle application close event to clean up services"""
+        self._save_workspace_state()
+
         # Clean up all services
         self._service_locator.cleanup_all()
 

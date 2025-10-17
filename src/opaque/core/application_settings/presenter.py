@@ -39,6 +39,9 @@ class ApplicationPresenter(BasePresenter):
     def bind_events(self) -> None:
         pass
 
+    def apply_settings(self) -> None:
+        """Apply the theme when settings are changed."""
+        self.theme_manager.apply_theme(str(self.model.theme))
+
     def update(self, property_name: str, value: any) -> None:
-        if property_name == "theme":
-            self.theme_manager.apply_theme(str(value))
+        pass

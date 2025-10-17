@@ -20,14 +20,14 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from opaque.core.presenter import BasePresenter
-from opaque.managers.settings_manager import SettingsManager
+from opaque.core.services import ServiceLocator
 from opaque.managers.theme_manager import ThemeManager
 from opaque.widgets.color_picker import ColorPicker
 from opaque.models.annotations import UIType
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, presenters: List[BasePresenter], settings_manager: SettingsManager, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, presenters: List[BasePresenter], parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
         self.setWindowTitle(self.tr("Settings"))
@@ -35,7 +35,10 @@ class SettingsDialog(QDialog):
 
         self.features: Dict[str, BasePresenter] = { p.feature_id: p for p in presenters}
 
-        self.settings_manager = settings_manager
+        settings_service = ServiceLocator.get_service("settings")
+        if not settings_service:
+            raise RuntimeError("SettingsService not found.")
+        self.settings_manager = settings_service.manager
 
         # Cache for settings field labels for searching
         self._settings_cache: Dict[str, List[str]] = {}
@@ -97,6 +100,7 @@ class SettingsDialog(QDialog):
         """Saves all current settings."""
         for feature_id, presenter in self.features.items():
             self.settings_manager.save_feature_settings(feature_id, presenter.model)
+            presenter.apply_settings()
         if show_success_message:
             # Inform user of success
             msg_box = QMessageBox(self)

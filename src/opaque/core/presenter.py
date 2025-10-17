@@ -10,11 +10,14 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Type
+from typing import Any, Optional, TYPE_CHECKING
 
 from opaque.core.view import BaseView
 from opaque.core.model import BaseModel
 from opaque.core.exceptions import ModelNotDefinedError, ViewNotDefinedError
+
+if TYPE_CHECKING:
+    from opaque.core.application import BaseApplication
 
 
 class BasePresenter(ABC):
@@ -29,7 +32,7 @@ class BasePresenter(ABC):
             feature_id: str,
             model: BaseModel,
             view: BaseView,
-            app: Any
+            app: 'BaseApplication'
     ) -> None:
         """
         Initialize the presenter.
@@ -37,25 +40,20 @@ class BasePresenter(ABC):
 
         # unique id for each feature of the project
         self._feature_id = feature_id
-        # avoid circular import issue
-        from opaque.core.application import BaseApplication
-        if not isinstance(app, BaseApplication):
-            raise TypeError("Application reference is not BaseApplication type")
-
-        self._app: BaseApplication = app
+        self._app_ref: 'BaseApplication' = app
 
         # a presenter must have be associated with a view and a model
-        # if there is a need for a presenter without one of those 
+        # if there is a need for a presenter without one of those
         # just pass a dummy implementation of the BaseView / BaseModel
         if not model:
             raise ModelNotDefinedError(feature_id=feature_id)
         self._model = model
-        self._model.set_application(self._app)
+        self._model.set_application(app)
 
         if not view:
             raise ViewNotDefinedError(feature_id=feature_id)
         self._view = view
-        self._view.set_application(self._app)
+        self._view.set_application(app)
 
         # Attach presenter to model as observer
         self._model.attach(self)
@@ -94,11 +92,25 @@ class BasePresenter(ABC):
         """Get the view"""
         return self._view
 
+    @property
+    def app(self) -> Optional['BaseApplication']:
+        """Get the application instance."""
+        return self._app_ref() if self._app_ref else None
+
     @abstractmethod
     def bind_events(self) -> None:
         """
         Bind view events to presenter methods.
         Override this to connect UI events to handlers.
+        """
+        pass
+
+    def apply_settings(self) -> None:
+        """
+        Apply any pending settings changes.
+        This method is called after settings have been saved, allowing the
+        presenter to react to changes that require immediate action, such as
+        re-rendering a view or updating a service.
         """
         pass
 

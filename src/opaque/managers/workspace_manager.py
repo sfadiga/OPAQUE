@@ -13,7 +13,7 @@
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, QByteArray
 
 
 class WorkspaceManager(QObject):
@@ -79,22 +79,10 @@ class WorkspaceManager(QObject):
             Dictionary of field names and their current values
         """
         workspace_data = {}
-
-        # Check class attributes for workspace_field annotations
-        for name in dir(model.__class__):
-            if not name.startswith('_'):
-                try:
-                    attr = getattr(model.__class__, name)
-                    if hasattr(attr, '_is_workspace_field') and attr._is_workspace_field:
-                        # Get current value from instance
-                        if hasattr(model, name):
-                            workspace_data[name] = getattr(model, name)
-                        else:
-                            # Use default from annotation
-                            workspace_data[name] = attr.default
-                except AttributeError:
-                    continue
-
+        fields = type(model).get_fields()
+        for name, field in fields.items():
+            if field.is_workspace:
+                workspace_data[name] = getattr(model, name)
         return workspace_data
 
     def save_feature_state(self, feature_id: str, state: Dict[str, Any]) -> None:
@@ -149,25 +137,25 @@ class WorkspaceManager(QObject):
         self.workspace_changed.emit()
         self.save_workspace()
 
-    def save_window_state(self, window_id: str, geometry: bytes, state: bytes) -> None:
+    def save_window_state(self, window_id: str, geometry: QByteArray, state: QByteArray) -> None:
         """
         Save window geometry and state.
 
         Args:
             window_id: Unique identifier for the window
-            geometry: Window geometry as bytes
-            state: Window state as bytes
+            geometry: Window geometry as QByteArray
+            state: Window state as QByteArray
         """
         if "windows" not in self._workspace_data:
             self._workspace_data["windows"] = {}
 
         self._workspace_data["windows"][window_id] = {
-            "geometry": geometry.hex() if geometry else None,
-            "state": state.hex() if state else None
+            "geometry": geometry.toHex().data().decode() if geometry else None,
+            "state": state.toHex().data().decode() if state else None
         }
         self.save_workspace()
 
-    def get_window_state(self, window_id: str) -> tuple:
+    def get_window_state(self, window_id: str) -> tuple[QByteArray, QByteArray]:
         """
         Get saved window geometry and state.
 
@@ -175,38 +163,40 @@ class WorkspaceManager(QObject):
             window_id: Unique identifier for the window
 
         Returns:
-            Tuple of (geometry_bytes, state_bytes)
+            Tuple of (geometry_QByteArray, state_QByteArray)
         """
         if "windows" in self._workspace_data and window_id in self._workspace_data["windows"]:
             window_data = self._workspace_data["windows"][window_id]
-            geometry = bytes.fromhex(
-                window_data["geometry"]) if window_data.get("geometry") else None
-            state = bytes.fromhex(
-                window_data["state"]) if window_data.get("state") else None
-            return geometry, state
-        return None, None
+            geometry_hex = window_data.get("geometry")
+            state_hex = window_data.get("state")
+            
+            geometry = QByteArray.fromHex(geometry_hex.encode()) if geometry_hex else QByteArray()
+            state = QByteArray.fromHex(state_hex.encode()) if state_hex else QByteArray()
 
-    def save_mdi_state(self, mdi_state: bytes) -> None:
+            return geometry, state
+        return QByteArray(), QByteArray()
+
+    def save_mdi_state(self, mdi_state: QByteArray) -> None:
         """
         Save MDI area state.
 
         Args:
-            mdi_state: MDI area state as bytes
+            mdi_state: MDI area state as QByteArray
         """
-        self._workspace_data["mdi_state"] = mdi_state.hex(
-        ) if mdi_state else None
+        self._workspace_data["mdi_state"] = mdi_state.toHex().data().decode() if mdi_state else None
         self.save_workspace()
 
-    def get_mdi_state(self) -> Optional[bytes]:
+    def get_mdi_state(self) -> QByteArray:
         """
         Get saved MDI area state.
 
         Returns:
-            MDI area state as bytes or None
+            MDI area state as QByteArray
         """
-        if "mdi_state" in self._workspace_data and self._workspace_data["mdi_state"]:
-            return bytes.fromhex(self._workspace_data["mdi_state"])
-        return None
+        mdi_state_hex = self._workspace_data.get("mdi_state")
+        if mdi_state_hex:
+            return QByteArray.fromHex(mdi_state_hex.encode())
+        return QByteArray()
 
     def save_open_features(self, feature_ids: list) -> None:
         """
