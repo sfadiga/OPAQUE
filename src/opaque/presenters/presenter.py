@@ -12,12 +12,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional, TYPE_CHECKING
 
-from opaque.core.view import BaseView
-from opaque.core.model import BaseModel
-from opaque.core.exceptions import ModelNotDefinedError, ViewNotDefinedError
+from opaque.view.view import BaseView
+from opaque.models.model import BaseModel
 
 if TYPE_CHECKING:
-    from opaque.core.application import BaseApplication
+    from opaque.view.application import BaseApplication
 
 
 class BasePresenter(ABC):
@@ -29,38 +28,33 @@ class BasePresenter(ABC):
 
     def __init__(
             self,
-            feature_id: str,
             model: BaseModel,
             view: BaseView,
-            app: 'BaseApplication'
+            app: 'BaseApplication',
+            feature_id: Optional[str] = None
     ) -> None:
         """
         Initialize the presenter.
         """
 
-        # unique id for each feature of the project
-        self._feature_id = feature_id
-        self._app_ref: 'BaseApplication' = app
-
+        # Auto-generate feature_id if not provided
+        if feature_id is None:
+            # Use the presenter class name as the feature_id
+            self._feature_id = self.__class__.__name__
+        else:
+            self._feature_id = feature_id
+            
+        self._app: 'BaseApplication' = app
         # a presenter must have be associated with a view and a model
         # if there is a need for a presenter without one of those
         # just pass a dummy implementation of the BaseView / BaseModel
-        if not model:
-            raise ModelNotDefinedError(feature_id=feature_id)
-        self._model = model
-        self._model.set_application(app)
-
-        if not view:
-            raise ViewNotDefinedError(feature_id=feature_id)
-        self._view = view
-        self._view.set_application(app)
-
-        # Attach presenter to model as observer
-        self._model.attach(self)
+        self._model: BaseModel = model
+        self._view: BaseView = view
 
         # Connect to view events
-        self._view.view_shown.connect(self.on_view_show)
-        self._view.view_closed.connect(self.on_view_close)
+        self._view.window_opened.connect(self.on_view_show)
+        self._view.window_closed.connect(self.on_view_close)
+
 
         # Set window title from feature interface
         self._view.setWindowTitle(self._model.feature_name())
@@ -69,6 +63,9 @@ class BasePresenter(ABC):
         icon = self._model.feature_icon()
         if icon and not icon.isNull():
             self._view.setWindowIcon(icon)
+
+        # Attach presenter to model as observer
+        self._model.attach(self)
 
         # Bind events
         self.bind_events()
@@ -93,9 +90,9 @@ class BasePresenter(ABC):
         return self._view
 
     @property
-    def app(self) -> Optional['BaseApplication']:
+    def app(self) -> 'BaseApplication':
         """Get the application instance."""
-        return self._app_ref() if self._app_ref else None
+        return self._app
 
     @abstractmethod
     def bind_events(self) -> None:
@@ -114,17 +111,21 @@ class BasePresenter(ABC):
         """
         pass
 
-    def update(self, property_name: str, value: Any) -> None:
+    @abstractmethod
+    def update(self, field_name: str, new_value: Any, old_value: Any = None, model: Any = None) -> None:
         """
-        Called when a model property changes.
-        Override this to update the view based on model changes.
+        Called when a model field changes.
+        Override this to update the view based on model field changes.
 
         Args:
-            property_name: Name of the changed property
-            value: New value of the property
+            field_name: Name of the changed field
+            new_value: New value of the field
+            old_value: Previous value of the field (optional for backward compatibility)
+            model: The model instance that changed (optional for backward compatibility)
         """
         pass
 
+    @abstractmethod
     def on_view_show(self) -> None:
         """
         Called when the view is shown.
@@ -132,27 +133,41 @@ class BasePresenter(ABC):
         """
         pass
 
+    @abstractmethod
     def on_view_close(self) -> None:
         """
         Called when the view is closed.
         Override this to perform cleanup or save state.
         """
-        self.save_state()
+        print("presenter cleanup")
         self.cleanup()
 
-    def save_state(self) -> None:
+    def save_workspace(self, workspace_object: dict) -> None:
         """
-        Save the current state.
+        Save the current worskpace state.
         Override this to implement state persistence.
         """
-        pass
+        state = self.view.get_geometry_state()
+        workspace_object[self.__class__.__name__] = {"window_state": state}
+        fields = type(self.model).get_fields()
+        for name, field in fields.items():
+            if field.is_workspace:
+                workspace_object[self.__class__.__name__][name] = getattr(self.model, name)
 
-    def restore_state(self) -> None:
+    def load_workspace(self, workspace_object: dict) -> None:
         """
-        Restore a previously saved state.
+        Restore a previously workspace saved state.
         Override this to implement state restoration.
         """
-        pass
+        if self.__class__.__name__ in workspace_object:
+            if "window_state" in workspace_object[self.__class__.__name__]:
+                state = workspace_object[self.__class__.__name__]["window_state"]
+                self.view.set_geometry_state(state)
+            if workspace_object[self.__class__.__name__]:
+                for key, value in workspace_object[self.__class__.__name__].items():
+                    if hasattr(self.model, key):
+                        setattr(self.model, key, value)
+                        self.update(key, value)
 
     def cleanup(self) -> None:
         """
@@ -163,23 +178,11 @@ class BasePresenter(ABC):
 
         # Disconnect from view events
         try:
-            self._view.view_shown.disconnect(self.on_view_show)
-            self._view.view_closed.disconnect(self.on_view_close)
+            self._view.window_closed.disconnect(self.on_view_close)
+            self._view.window_opened.disconnect(self.on_view_show)
         except RuntimeError:
             # Already disconnected
             pass
 
         # Clean up model
         self._model.cleanup()
-
-    def show_view(self) -> None:
-        """Show the view"""
-        self._view.show()
-
-    def hide_view(self) -> None:
-        """Hide the view"""
-        self._view.hide()
-
-    def close_view(self) -> None:
-        """Close the view"""
-        self._view.close()

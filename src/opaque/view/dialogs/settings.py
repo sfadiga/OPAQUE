@@ -19,12 +19,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from opaque.core.presenter import BasePresenter
-from opaque.core.services import ServiceLocator
-from opaque.managers.theme_manager import ThemeManager
-from opaque.widgets.color_picker import ColorPicker
-from opaque.models.annotations import UIType
+from opaque.presenters.presenter import BasePresenter
+from opaque.services.service import ServiceLocator
+from opaque.services.settings_service import SettingsService
 
+from opaque.view.widgets.color_picker import ColorPicker
+from opaque.models.annotations import UIType
 
 class SettingsDialog(QDialog):
     def __init__(self, presenters: List[BasePresenter], parent: Optional[QWidget] = None) -> None:
@@ -35,10 +35,9 @@ class SettingsDialog(QDialog):
 
         self.features: Dict[str, BasePresenter] = { p.feature_id: p for p in presenters}
 
-        settings_service = ServiceLocator.get_service("settings")
-        if not settings_service:
+        self.settings_service: SettingsService = ServiceLocator.get_service("settings")
+        if not self.settings_service:
             raise RuntimeError("SettingsService not found.")
-        self.settings_manager = settings_service.manager
 
         # Cache for settings field labels for searching
         self._settings_cache: Dict[str, List[str]] = {}
@@ -99,7 +98,7 @@ class SettingsDialog(QDialog):
     def _apply_settings(self, show_success_message: bool = True) -> None:
         """Saves all current settings."""
         for feature_id, presenter in self.features.items():
-            self.settings_manager.save_feature_settings(feature_id, presenter.model)
+            self.settings_service.save_feature_settings(feature_id, presenter.model)
             presenter.apply_settings()
         if show_success_message:
             # Inform user of success

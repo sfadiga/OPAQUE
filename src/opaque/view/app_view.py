@@ -8,7 +8,7 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-from opaque.core.view import BaseView
+from opaque.view.view import BaseView
 
 
 class ApplicationView(BaseView):

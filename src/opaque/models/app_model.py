@@ -9,7 +9,8 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 from PySide6.QtGui import QIcon
-from opaque.core.model import BaseModel
+
+from opaque.models.model import BaseModel
 from opaque.models.annotations import Field, UIType
 
 
@@ -45,6 +46,6 @@ class ApplicationModel(BaseModel):
         """
         Return the feature icon for the settings dialog.
         """
-        if self.app():
-            return self.app().application_icon()
+        if self.app:
+            return self.app._configuration.get_application_icon()
         return QIcon.fromTheme("tool")

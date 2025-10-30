@@ -10,14 +10,13 @@
 """
 
 
-from typing import Dict, Optional
+from typing import Optional, Callable
 
 from PySide6.QtWidgets import QToolBar, QToolButton, QWidget, QApplication
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon, QPalette
 
-from opaque.core.presenter import BasePresenter
-
+from opaque.presenters.presenter import BasePresenter
 
 class OpaqueMainToolbar(QToolBar):
     """
@@ -31,16 +30,67 @@ class OpaqueMainToolbar(QToolBar):
 
     def __init__(self, title: str, parent: Optional[QWidget] = None) -> None:
         super().__init__(title, parent)
-        self.setObjectName("main_toolbar")
+
         self.setMovable(True)
         self.setFloatable(True)
 
-        self._button_map: Dict[BasePresenter, QToolButton] = {}
-        self._window_map: Dict[QToolButton, BasePresenter] = {}
         self._active_button: Optional[QToolButton] = None
         self._current_highlight_style: str = ""
 
         self._setup_default_buttons()
+        self._update_highlight_style()
+
+    def add_feature(self, presenter: BasePresenter) -> QToolButton:
+        """
+        Adds a feature to the toolbar, creating a button and connecting signals.
+
+        Args:
+            feature_window: The feature window instance to add.
+        """
+        feature_name = presenter.model.feature_name()
+        button = QToolButton()
+        button.setText(self.tr(feature_name))
+        button.setToolTip(self.tr(presenter.model.feature_description()))
+        button.setIcon(presenter.model.feature_icon())
+        button.setIconSize(QSize(24, 24))
+        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        button.setMinimumSize(70, 0)
+
+        self.addWidget(button)
+        # --- Connect signals and slots ---
+        self.connect_slot_to_button_click(presenter.view.open_close, button)
+        # 2. Window is shown -> Highlight button
+        self.connect_signal_to_set_active(presenter.view.window_opened.connect, button)
+        # 3. Window is focused -> Highlight button
+        self.connect_signal_to_set_active(presenter.view.window_focused.connect, button)
+        # 4. Window is unfocused -> Highlight button
+        # self.connect_signal_to_set_inactive(presenter.view.window_unfocused.connect, button)
+        # 5. Window is closed -> Un-highlight button
+        self.connect_signal_to_set_inactive(presenter.view.window_closed.connect, button)
+
+
+        # button is returned as a reference so signals/slots can be associated with
+        return button
+
+    def add_separator(self):
+        "wrapper to be used in when a peparator is required" 
+        self.addSeparator()
+
+
+    def connect_slot_to_button_click(self, open_close_slot: Callable, button: QToolButton):
+        button.clicked.connect(open_close_slot)
+
+    def connect_signal_to_set_active(self, activate_signal: Callable, button: QToolButton):
+        activate_signal(lambda: self._set_active(button))
+
+    def connect_signal_to_set_inactive(self, deactivate_signal: Callable, button: QToolButton):
+        deactivate_signal(lambda: self._set_active(button))
+
+    def update_theme(self) -> None:
+        """
+        Public method to update the toolbar when theme changes.
+        Called by the main application when a new theme is applied.
+        """
         self._update_highlight_style()
 
     def _setup_default_buttons(self) -> None:
@@ -76,43 +126,6 @@ class OpaqueMainToolbar(QToolBar):
     def _tile_windows(self) -> None:
         """Tell the MDI area to tile the windows."""
         self.parent().mdi_area.tileSubWindows()
-
-    def add_feature(self, feature: BasePresenter) -> None:
-        """
-        Adds a feature to the toolbar, creating a button and connecting signals.
-
-        Args:
-            feature_window (BaseFeatureWindow): The feature window instance to add.
-        """
-        button = QToolButton()
-        button.setText(self.tr(feature.model.feature_name()))
-        button.setToolTip(self.tr(feature.model.feature_description()))
-        button.setIcon(feature.model.feature_icon())
-        button.setIconSize(QSize(24, 24))
-        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        button.setMinimumSize(70, 0)
-
-        self.addWidget(button)
-
-        self._button_map[feature] = button
-        self._window_map[button] = feature
-
-        # --- Connect signals and slots ---
-
-        # 1. Click button -> Toggle window visibility
-        button.clicked.connect(feature.view.openClose)
-
-        # 2. Window is shown -> Highlight button
-        feature.view.windowOpen.connect(lambda: self._set_active(button))
-
-        # 3. Window is focused -> Highlight button
-        feature.view.windowFocused.connect(lambda: self._set_active(button))
-
-        # 4. Window is unfocused -> Highlight button
-        # feature_window.windowUnfocused.connect(lambda: self._set_inactive(button))
-
-        # 5. Window is closed -> Un-highlight button
-        feature.view.windowClosed.connect(lambda: self._set_inactive(button))
 
     def _get_theme_highlight_color(self) -> str:
         """
@@ -165,12 +178,6 @@ class OpaqueMainToolbar(QToolBar):
         if self._active_button:
             self._active_button.setStyleSheet(self._current_highlight_style)
 
-    def update_theme(self) -> None:
-        """
-        Public method to update the toolbar when theme changes.
-        Called by the main application when a new theme is applied.
-        """
-        self._update_highlight_style()
 
     def _set_active(self, button_to_activate: QToolButton) -> None:
         """

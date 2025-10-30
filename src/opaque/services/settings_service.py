@@ -16,8 +16,9 @@ from typing import Dict, Any, Optional
 
 from PySide6.QtCore import QObject, Signal
 
+from opaque.services.service import BaseService
 
-class SettingsManager(QObject):
+class SettingsService(BaseService):
     """Manages application settings persistence."""
 
     settings_changed = Signal(str, object)  # feature_id, settings
@@ -29,7 +30,7 @@ class SettingsManager(QObject):
         Args:
             settings_file: Path to settings file. If None, uses default location.
         """
-        super().__init__()
+        super().__init__("settings")
 
         if settings_file is None:
             settings_file = Path.home() / ".opaque" / "settings.json"
@@ -40,7 +41,13 @@ class SettingsManager(QObject):
         self._settings: Dict[str, Dict[str, Any]] = {}
         # Store feature models for annotation support
         self._feature_models: Dict[str, Any] = {}
+
+    def initialize(self) -> None:
         self.load_settings_file()
+        return super().initialize()
+
+    def cleanup(self) -> None:
+        return super().cleanup()
 
     def register_model(self, feature_id: str, model: Any) -> None:
         """
@@ -110,7 +117,7 @@ class SettingsManager(QObject):
         """Load settings from file."""
         if self.settings_file.exists():
             try:
-                with open(self.settings_file, 'r') as f:
+                with open(self.settings_file, 'r', encoding='utf-8') as f:
                     self._settings = json.load(f)
             except (json.JSONDecodeError, IOError) as e:
                 print(f"Error loading settings: {e}")
@@ -119,7 +126,7 @@ class SettingsManager(QObject):
     def save_settings_file(self) -> None:
         """Save settings to file."""
         try:
-            with open(self.settings_file, 'w') as f:
+            with open(self.settings_file, 'w', encoding='utf-8') as f:
                 json.dump(self._settings, f, indent=2)
         except IOError as e:
             print(f"Error saving settings: {e}")

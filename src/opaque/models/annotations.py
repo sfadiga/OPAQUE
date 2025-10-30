@@ -22,13 +22,15 @@ class UIType(Enum):
     DROPDOWN = "dropdown"
     TEXTAREA = "textarea"
     SLIDER = "slider"
+    LIST_VIEW = "list_view"
     FILE_SELECTOR = "file_selector" # TODO TBD
 
 
 class Field:
     """
     Configuration class for model fields. It provides metadata for validation,
-    persistence, and UI generation.
+    persistence, and UI generation. All Field attributes are automatically
+    observable - they will notify attached observers when their values change.
     """
 
     def __init__(self,
@@ -36,7 +38,6 @@ class Field:
                  description: str = "",
                  required: bool = False,
                  validator: Optional[Callable[[Any], bool]] = None,
-                 binding: bool = False,
                  settings: bool = False,
                  workspace: bool = False,
                  min_value: Optional[float] = None,
@@ -48,7 +49,6 @@ class Field:
         self.description = description
         self.required = required
         self.validator = validator
-        self.binding = binding
         self.is_setting = settings
         self.is_workspace = workspace
         self.min_value = min_value
@@ -57,9 +57,26 @@ class Field:
         self.ui_type = ui_type
         self.extra_config = kwargs
         self.name: str = ""  # Will be set by BaseModel
+        self._observers: List[Any] = []  # All Fields are observable
 
     def __set_name__(self, owner: Any, name: str):
         self.name = name
+
+    def attach(self, observer: Any) -> None:
+        """Attach an observer to this field."""
+        if observer not in self._observers:
+            self._observers.append(observer)
+
+    def detach(self, observer: Any) -> None:
+        """Detach an observer from this field."""
+        if observer in self._observers:
+            self._observers.remove(observer)
+
+    def notify(self, model_instance: Any, old_value: Any, new_value: Any) -> None:
+        """Notify all observers about field change."""
+        for observer in self._observers:
+            if hasattr(observer, 'update'):
+                observer.update(self.name, new_value, old_value, model_instance)
 
     def validate(self, value: Any) -> bool:
         """Validate the field value."""
@@ -112,7 +129,6 @@ class ListField(Field):
     """Field for list values."""
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-
 
 class ChoiceField(Field):
     """Field for values from a list of choices."""

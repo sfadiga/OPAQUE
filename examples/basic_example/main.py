@@ -4,89 +4,82 @@ This example demonstrates the new MVP (Model-View-Presenter) pattern
 along with the annotation system for settings and workspace persistence.
 It also shows how to configure custom paths for settings and workspace files.
 """
-from opaque.core.application import BaseApplication
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
 
 
-class MVPExampleApplication(BaseApplication):
+from opaque.models.annotations import StringField, IntField
+from opaque.view.application import BaseApplication
+from opaque.models.configuration import DefaultApplicationConfiguration
+#sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / 'src'))
+
+
+class MyApplicationConfiguration(DefaultApplicationConfiguration):
+
+
+    # Define fields at class level
+    application_name = StringField(default="MyExampleApplication")
+    application_title = StringField(default="My Example Application")
+    application_description = StringField(default="My Example Application Description")
+    application_icon = StringField(default="")
+    application_version = StringField(default="0.0.1", description="Application Version")
+    application_organization = StringField(default="My Company", description="Application Owner")
+    application_min_width = IntField(default=1280, description="Application min width")
+    application_max_width = IntField(default=1980, description="Application max width")
+    application_min_height = IntField(default=720, description="Application min height")
+    application_max_height = IntField(default=720, description="Application max height")
+    settings_file_path = StringField(default="")  # Will be set in __init__
+    workspace_file_extension = StringField(default=".wks")
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_application_name(self) -> str:
+        return super().get_application_name()
+
+    def get_application_title(self) -> str:
+        return super().get_application_title()
+
+    def get_application_description(self) -> str:
+        return super().get_application_description()
+
+    def get_application_icon(self) -> str:
+        return super().get_application_icon()
+
+    def get_application_organization(self) -> str:
+        return super().get_application_organization()
+
+    def get_application_version(self) -> str:
+        return super().get_application_version()
+
+class MyExampleApplication(BaseApplication):
     """Example application demonstrating MVP pattern features with custom paths."""
 
-    def application_name(self) -> str:
-        return "MVPExample"
-
-    def organization_name(self) -> str:
-        return "OPAQUEFramework"
-
-    def application_title(self) -> str:
-        return "OPAQUE MVP Pattern Example"
-
-    def application_description(self) -> str:
-        return "An example application demonstrating the MVP pattern."
-
-    def application_icon(self) -> QIcon:
-        return QIcon.fromTheme("drive-optical")
-
-    def settings_file_path(self) -> Path:
-        """
-        Override to use a custom settings path.
-        This example stores settings in a 'mvp_example' subfolder.
-        """
-        return Path.home() / ".opaque" / "mvp_example" / "settings.json"
-
     def __init__(self):
-        super().__init__()
+
+        self._configuration = MyApplicationConfiguration()
+        super().__init__(self._configuration)
         self.register_features()
 
     def register_features(self):
         """Register MVP features and services."""
 
-        # Register services first
-        from services.calculation_service import CalculationService
-        from services.logging_service import LoggingService
-        from services.data_service import DataService
-        logging_service = LoggingService()
-        logging_service.initialize()
-        self.register_service(logging_service)
-        data_service = DataService()
-        data_service.initialize()
-        self.register_service(data_service)
-        calc_service = CalculationService()
-        calc_service.initialize()
-        self.register_service(calc_service)
+
+        #self.register_service(calc_service)
 
         # Register MVP features
-        from features.calculator.model import CalculatorModel
-        from features.calculator.view import CalculatorView
-        from features.calculator.presenter import CalculatorPresenter
+        from features.todo_list.model import Todo
+        from features.todo_list.view import CalculatorView
+        from features.todo_list.presenter import CalculatorPresenter
         calc_feature_id = "calculator"
         calc_model = CalculatorModel(calc_feature_id)
         calc_view = CalculatorView(calc_feature_id)
         calc_presenter = CalculatorPresenter(
             calc_feature_id, calc_model, calc_view, self)
         self.register_feature(calc_presenter)
-
-        from features.logging.model import LoggingModel
-        from features.logging.view import LoggingView
-        from features.logging.presenter import LoggingPresenter
-        log_feature_id = "logging"
-        log_model = LoggingModel(log_feature_id)
-        log_view = LoggingView(log_feature_id)
-        log_presenter = LoggingPresenter(log_feature_id, log_model, log_view, self)
-        self.register_feature(log_presenter)
-
-        from features.data_viewer.model import DataViewerModel
-        from features.data_viewer.view import DataViewerView
-        from features.data_viewer.presenter import DataViewerPresenter
-        data_feature_id = "data"
-        data_model = DataViewerModel(data_feature_id)
-        data_view = DataViewerView(data_feature_id)
-        data_presenter = DataViewerPresenter(data_feature_id, data_model, data_view, self)
-        self.register_feature(data_presenter)
 
 
 if __name__ == "__main__":

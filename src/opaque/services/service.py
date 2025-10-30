@@ -11,10 +11,11 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Optional
 
+from PySide6.QtCore import QObject, Signal
 
-class BaseService(ABC):
+class BaseService(QObject):
     """
     Abstract base class for all services in the application.
     Services encapsulate business logic and can be accessed via the service locator.
@@ -64,6 +65,19 @@ class ServiceLocator:
     _services: dict[str, BaseService] = {}
 
     @classmethod
+    def get_service(cls, name: str) -> Optional[BaseService]:
+        """
+        Get a registered service by name.
+
+        Args:
+            name: Service identifier
+
+        Returns:
+            Service instance or None if not found
+        """
+        return cls._services.get(name)
+
+    @classmethod
     def register_service(cls, service: BaseService) -> None:
         """
         Register a service with the locator.
@@ -83,23 +97,11 @@ class ServiceLocator:
                 f"Service '{service.name}' must be initialized before being registered"
             )
 
+        service.initialize()
         cls._services[service.name] = service
 
     @classmethod
-    def get_service(cls, name: str) -> Optional[BaseService]:
-        """
-        Get a registered service by name.
-
-        Args:
-            name: Service identifier
-
-        Returns:
-            Service instance or None if not found
-        """
-        return cls._services.get(name)
-
-    @classmethod
-    def remove_service(cls, name: str) -> bool:
+    def unregister_service(cls, name: str) -> bool:
         """
         Remove a service from the locator.
 
@@ -117,7 +119,7 @@ class ServiceLocator:
         return False
 
     @classmethod
-    def cleanup_all(cls) -> None:
+    def cleanup_services(cls) -> None:
         """
         Clean up all registered services.
         """

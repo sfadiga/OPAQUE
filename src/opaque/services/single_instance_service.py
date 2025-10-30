@@ -16,8 +16,9 @@ import time
 
 from PySide6.QtCore import QObject, Signal
 
+from opaque.services.service import BaseService
 
-class SingleInstanceManager(QObject):
+class SingleInstanceService(BaseService):
     """
     Ensures only one instance of the application is running.
     Uses socket binding as the primary mechanism for instance detection.
@@ -26,7 +27,7 @@ class SingleInstanceManager(QObject):
     # Signal emitted when another instance is detected
     another_instance_detected = Signal()
 
-    def __init__(self, app_name="ft_ui_tool", port=49152):
+    def __init__(self, app_name: str = "application_name", port: int = 49152):
         """
         Initialize the single instance manager.
 
@@ -34,7 +35,7 @@ class SingleInstanceManager(QObject):
             app_name: Name used for the lock file
             port: TCP port to bind to (default is first private port 49152)
         """
-        super().__init__()
+        super().__init__("single_instance")
         self.app_name = app_name
         self.port = port
         self.lock_file_path = os.path.join(".", f"{app_name}.lock")
@@ -44,6 +45,12 @@ class SingleInstanceManager(QObject):
 
         # Register cleanup on exit
         atexit.register(self.release_lock)
+
+    def initialize(self) -> None:
+        return super().initialize()
+
+    def cleanup(self) -> None:
+        return super().cleanup()
 
     def try_acquire_lock(self) -> bool:
         """
