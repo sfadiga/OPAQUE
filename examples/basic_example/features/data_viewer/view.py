@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
     QInputDialog, QMessageBox, QHeaderView
 )
 from PySide6.QtCore import Signal, QDateTime
-from opaque.core.view import BaseView
+from opaque.view.view import BaseView
+from opaque.view.application import BaseApplication
 from typing import Any, Dict, List, Optional
 
 
@@ -22,9 +23,9 @@ class DataViewerView(BaseView):
     export_clicked = Signal()
     import_clicked = Signal()
 
-    def __init__(self, feature_id: str, parent: Optional[QWidget] = None):
+    def __init__(self, app: BaseApplication, parent: Optional[QWidget] = None):
         """Initialize the view."""
-        super().__init__(feature_id, parent)
+        super().__init__(app, parent)
         self.init_ui()
 
     def feature_id(self) -> str:
@@ -88,7 +89,7 @@ class DataViewerView(BaseView):
         # Set the layout
         container = QWidget()
         container.setLayout(layout)
-        self.set_content(container)
+        self.setWidget(container)
 
     def update_table(self, data: List[Dict[str, Any]]):
         """Update the table with data."""

@@ -10,19 +10,20 @@
 """
 from typing import List
 from PySide6.QtWidgets import QTextEdit
-from opaque.core.view import BaseView
+from opaque.view.view import BaseView
+from opaque.view.application import BaseApplication
 
 
 class LoggingView(BaseView):
     """A simple feature window that displays text logs."""
 
-    def __init__(self, feature_id: str):
-        super().__init__(feature_id)
+    def __init__(self, app: BaseApplication):
+        super().__init__(app)
 
         # Create and set the central widget
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
-        self.set_content(self.log_view)
+        self.setWidget(self.log_view)
 
         self.log_view.append(self.tr("Logging window initialized."))
 

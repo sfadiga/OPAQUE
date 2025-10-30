@@ -9,7 +9,8 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 from PySide6.QtGui import QIcon
-from opaque.core.model import BaseModel
+from opaque.models.model import BaseModel
+from opaque.view.application import BaseApplication
 from opaque.models.annotations import BoolField, IntField, StringField
 
 
@@ -36,8 +37,8 @@ class LoggingModel(BaseModel):
                          binding=True, min_value=100, max_value=10000,
                          description="Maximum number of lines to keep in the log.")
 
-    def __init__(self, feature_id: str):
-        super().__init__(feature_id)
+    def __init__(self, app: BaseApplication):
+        super().__init__(app)
         self.log_messages = []
 
     def add_log(self, message: str):

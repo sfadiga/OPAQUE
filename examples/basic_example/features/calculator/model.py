@@ -5,7 +5,8 @@ from typing import List
 from PySide6.QtGui import QIcon
 
 from opaque.models.annotations import IntField, BoolField, StringField, ListField, UIType
-from opaque.core.model import BaseModel
+from opaque.models.model import BaseModel
+from opaque.view.application import BaseApplication
 
 
 class CalculatorModel(BaseModel):
@@ -67,8 +68,8 @@ class CalculatorModel(BaseModel):
         binding=True
     )
 
-    def __init__(self, feature_id: str):
-        super().__init__(feature_id)
+    def __init__(self, app: BaseApplication):
+        super().__init__(app)
         self.clear_on_next = False
         self.pending_operation = None
         self.pending_value = None

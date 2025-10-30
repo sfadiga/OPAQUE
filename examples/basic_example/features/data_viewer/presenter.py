@@ -3,9 +3,9 @@ Data Viewer Presenter - Coordinates between Model and View
 """
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from opaque.core.application import BaseApplication
-from opaque.core.presenter import BasePresenter
-from opaque.core.services import ServiceLocator
+    from opaque.view.application import BaseApplication
+from opaque.presenters.presenter import BasePresenter
+from opaque.services.service import ServiceLocator
 from .model import DataViewerModel
 from .view import DataViewerView
 
@@ -13,11 +13,11 @@ from .view import DataViewerView
 class DataViewerPresenter(BasePresenter):
     """Presenter for the data viewer feature."""
 
-    def __init__(self, feature_id: str, model: DataViewerModel, view: DataViewerView, app: 'BaseApplication'):
+    def __init__(self, model: DataViewerModel, view: DataViewerView, app: 'BaseApplication'):
         """
         Initialize the data viewer presenter.
         """
-        super().__init__(feature_id=feature_id, model=model, view=view, app=app)
+        super().__init__(model, view, app)
         self._update_view()
         self._log("info", "Data Viewer initialized")
 
@@ -30,17 +30,17 @@ class DataViewerPresenter(BasePresenter):
         self.view.export_clicked.connect(self._on_export)
         self.view.import_clicked.connect(self._on_import)
 
-    def update(self, property_name: str, value):
+    def update(self, field_name: str, new_value, old_value=None, model=None):
         """Handle model property changes (called by BaseModel)."""
         self._update_view()
 
         # Update status based on property
-        if property_name == "data":
-            self.view.set_status(f"Data updated: {len(value)} items")
-            self._log("info", f"Data updated with {len(value)} items")
-        elif property_name == "error":
-            self.view.set_status(f"Error: {value}")
-            self._log("error", f"Data viewer error: {value}")
+        if field_name == "data":
+            self.view.set_status(f"Data updated: {len(new_value)} items")
+            self._log("info", f"Data updated with {len(new_value)} items")
+        elif field_name == "error":
+            self.view.set_status(f"Error: {new_value}")
+            self._log("error", f"Data viewer error: {new_value}")
 
     def _update_view(self):
         """Update view with current model state."""
@@ -128,6 +128,10 @@ class DataViewerPresenter(BasePresenter):
         """Show the data viewer view."""
         # Load initial data
         self._on_refresh()
+
+    def on_view_close(self):
+        """Called when the view is closed."""
+        pass
 
     def cleanup(self):
         """Clean up resources."""

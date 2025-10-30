@@ -5,8 +5,9 @@ import json
 from typing import List, Dict, Any
 from datetime import datetime
 from PySide6.QtGui import QIcon
-from opaque.core.model import BaseModel
+from opaque.models.model import BaseModel
 from opaque.models.annotations import BoolField, IntField, StringField
+from opaque.view.application import BaseApplication
 
 
 class DataViewerModel(BaseModel):
@@ -46,9 +47,9 @@ class DataViewerModel(BaseModel):
     sort_order = StringField(
         default="asc", worskpace=True, description="Sort order")
 
-    def __init__(self, feature_id: str):
+    def __init__(self, app: BaseApplication):
         """Initialize the model."""
-        super().__init__(feature_id)
+        super().__init__(app)
         self.data = []
         self.filters = {}
         self.selected_item = None

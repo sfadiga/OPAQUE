@@ -3,10 +3,10 @@ Calculator Presenter - Coordinates between Model and View
 """
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from opaque.core.application import BaseApplication
+    from opaque.view.application import BaseApplication
 
-from opaque.core.presenter import BasePresenter
-from opaque.core.services import ServiceLocator
+from opaque.presenters.presenter import BasePresenter
+from opaque.services.service import ServiceLocator
 
 
 from .model import CalculatorModel
@@ -18,11 +18,11 @@ class CalculatorPresenter(BasePresenter):
     model_class = CalculatorModel
     view_class = CalculatorView
 
-    def __init__(self, feature_id: str, model: CalculatorModel, view: CalculatorView, app: 'BaseApplication'):
+    def __init__(self, model: CalculatorModel, view: CalculatorView, app: 'BaseApplication'):
         """
         Initialize the calculator presenter.
         """
-        super().__init__(feature_id=feature_id, model=model, view=view, app=app)
+        super().__init__(model, view, app)
 
     def bind_events(self):
         """Bind view events to presenter methods (required by BasePresenter)."""
@@ -35,24 +35,24 @@ class CalculatorPresenter(BasePresenter):
         self.view.toggle_sign_clicked.connect(self._on_toggle_sign_clicked)
         self.view.clear_history_clicked.connect(self._on_clear_history_clicked)
 
-    def update(self, property_name: str, value):
+    def update(self, field_name: str, new_value, old_value=None, model=None):
         """Handle model property changes (called by BaseModel)."""
         self._update_view()
 
         # Update status based on property
-        if property_name == "state" and value == "cleared":
+        if field_name == "state" and new_value == "cleared":
             self.view.set_status("Calculator cleared")
-        elif property_name == "operation":
-            self.view.set_status(f"Operation: {value}")
-        elif property_name == "current_value":
-            if value == "Error":
+        elif field_name == "operation":
+            self.view.set_status(f"Operation: {new_value}")
+        elif field_name == "current_value":
+            if new_value == "Error":
                 self.view.set_status("Error in calculation")
                 self._log("error", "Calculation error")
             else:
-                self.view.set_status(f"Result: {value}")
-        elif property_name == "error":
-            self.view.set_status(f"Error: {value}")
-            self._log("error", f"Calculation error: {value}")
+                self.view.set_status(f"Result: {new_value}")
+        elif field_name == "error":
+            self.view.set_status(f"Error: {new_value}")
+            self._log("error", f"Calculation error: {new_value}")
 
     def _update_view(self):
         """Update view with current model state."""
@@ -120,6 +120,10 @@ class CalculatorPresenter(BasePresenter):
         """Show the calculator view."""
         # Update view with initial data now that widgets are ready
         self._update_view()
+
+    def on_view_close(self):
+        """Called when the view is closed."""
+        pass
 
     def cleanup(self):
         """Clean up resources."""

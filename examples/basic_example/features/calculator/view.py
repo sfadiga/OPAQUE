@@ -10,7 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QIcon
 
-from opaque.core.view import BaseView
+from opaque.view.view import BaseView
+from opaque.view.application import BaseApplication
 
 
 class CalculatorView(BaseView):
@@ -26,8 +27,8 @@ class CalculatorView(BaseView):
     toggle_sign_clicked = Signal()
     clear_history_clicked = Signal()
 
-    def __init__(self, feature_id: str, parent: Optional[QWidget] = None):
-        super().__init__(feature_id, parent)
+    def __init__(self, app: BaseApplication, parent: Optional[QWidget] = None):
+        super().__init__(app, parent)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -131,7 +132,7 @@ class CalculatorView(BaseView):
 
         container = QWidget()
         container.setLayout(layout)
-        self.set_content(container)
+        self.setWidget(container)
 
     def update_display(self, value: str):
         """Update the calculator display."""
