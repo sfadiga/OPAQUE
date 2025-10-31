@@ -2,19 +2,20 @@
 
 **OPAQUE** - **O**pinionated **P**ython **A**pplication with **Q**t **U**I for **E**ngineering
 
-An opinionated PySide6-based MDI application framework designed to accelerate the development of professional desktop applications. 
+An opinionated PySide6-based MDI application framework designed to accelerate the development of professional desktop applications following the Model-View-Presenter (MVP) pattern.
 
 ![OPAQUE Framework Screenshot](resources/example.gif)
 
 ## Features
 
-- 🪟 **MDI Window Management** - Multiple Document Interface with dockable windows
-- 🎨 **Theme Management** - 40+ themes including qt-material, qt-themes, and QDarkStyle
-- 💾 **Persistence Layer** - Automatic saving/loading of settings and workspace state
-- 🌍 **Internationalization** - Built-in i18n support with language selection
-- ⚙️ **Global Settings** - Extensible application-wide settings with preview
-- 🔍 **Enhanced Settings Search** - Search through both group names and individual settings
-- 📦 **State Management** - Save and restore complete workspace states
+- 🪟 **MDI Window Management** - Multiple Document Interface with dockable windows.
+- 🏗️ **MVP Architecture** - Clean separation of concerns between data (Model), UI (View), and logic (Presenter).
+- 🎨 **Theme Management** - 40+ themes including qt-material, qt-themes, and QDarkStyle.
+- 💾 **Persistence Layer** - Automatic saving/loading of settings and workspace state.
+- ⚙️ **Global & Feature Settings** - Extensible settings system with a unified dialog.
+- 🔍 **Enhanced Settings Search** - Search through both group names and individual settings.
+- 📦 **State Management** - Save and restore complete workspace states.
+- 🔧 **Service Locator** - Manages shared services across the application.
 
 ## Quick Start
 
@@ -29,59 +30,44 @@ pip install opaque-framework[themes]
 
 # For development
 pip install opaque-framework[dev]
-
-# Install from source (development)
-git clone https://github.com/yourusername/opaque-framework.git
-cd opaque-framework
-pip install -e .
 ```
 
 ### Basic Usage
 
 ```python
-from opaque import BaseApplication, BaseFeatureWindow
-from PySide6.QtWidgets import QApplication
+# main.py
 import sys
-
-class MyFeatureWindow(BaseFeatureWindow):
-    def feature_name(self) -> str:
-        return "My Feature"
-    
-    def feature_icon(self):
-        return QIcon.fromTheme("document-open")
-    
-    def feature_tooltip(self) -> str:
-        return "My custom feature window"
-    
-    def feature_visibility(self) -> bool:
-        return True
-    
-    def feature_settings_model(self):
-        return None  # Or return your settings model class
-    
-    def feature_state_model(self):
-        return None  # Or return your state model class
-    
-    def __init__(self, feature_id: str, **kwargs):
-        super().__init__(feature_id, **kwargs)
-        # Add your UI components here
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
+from opaque.core.application import BaseApplication
+from features.my_feature.presenter import MyFeaturePresenter
 
 class MyApplication(BaseApplication):
     def application_name(self) -> str:
         return "MyApp"
-    
+
     def organization_name(self) -> str:
         return "MyCompany"
-    
+
     def application_title(self) -> str:
         return "My OPAQUE Application"
+
+    def application_icon(self) -> QIcon:
+        return QIcon("path/to/your/icon.ico")
     
-    def register_features(self):
-        feature = MyFeatureWindow(feature_id="my_feature_1")
-        self.register_window(feature)
+    def application_description(self) -> str:
+        return "A simple application created with the OPAQUE framework."
+
+    def __init__(self):
+        super().__init__()
+        self._register_features()
+
+    def _register_features(self):
+        # Register features using their presenters
+        my_feature_presenter = MyFeaturePresenter(feature_id="my_feature_1")
+        self.register_feature(my_feature_presenter)
 
 if __name__ == "__main__":
-    # The framework automatically handles QApplication setup
     app = QApplication(sys.argv)
     main_win = MyApplication()
     main_win.show()
@@ -91,471 +77,176 @@ if __name__ == "__main__":
 ## Project Structure
 
 ```
-opaque_framework/
-├── src/
-│   └── opaque/              # Framework package
-│       ├── ui/              # UI components
-│       │   ├── core/        # Core windows and widgets
-│       │   ├── dialogs/     # Dialog implementations
-│       │   └── layouts/     # Custom layouts
-│       ├── models/          # Data models
-│       │   └── base/        # Base model and field descriptors
-│       ├── persistence/     # Persistence layer
-│       │   └── managers/    # Settings and workspace managers
-│       ├── managers/        # Application managers
-│       └── settings/        # Settings implementations
-├── examples/
-│   └── basic_example/       # Example application
-├── pyproject.toml           # Package configuration
-├── MANIFEST.in              # Package manifest
-└── LICENSE                  # MIT License
+src/
+└── opaque/
+    ├── core/               # Core MVP components (BaseApplication, BaseModel, BaseView, BasePresenter)
+    ├── managers/           # Managers for settings, themes, workspace, etc.
+    ├── models/             # Data models and field annotations
+    └── widgets/            # Custom UI widgets (Toolbar, MDI area, dialogs)
+examples/
+└── basic_example/          # Example application demonstrating framework features
+pyproject.toml              # Package configuration
 ```
 
 ## Key Concepts
 
-### Feature Windows
-Feature windows are the building blocks of your application. Each window:
-- Extends `BaseFeatureWindow`
-- Implements required methods for integration
-- Can have associated settings and state models
-- Automatically integrates with the toolbar and MDI area
+### Model-View-Presenter (MVP)
 
-### Global Settings
-OPAQUE provides a clean global settings system for application-wide configuration:
-- **Built-in settings**: 
-  - Theme selection (40+ themes from qt-material, qt-themes, QDarkStyle)
-  - UI language (7 languages: en_US, es_ES, fr_FR, de_DE, pt_BR, ja_JP, zh_CN)
-- **Extensible**: Add your own global settings by extending `GlobalSettings`
-- **Apply button**: Preview changes before committing with confirmation dialog
-- **Automatic persistence**: Saved and loaded like feature settings
-- **Theme-aware toolbar**: Button highlighting adapts to current theme
+OPAQUE is built on the MVP pattern to ensure a clean separation of concerns.
 
-### Settings Dialog
-The enhanced settings dialog provides:
-- **Smart Search**: Search through both group names and individual setting labels
-- **Visual Highlighting**: Matching settings are highlighted in bold with accent color
-- **Auto-Selection**: First matching group is automatically selected when searching
-- **Apply & Preview**: Test global settings before committing changes
+-   **Model**: Manages the application's data and business logic. It knows nothing about the UI. In OPAQUE, models inherit from `BaseModel` and use `Field` annotations to define their properties.
+-   **View**: Displays the data from the model and sends user actions to the presenter. It is passive and does not contain any application logic. Views inherit from `BaseView`.
+-   **Presenter**: Acts as the middleman between the Model and the View. It retrieves data from the model, formats it for display in the view, and processes user input. Presenters inherit from `BasePresenter`.
 
-```python
-from opaque import GlobalSettings, BoolField, IntField, StringField, ChoiceField
+### Feature Registration
 
-class MyGlobalSettings(GlobalSettings):
-    # Inherits theme and language, adds custom settings
-    auto_save = BoolField(default=True, description="Enable auto-save")
-    auto_save_interval = IntField(default=5, min_value=1, max_value=60)
+Features are self-contained components of your application, each following the MVP pattern. You register a feature by creating an instance of its presenter and passing it to the `register_feature` method of your main application class.
 
-class MyApp(BaseApplication):
-    def global_settings_model(self):
-        return MyGlobalSettings  # Use custom global settings
-```
+### Settings and State Management
 
-### Settings Models
-OPAQUE provides a declarative way to define settings with field descriptors:
-```python
-from opaque import BaseModel, BoolField, IntField, StringField, FloatField, ChoiceField
+-   **Settings**: User-configurable options that persist across sessions. Defined in a model using `Field(settings=True)`.
+-   **Workspace State**: Data that captures the current state of a feature, like open files or current values. Defined using `Field(workspace=True)`.
 
-class MyFeatureSettings(BaseModel):
-    # Boolean field with description (searchable in settings dialog)
-    auto_refresh = BoolField(default=True, description="Auto refresh")
-    
-    # Integer field with min/max constraints
-    interval = IntField(default=60, min_value=1, max_value=3600, description="Refresh interval (seconds)")
-    
-    # String field for text input
-    output_path = StringField(default="./output", description="Output directory")
-    
-    # Float field for decimal values
-    zoom_level = FloatField(default=1.0, min_value=0.1, max_value=5.0, description="Zoom level")
-    
-    # Choice field for dropdown selection
-    theme_variant = ChoiceField(
-        default="auto",
-        choices=["auto", "light", "dark"],
-        description="Theme variant"
-    )
-```
-
-**Note**: The `description` parameter is used by the settings dialog's search feature to help users find settings quickly.
-
-### State Management
-Save and restore complete workspace states including:
-- Window positions and sizes
-- Feature-specific state data
-- Application settings (both global and feature-specific)
-- Active workspace configuration
+Settings are automatically handled by the `SettingsManager` and displayed in a unified settings dialog.
 
 ## Step-by-Step Guide: Creating a Feature
 
-This guide walks you through creating a complete feature for your OPAQUE application. We'll build a "Text Editor" feature with settings persistence and state management.
+This guide walks you through creating a "Text Editor" feature.
 
-### Step 1: Create the Feature Directory Structure
+### Step 1: Define the Model
 
-```
-my_app/
-├── features/
-│   └── text_editor/
-│       ├── __init__.py
-│       ├── window.py       # Feature window implementation
-│       ├── settings.py     # Settings model (optional)
-│       └── state.py        # State model (optional)
-└── main.py
-```
+The model defines the data and state for the feature.
 
-### Step 2: Define the Settings Model (optional)
-
-Create `features/text_editor/settings.py`:
-
+`features/text_editor/model.py`:
 ```python
-from opaque import BaseModel, BoolField, IntField, StringField
+from opaque.core.model import BaseModel
+from opaque.models.annotations import BoolField, IntField, StringField
+from PySide6.QtGui import QIcon
 
-class TextEditorSettings(BaseModel):
-    """Settings for the Text Editor feature"""
-    
-    # Define your settings fields
-    word_wrap = BoolField(default=True, label="Word Wrap")
-    font_size = IntField(default=12, min_value=8, max_value=72, label="Font Size")
-    font_family = StringField(default="Consolas", label="Font Family")
-    auto_save = BoolField(default=False, label="Auto Save")
-    
-    def apply_to_ui(self, window):
-        """Apply settings to the UI when loaded"""
-        if hasattr(window, 'text_edit'):
-            window.text_edit.setWordWrapMode(
-                Qt.TextWrapMode.WrapAtWordBoundaryOrAnywhere if self.word_wrap 
-                else Qt.TextWrapMode.NoWrap
-            )
-            font = window.text_edit.font()
-            font.setPointSize(self.font_size)
-            font.setFamily(self.font_family)
-            window.text_edit.setFont(font)
-    
-    def extract_from_ui(self, window):
-        """Extract current UI state to settings before saving"""
-        if hasattr(window, 'text_edit'):
-            self.word_wrap = window.text_edit.wordWrapMode() != Qt.TextWrapMode.NoWrap
-            font = window.text_edit.font()
-            self.font_size = font.pointSize()
-            self.font_family = font.family()
-```
-
-### Step 3: Define the State Model (optional)
-
-Create `features/text_editor/state.py`:
-
-```python
-from opaque import BaseModel, StringField, IntField
-
-class TextEditorState(BaseModel):
-    """State for the Text Editor feature"""
-    
-    # Define state fields
-    content = StringField(default="", label="Content")
-    cursor_position = IntField(default=0, label="Cursor Position")
-    file_path = StringField(default="", label="File Path")
-    
-    def capture_state(self, window):
-        """Capture current state from the window"""
-        if hasattr(window, 'text_edit'):
-            self.content = window.text_edit.toPlainText()
-            self.cursor_position = window.text_edit.textCursor().position()
-            self.file_path = getattr(window, 'current_file', "")
-    
-    def restore_state(self, window):
-        """Restore state to the window"""
-        if hasattr(window, 'text_edit'):
-            window.text_edit.setPlainText(self.content)
-            cursor = window.text_edit.textCursor()
-            cursor.setPosition(min(self.cursor_position, len(self.content)))
-            window.text_edit.setTextCursor(cursor)
-            window.current_file = self.file_path
-```
-
-### Step 4: Create the Feature Window
-
-Create `features/text_editor/window.py`:
-
-```python
-from typing import Optional, Type
-from PySide6.QtWidgets import QTextEdit, QVBoxLayout, QWidget, QToolBar, QFileDialog
-from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt
-from opaque import BaseFeatureWindow, BaseModel
-
-from .settings import TextEditorSettings
-from .state import TextEditorState
-
-class TextEditorWindow(BaseFeatureWindow):
-    """A text editor feature window"""
-    
-    # Feature metadata
+class TextEditorModel(BaseModel):
     FEATURE_NAME = "Text Editor"
-    FEATURE_ICON = "accessories-text-editor"  # Standard icon name
-    FEATURE_TOOLTIP = "Edit text files"
-    DEFAULT_VISIBILITY = True
-    
-    def __init__(self, feature_id: str, **kwargs):
-        super().__init__(feature_id, **kwargs)
-        self.setWindowTitle(self.tr("Text Editor"))
-        self.current_file = ""
-        
-        # Create the UI
-        self._setup_ui()
-        
-        # Load settings if they exist
-        if self.settings:
-            self._load_settings()
-    
-    def _setup_ui(self):
-        """Set up the user interface"""
-        # Create main widget and layout
-        main_widget = QWidget()
-        layout = QVBoxLayout(main_widget)
-        
-        # Create toolbar
-        toolbar = QToolBar()
-        
-        # Add actions
-        open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
-        open_action.triggered.connect(self._open_file)
-        toolbar.addAction(open_action)
-        
-        save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
-        save_action.triggered.connect(self._save_file)
-        toolbar.addAction(save_action)
-        
-        layout.addWidget(toolbar)
-        
-        # Create text editor
-        self.text_edit = QTextEdit()
-        layout.addWidget(self.text_edit)
-        
-        # Set the widget
-        self.setWidget(main_widget)
-    
-    def _open_file(self):
-        """Open a file dialog and load selected file"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Open File", "", "Text Files (*.txt);;All Files (*.*)"
-        )
-        if file_path:
-            with open(file_path, 'r') as f:
-                self.text_edit.setPlainText(f.read())
-            self.current_file = file_path
-            self.setWindowTitle(f"Text Editor - {file_path}")
-    
-    def _save_file(self):
-        """Save the current file"""
-        if not self.current_file:
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, "Save File", "", "Text Files (*.txt);;All Files (*.*)"
-            )
-            if file_path:
-                self.current_file = file_path
-        
-        if self.current_file:
-            with open(self.current_file, 'w') as f:
-                f.write(self.text_edit.toPlainText())
-            self.setWindowTitle(f"Text Editor - {self.current_file}")
-    
-    # Required method implementations
+
+    # Settings
+    word_wrap = BoolField(default=True, description="Enable word wrap", settings=True)
+    font_size = IntField(default=12, min_value=8, max_value=72, description="Font size", settings=True)
+
+    # Workspace State
+    content = StringField(default="", workspace=True)
+    file_path = StringField(default="", workspace=True)
+
     def feature_name(self) -> str:
         return self.FEATURE_NAME
-    
+
     def feature_icon(self) -> QIcon:
-        return QIcon.fromTheme(self.FEATURE_ICON)
-    
-    def feature_tooltip(self) -> str:
-        return self.FEATURE_TOOLTIP
-    
-    def feature_visibility(self) -> bool:
-        return self.DEFAULT_VISIBILITY
-    
-    def feature_settings_model(self) -> Optional[Type[BaseModel]]:
-        return TextEditorSettings
-    
-    def feature_state_model(self) -> Optional[Type[BaseModel]]:
-        return TextEditorState
+        return QIcon.fromTheme("accessories-text-editor")
 ```
 
-### Step 5: Register the Feature in Your Application
+### Step 2: Create the View
 
-Create `main.py`:
+The view defines the UI components for the feature.
 
+`features/text_editor/view.py`:
 ```python
-from PySide6.QtWidgets import QApplication
-from opaque import BaseApplication
-import sys
+from opaque.core.view import BaseView
+from PySide6.QtWidgets import QTextEdit, QVBoxLayout, QWidget, QToolBar, QAction
+from PySide6.QtGui import QIcon
 
-from features.text_editor.window import TextEditorWindow
+class TextEditorView(BaseView):
+    def __init__(self, feature_id: str):
+        super().__init__(feature_id)
+        self.setWindowTitle("Text Editor")
 
-class MyApplication(BaseApplication):
-    """Main application class"""
-    
-    def application_name(self) -> str:
-        """Return the application name for settings persistence."""
-        return "MyTextEditorApp"
-    
-    def organization_name(self) -> str:
-        """Return the organization name for settings persistence."""
-        return "MyCompany"
-    
-    def application_title(self) -> str:
-        """Return the main window title."""
-        return "My Text Editor App"
-    
-    def register_features(self):
-        """Register all features for this application."""
-        # Create and register the text editor feature
-        text_editor = TextEditorWindow(feature_id="text_editor_1")
-        self.register_window(text_editor)
-        
-        # Add more features as needed
-        # another_feature = AnotherFeatureWindow(feature_id="feature_2")
-        # self.register_window(another_feature)
+        main_widget = QWidget()
+        layout = QVBoxLayout(main_widget)
 
-if __name__ == "__main__":
-    # The framework automatically handles QApplication setup
-    app = QApplication(sys.argv)
-    main_window = MyApplication()
-    main_window.show()
-    sys.exit(app.exec())
+        self.toolbar = QToolBar()
+        self.open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
+        self.save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
+        self.toolbar.addAction(self.open_action)
+        self.toolbar.addAction(self.save_action)
+        layout.addWidget(self.toolbar)
+
+        self.text_edit = QTextEdit()
+        layout.addWidget(self.text_edit)
+
+        self.set_content(main_widget)
 ```
 
-### Step 6: Run Your Application
+### Step 3: Implement the Presenter
 
-```bash
-python main.py
+The presenter connects the model and the view, handling the logic.
+
+`features/text_editor/presenter.py`:
+```python
+from opaque.core.presenter import BasePresenter
+from .model import TextEditorModel
+from .view import TextEditorView
+from PySide6.QtWidgets import QFileDialog
+
+class TextEditorPresenter(BasePresenter):
+    def __init__(self, feature_id: str):
+        model = TextEditorModel(feature_id)
+        view = TextEditorView(feature_id)
+        super().__init__(feature_id, model, view)
+
+    def bind_events(self):
+        self.view.open_action.triggered.connect(self._open_file)
+        self.view.save_action.triggered.connect(self._save_file)
+        self.view.text_edit.textChanged.connect(self._on_text_changed)
+
+    def update(self, property_name: str, value: any):
+        if property_name == "content":
+            self.view.text_edit.setPlainText(value)
+        elif property_name == "font_size":
+            font = self.view.text_edit.font()
+            font.setPointSize(value)
+            self.view.text_edit.setFont(font)
+
+    def _on_text_changed(self):
+        self.model.content = self.view.text_edit.toPlainText()
+
+    def _open_file(self):
+        path, _ = QFileDialog.getOpenFileName(self.view, "Open File")
+        if path:
+            with open(path, 'r') as f:
+                self.model.content = f.read()
+            self.model.file_path = path
+
+    def _save_file(self):
+        path = self.model.file_path
+        if not path:
+            path, _ = QFileDialog.getSaveFileName(self.view, "Save File")
+        
+        if path:
+            with open(path, 'w') as f:
+                f.write(self.model.content)
+            self.model.file_path = path
+```
+
+### Step 4: Register the Feature
+
+Finally, register the feature in your main application.
+
+`main.py`:
+```python
+# ... (imports and MyApplication class definition)
+    def _register_features(self):
+        text_editor_presenter = TextEditorPresenter(feature_id="text_editor_1")
+        self.register_feature(text_editor_presenter)
 ```
 
 ## What You Get Automatically
 
-When you follow this guide, OPAQUE automatically provides:
-
-✅ **Toolbar Integration** - Your feature appears as a button in the main toolbar  
-✅ **MDI Management** - Your window can be minimized, maximized, and arranged  
-✅ **Settings Dialog** - Your settings appear in the application settings dialog  
-✅ **Settings Persistence** - Settings are saved/loaded automatically  
-✅ **Workspace Support** - Save/load complete workspace states  
-✅ **Theme Support** - Your feature inherits the application theme  
-✅ **Window State** - Window positions and sizes are remembered  
-
-## Advanced Features
-
-### Custom Field Types
-
-Create custom field descriptors for specialized data:
-
-```python
-from opaque.models.base.field_descriptors import FieldDescriptor
-
-class ColorField(FieldDescriptor):
-    """Custom field for color values"""
-    
-    def __init__(self, default="#000000", **kwargs):
-        super().__init__(default=default, **kwargs)
-    
-    def validate(self, value):
-        if not isinstance(value, str) or not value.startswith("#"):
-            raise ValueError("Color must be a hex string")
-        return value
-```
-
-### Multiple Feature Instances
-
-Register multiple instances of the same feature:
-
-```python
-def init_features(self):
-    # Create multiple text editors
-    for i in range(3):
-        editor = TextEditorWindow(feature_id=f"text_editor_{i}")
-        self.register_window(editor)
-```
-
-### Dynamic Feature Loading
-
-Load features based on configuration or plugins:
-
-```python
-def init_features(self):
-    # Load features from a configuration file
-    import json
-    with open("features.json") as f:
-        feature_config = json.load(f)
-    
-    for feature in feature_config["enabled_features"]:
-        if feature == "text_editor":
-            self.register_window(TextEditorWindow(feature_id="text_editor"))
-        elif feature == "data_viewer":
-            self.register_window(DataViewerWindow(feature_id="data_viewer"))
-```
-
-## Tips and Best Practices
-
-1. **Feature IDs** - Use unique, descriptive IDs for each feature instance
-2. **Settings Models** - Keep settings focused on user preferences, not runtime state
-3. **State Models** - Use for data that should persist across sessions
-4. **Field Descriptions** - Always provide descriptive labels for settings fields (enables search)
-5. **UI Updates** - Always check for attribute existence in `apply_to_ui` and `extract_from_ui`
-6. **Translations** - Use `self.tr()` for all user-visible strings
-7. **Icons** - Use theme icons for better integration across different themes
-8. **Error Handling** - Add try-except blocks in file operations and state restoration
-9. **PySide6 Only** - Framework is designed specifically for PySide6, not PyQt
-
-## Examples
-
-Check the `examples/` directory for complete working examples:
-- **basic_example** - Demonstrates data analysis and logging features with settings and state management
-- **custom_global_settings_example** - Shows how to extend global settings with custom fields
-
-To run examples:
-```bash
-# Basic example
-python examples/basic_example/main.py
-
-# Custom global settings example
-python examples/custom_global_settings_example.py
-```
+✅ **Toolbar Integration**: Your feature appears as a button in the main toolbar.  
+✅ **MDI Management**: Your window can be docked, floated, and arranged.  
+✅ **Settings Dialog**: Your feature's settings appear automatically.  
+✅ **Persistence**: Settings and workspace state are saved and loaded.  
+✅ **Theme Support**: Your feature inherits the application theme.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
+Contributions are welcome! Please feel free to submit pull requests or open issues.
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Support
-
-For questions and support, please open an issue on GitHub or contact the maintainers.
-
-## Theme Support
-
-OPAQUE includes 40+ professional themes from multiple sources:
-
-- **qt-material** (20+ themes): Material design themes with various color schemes
-- **qt-themes** (15 themes): Modern themes including Catppuccin, Dracula, Nord, Github, and more
-- **QDarkStyle**: Professional dark and light themes
-- **Default**: System native theme
-
-The toolbar automatically adapts its button highlighting to match the current theme's accent color.
-
-## Requirements
-
-- Python 3.8+
-- PySide6 >= 6.0.0
-- qt-material >= 2.14
-- QDarkStyle >= 3.2.0
-- qt-themes >= 1.0.0 (optional, for additional themes)
-
-## Package Information
-
-- **Package Name**: `opaque-framework`
-- **Version**: 1.0.0
-- **License**: MIT
-- **PyPI**: https://pypi.org/project/opaque-framework/ (once published)
-
----
-
-Built with ❤️ (and a LOT of AI help) using PySide6 and Python
+MIT License - See the LICENSE file for details.

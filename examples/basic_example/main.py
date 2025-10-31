@@ -1,112 +1,115 @@
-# This Python file uses the following encoding: utf-8
 """
-# OPAQUE Framework
-#
-# @copyright 2025 Sandro Fadiga
-#
-# This software is licensed under the MIT License.
-# You should have received a copy of the MIT License along with this program.
-# If not, see <https://opensource.org/licenses/MIT>.
+OPAQUE Framework MVP Example
+This example demonstrates the new MVP (Model-View-Presenter) pattern
+along with the annotation system for settings and workspace persistence.
+It also shows how to configure custom paths for settings and workspace files.
 """
-
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QMessageBox
 import sys
-import os
-# Add the src directory to the path so we can import the framework
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTranslator, QLocale
-
-from opaque import BaseApplication
-from features.data_analysis.window import DataAnalysisWindow
-from features.logging.window import LoggingWindow
-
-# @brief Example application demonstrating the OPAQUE Framework.
-#
-# This class extends BaseApplication to create a concrete application
-# with specific feature windows for data analysis and logging.
+from pathlib import Path
 
 
-class ExampleApplication(BaseApplication):
-    """
-    # Main entry point for the OPAQUE Framework example application.
-    #
-    # This module demonstrates how to use the OPAQUE Framework to create
-    # a multi-window MDI application with features like data analysis
-    # and logging windows.
-
-    The framework automatically handles:
-    - Setting QApplication name and organization
-    - Setting the window title
-    - Registering features after initialization
-    """
-
-    def application_name(self) -> str:
-        """Return the application name for settings persistence."""
-        return "OPAQUEExample"
-    
-    def organization_name(self) -> str:
-        """Return the organization name for settings persistence."""
-        return "MyCompany"
-    
-    def application_title(self) -> str:
-        """Return the main window title."""
-        return self.tr("OPAQUE Framework - Example")
-    
-    def register_features(self) -> None:
-        """
-        Register all feature windows for this application.
-        The framework automatically handles adding them to the UI.
-        """
-        # --- Data Analysis Feature ---
-        data_analysis_window = DataAnalysisWindow(feature_id="data_analysis_1")
-        self.register_window(data_analysis_window)
-
-        # --- Logging Feature ---
-        logging_window = LoggingWindow(feature_id="logging_1")
-        self.register_window(logging_window)
+from opaque.models.annotations import StringField, IntField
+from opaque.view.application import BaseApplication
+from opaque.models.configuration import DefaultApplicationConfiguration
 
 
-# @brief Main entry point of the application.
-#
-# Sets up the Qt application, configures internationalization,
-# creates the main window, and handles command-line arguments
-# for opening workspace files.
+class MyApplicationConfiguration(DefaultApplicationConfiguration):
+    # Define fields at class level
+    application_name = StringField(default="MyExampleApplication")
+    application_title = StringField(default="My Example Application")
+    application_description = StringField(default="My Example Application Description")
+    application_icon_path = StringField(default="")
+    application_version = StringField(default="0.0.1", description="Application Version")
+    application_organization = StringField(default="My Company", description="Application Owner")
+    application_min_width = IntField(default=1280, description="Application min width")
+    application_max_width = IntField(default=1980, description="Application max width")
+    application_min_height = IntField(default=720, description="Application min height")
+    application_max_height = IntField(default=720, description="Application max height")
+    settings_file_path = StringField(default="")  # Will be set in __init__
+    workspace_file_extension = StringField(default=".wks")
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_application_name(self) -> str:
+        return str(self.application_name)
+
+    def get_application_title(self) -> str:
+        return str(self.application_title)
+
+    def get_application_description(self) -> str:
+        return str(self.application_description)
+
+    def get_application_icon(self) -> QIcon:
+        if self.application_icon_path:
+            return QIcon(str(self.application_icon_path))
+        return QIcon()
+
+    def get_application_version(self) -> str:
+        return str(self.application_version)
+
+    def get_application_organization(self) -> str:
+        return str(self.application_organization)
+
+
+class MyExampleApplication(BaseApplication):
+    """Example application demonstrating MVP pattern features with custom paths."""
+
+    def __init__(self):
+        self._configuration = MyApplicationConfiguration()
+        super().__init__(self._configuration)
+        self.register_features()
+
+    def register_features(self):
+        """Register MVP features and services."""
+
+        # Register calculator feature using the simplified approach
+        from features.calculator.model import CalculatorModel
+        from features.calculator.view import CalculatorView
+        from features.calculator.presenter import CalculatorPresenter
+        
+        # Create model and view with simplified constructors
+        calc_model = CalculatorModel(self)
+        calc_view = CalculatorView(self)
+        calc_presenter = CalculatorPresenter(calc_model, calc_view, self)
+        self.register_feature(calc_presenter)
+
+        # Register data viewer feature
+        from features.data_viewer.model import DataViewerModel
+        from features.data_viewer.view import DataViewerView
+        from features.data_viewer.presenter import DataViewerPresenter
+        
+        data_model = DataViewerModel(self)
+        data_view = DataViewerView(self)
+        data_presenter = DataViewerPresenter(data_model, data_view, self)
+        self.register_feature(data_presenter)
+
+        # Register logging feature
+        from features.logging.model import LoggingModel
+        from features.logging.view import LoggingView
+        from features.logging.presenter import LoggingPresenter
+        
+        log_model = LoggingModel(self)
+        log_view = LoggingView(self)
+        log_presenter = LoggingPresenter(log_model, log_view, self)
+        self.register_feature(log_presenter)
+
+
 if __name__ == "__main__":
-    # @brief Qt application instance
-    # Note: The framework automatically sets application name and organization
-    # from the ExampleApplication.application_name() and organization_name() methods
-    app: QApplication = QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
-    # --- Internationalization Setup ---
-    # 1. Create a translator object
-    # @brief Translator for internationalization support
-    translator: QTranslator = QTranslator()
-
-    # 2. Determine the system's locale
-    # @brief System locale string (e.g., "en_US", "de_DE")
-    system_locale: str = QLocale.system().name()
-
-    # 3. Load the translation file
-    # This assumes you will have a 'translations' directory next to your 'src' dir.
-    # The files should be named e.g., app_de.qm, app_fr.qm
-    if translator.load(f"translations/app_{system_locale}.qm"):
-        # 4. Install the translator
-        app.installTranslator(translator)
-    # ----------------------------------
-
-    # @brief Main application window instance
-    main_win: ExampleApplication = ExampleApplication()
-    main_win.show()
-
-    # --- Handle file open from command line ---
-    # Check if a workspace file was provided as command-line argument
-    if len(sys.argv) > 1:
-        # @brief Path to workspace file from command-line argument
-        file_path: str = sys.argv[1]
-        if file_path.endswith(".wks"):
-            main_win.load_workspace(file_path)
-    # ------------------------------------------
-
-    # Start the Qt event loop
-    sys.exit(app.exec())
+    try:
+        main_window = MyExampleApplication()
+        if not main_window.try_acquire_lock():
+            main_window.show_already_running_message()
+            sys.exit(1)
+        main_window.show()
+        sys.exit(app.exec())
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

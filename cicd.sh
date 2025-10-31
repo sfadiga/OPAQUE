@@ -14,14 +14,14 @@ firstArg="${1}"
 secondArg="${2}"
 
 # paths
-VENV_NAME=".venv"
+VENV_NAME="venv"
 VENV_PATH=$VENV_NAME/Scripts
 SOURCE_PATH="src"
 FORMS_PATH=$SOURCE_PATH/"forms"
 RESOURCES_PATH="resources"
 RELEASE_PATH="dist"
 TESTS_PATH="tests"
-ENTRYPOINT=$SOURCE_PATH/"main"
+ENTRYPOINT="examples/basic_example/main.py"
 
 function _read_version_from_file() 
 {
@@ -137,8 +137,8 @@ function run()
     fi
 
     echo "INFO: Running OPAQUE example"
-    echo "$VENV_PATH"/python examples/basic_example/main.py
-    $VENV_PATH/python examples/basic_example/main.py
+    echo "$VENV_PATH"/python $ENTRYPOINT
+    $VENV_PATH/python $ENTRYPOINT
 }
 
 function dist()

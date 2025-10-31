@@ -13,7 +13,7 @@ param(
     [string[]]$Arguments
 )
 
-$VENV_NAME = ".venv"
+$VENV_NAME = "venv"
 $VENV_PATH = "$VENV_NAME\Scripts"
 
 function Activate-Venv {
@@ -41,44 +41,12 @@ if ($Arguments) {
     $bashArgs += $Arguments
 }
 
-function Project-Setup {
-    param([string]$Flag)
-    
-    Write-Host "--- Bootstrap Python virtual environment ---"
-    
-    if ((Test-Path $VENV_NAME) -and ($Flag -eq "-f")) {
-        Write-Host "INFO: Force flag detected. Removing existing virtual environment..."
-        Remove-Item -Recurse -Force $VENV_NAME
-    }
-    
-    if (-not (Test-Path $VENV_NAME)) {
-        Write-Host "INFO: Creating virtual environment..."
-        python -m venv $VENV_NAME
-        Write-Host "--- Installing Project Requirements ---"
-        & "$VENV_PATH\pip" install --force-reinstall -r requirements.txt
-    } elseif ($Flag -ne "-f") {
-        Write-Host "INFO: Virtual environment already exists. Use 'setup -f' to force recreate."
-    }
-}
-
-function Run-Example {
-    Write-Host "INFO: Running OPAQUE example"
-    & "$VENV_PATH\python" examples\basic_example\main.py
-}
-
 # Execute based on task type
 switch ($Task) {
-    "setup" {
-        Project-Setup $Arguments[0]
-    }
     "venv" {
         Activate-Venv
     }
-    "run" {
-        Activate-Venv
-        Run-Example
-    }
-    { $_ -in @("build", "clean", "dist", "test") } {
+    { $_ -in @("run", "setup", "build", "clean", "dist", "test") } {
         & bash @bashArgs
     }
     default {
