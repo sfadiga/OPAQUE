@@ -26,6 +26,7 @@ from opaque.services.settings_service import SettingsService
 from opaque.view.widgets.color_picker import ColorPicker
 from opaque.models.annotations import UIType
 
+
 class SettingsDialog(QDialog):
     def __init__(self, presenters: List[BasePresenter], parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
@@ -33,7 +34,8 @@ class SettingsDialog(QDialog):
         self.setWindowTitle(self.tr("Settings"))
         self.setMinimumSize(800, 600)
 
-        self.features: Dict[str, BasePresenter] = { p.feature_id: p for p in presenters}
+        self.features: Dict[str, BasePresenter] = {
+            p.feature_id: p for p in presenters}
 
         self.settings_service: SettingsService = ServiceLocator.get_service("settings")
         if not self.settings_service:
@@ -80,7 +82,8 @@ class SettingsDialog(QDialog):
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
-        self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(self._apply_settings)
+        self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(
+            self._apply_settings)
         layout.addWidget(self.button_box)
 
         # Set initial splitter sizes
@@ -98,7 +101,8 @@ class SettingsDialog(QDialog):
     def _apply_settings(self, show_success_message: bool = True) -> None:
         """Saves all current settings."""
         for feature_id, presenter in self.features.items():
-            self.settings_service.save_feature_settings(feature_id, presenter.model)
+            self.settings_service.save_feature_settings(
+                feature_id, presenter.model)
             presenter.apply_settings()
         if show_success_message:
             # Inform user of success

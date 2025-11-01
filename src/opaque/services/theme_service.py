@@ -21,6 +21,7 @@ from qt_material import apply_stylesheet, list_themes
 
 from opaque.services.service import BaseService
 
+
 class ThemeService(BaseService):
     """Discovers and applies themes from qt-material and QDarkStyleSheet."""
 
@@ -41,13 +42,15 @@ class ThemeService(BaseService):
         self._qt_themes: List[str] = []
 
         # Qt System default themes
-        self._system_themes: List[str] = ['QDarkStyle', 'QLightStyle', 'Default']
+        self._system_themes: List[str] = [
+            'QDarkStyle', 'QLightStyle', 'Default']
 
         # Combine all available themes
         self.available_themes: List[str] = []
 
     def initialize(self) -> None:
-        self._qt_material_themes = [t.replace('.xml', '') for t in list_themes()]
+        self._qt_material_themes = [
+            t.replace('.xml', '') for t in list_themes()]
         self._qt_themes = self._list_qt_themes()
         self.available_themes = (
             self._qt_material_themes +
@@ -98,7 +101,8 @@ class ThemeService(BaseService):
                 # It will apply to the current QApplication automatically
                 qt_themes.set_theme(theme_key)
             except Exception as e:
-                print(f"Warning: Could not apply qt-themes theme '{actual_theme_name}': {e}")
+                print(
+                    f"Warning: Could not apply qt-themes theme '{actual_theme_name}': {e}")
             return
 
         if theme_name in self._qt_material_themes:
@@ -114,4 +118,5 @@ class ThemeService(BaseService):
             try:
                 self._app.setStyleSheet(load_stylesheet(palette=LightPalette))
             except ImportError:
-                print("Warning: QLightStyle not available in this version of QDarkStyleSheet.")
+                print(
+                    "Warning: QLightStyle not available in this version of QDarkStyleSheet.")

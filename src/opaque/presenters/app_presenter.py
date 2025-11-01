@@ -24,6 +24,7 @@ from opaque.view.app_view import ApplicationView
 if TYPE_CHECKING:
     from opaque.core.application import BaseApplication
 
+
 class ApplicationPresenter(BasePresenter):
 
     def __init__(self, model: ApplicationModel, view: ApplicationView, app: 'BaseApplication'):

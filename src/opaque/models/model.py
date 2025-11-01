@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 class BaseModel(AbstractModel):
 
-
     def __init__(self, app: 'BaseApplication') -> None:
         super().__init__()
         self._app: 'BaseApplication' = app

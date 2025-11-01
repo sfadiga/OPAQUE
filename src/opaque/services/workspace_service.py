@@ -17,9 +17,9 @@ from typing import Dict, Optional
 from opaque.services.service import BaseService
 from opaque.presenters.presenter import BasePresenter
 
+
 class WorkspaceService(BaseService):
     """Manages workspace state persistence."""
-
 
     def __init__(self):
         """
@@ -57,7 +57,7 @@ class WorkspaceService(BaseService):
             return self._features.pop(feature_id)
         return None
 
-    def save_workspace(self, workspace_file: str) -> Optional[str]: 
+    def save_workspace(self, workspace_file: str) -> Optional[str]:
         """Save workspace to file."""
         workspace_data = {}
         # Collect current values from registered models

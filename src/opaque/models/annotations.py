@@ -23,7 +23,7 @@ class UIType(Enum):
     TEXTAREA = "textarea"
     SLIDER = "slider"
     LIST_VIEW = "list_view"
-    FILE_SELECTOR = "file_selector" # TODO TBD
+    FILE_SELECTOR = "file_selector"  # TODO TBD
 
 
 class Field:
@@ -76,7 +76,8 @@ class Field:
         """Notify all observers about field change."""
         for observer in self._observers:
             if hasattr(observer, 'update'):
-                observer.update(self.name, new_value, old_value, model_instance)
+                observer.update(self.name, new_value,
+                                old_value, model_instance)
 
     def validate(self, value: Any) -> bool:
         """Validate the field value."""
@@ -103,34 +104,41 @@ class Field:
 
 class StringField(Field):
     """Field for string values."""
+
     def __init__(self, ui_type: UIType = UIType.TEXT, **kwargs: Any):
         super().__init__(ui_type=ui_type, **kwargs)
 
 
 class IntField(Field):
     """Field for integer values."""
+
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.SPINBOX, **kwargs)
 
 
 class FloatField(Field):
     """Field for float values."""
+
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.SPINBOX, **kwargs)
 
 
 class BoolField(Field):
     """Field for boolean values."""
+
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.CHECKBOX, **kwargs)
 
 
 class ListField(Field):
     """Field for list values."""
+
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
+
 class ChoiceField(Field):
     """Field for values from a list of choices."""
+
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.DROPDOWN, **kwargs)

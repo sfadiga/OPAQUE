@@ -18,6 +18,7 @@ from PySide6.QtCore import QObject, Signal
 
 from opaque.services.service import BaseService
 
+
 class SingleInstanceService(BaseService):
     """
     Ensures only one instance of the application is running.

@@ -159,8 +159,9 @@ class AbstractModel(ABC, metaclass=ModelMeta):
     def attach_to_all_fields(self, observer: Any) -> None:
         """Automatically attach observer to ALL Field attributes."""
         if not hasattr(observer, 'update'):
-            raise TypeError(f"{str(observer)} does not implement the update function.")
-        
+            raise TypeError(
+                f"{str(observer)} does not implement the update function.")
+
         for field in self.get_fields().values():
             field.attach(observer)
 
@@ -179,7 +180,7 @@ class AbstractModel(ABC, metaclass=ModelMeta):
         """
         # Attach to all Field attributes automatically
         self.attach_to_all_fields(observer)
-        
+
         # Also keep in model's observer list for compatibility with legacy code
         if observer not in self._observers:
             self._observers.append(observer)
@@ -193,7 +194,7 @@ class AbstractModel(ABC, metaclass=ModelMeta):
         """
         # Detach from all fields
         self.detach_from_all_fields(observer)
-        
+
         # Remove from model's observer list
         if observer in self._observers:
             self._observers.remove(observer)
