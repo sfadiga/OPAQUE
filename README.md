@@ -413,7 +413,7 @@ from opaque.services.service import BaseService
 
 class MyCustomService(BaseService):
     def __init__(self):
-        super().__init__()
+        super().__init__("my_service")
         # Initialize service
     
     def my_method(self):
@@ -421,7 +421,7 @@ class MyCustomService(BaseService):
         pass
 
 # Register with ServiceLocator
-ServiceLocator.register_service("my_service", MyCustomService())
+ServiceLocator.register_service(MyCustomService())
 ```
 
 ## Contributing
