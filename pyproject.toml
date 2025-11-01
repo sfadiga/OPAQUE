@@ -38,6 +38,10 @@ dependencies = [
 themes = [
     "qt-themes>=1.0.0",
 ]
+build = [
+    "pyinstaller>=5.0",
+    "nuitka>=1.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-qt>=4.0",
@@ -45,6 +49,9 @@ dev = [
     "pylint>=2.0",
     "mypy>=1.0",
 ]
+
+[project.scripts]
+opaque-build = "opaque.build_tools.cli:main"
 
 [project.urls]
 "Homepage" = "https://github.com/yourusername/opaque-framework"

@@ -9,9 +9,8 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Any, List, Optional, Callable
+from abc import abstractmethod
+from typing import Optional
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
@@ -89,14 +88,32 @@ class DefaultApplicationConfiguration(AbstractModel):
         """
         return QIcon(str(self.application_icon_path))
 
-    @abstractmethod
     def get_application_version(self) -> str:
         """
-        Return the application version, this can be something baked in the binary
-        or just a hardcoded value from src code
+        Return the application version from multiple sources:
+        1. Build-time injected version (highest priority)
+        2. VERSION file in project root
+        3. Environment variable APP_VERSION
+        4. User-provided value in configuration
+        5. Default value "0.0.1" (fallback)
 
         Example: 1.2.3 , 0.1.0-alpha, 1.0.0-rc1 , etc
         """
+        # Try to get version from VersionManager service
+        try:
+            from opaque.services.version_service import VersionManager
+            version_manager = VersionManager()
+            runtime_version = version_manager.get_version()
+            if runtime_version:
+                return runtime_version
+        except ImportError:
+            # VersionManager not available, fall back to configured value
+            pass
+        except Exception:
+            # Any other error, fall back gracefully
+            pass
+
+        # Fall back to configured value
         return self.application_version
 
     @abstractmethod
@@ -134,7 +151,7 @@ class DefaultApplicationConfiguration(AbstractModel):
         Example:
             return Path.home() / ".myapp" / "config" / "settings.json"
         """
-        return Path(self.settings_file_path)
+        return Path(str(self.settings_file_path))
 
     def get_workspace_file_extension(self) -> str:
         """
