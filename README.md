@@ -4,6 +4,8 @@
 
 A flexible, modern MDI (Multiple Document Interface) application framework built on PySide6, designed for creating professional desktop applications with enterprise-grade features.
 
+![OPAQUE Framework Screenshot](resources/example.gif)
+
 ## Features
 
 ### Core Architecture
@@ -172,7 +174,7 @@ notification_presenter.log_warning("Performance degraded", "MyComponent")
 
 ## Project Structure
 
-```
+```cmd
 opaque/
 ├── models/                 # Data models and business logic
 │   ├── abstract_model.py   # Base model interfaces
@@ -293,7 +295,7 @@ notification_presenter.set_file_logging(True)
 notification_presenter.set_console_logging(True)
 ```
 
-## 🔧 API Reference
+## API Reference
 
 ### Core Classes
 
@@ -371,7 +373,7 @@ Central registry for application services.
 - `get_service(name)` - Retrieve a service
 - `unregister_service(name)` - Remove a service
 
-## 🏗️ Development
+## Development
 
 ### Setting Up Development Environment
 
