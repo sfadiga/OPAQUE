@@ -46,7 +46,7 @@ switch ($Task) {
     "venv" {
         Activate-Venv
     }
-    { $_ -in @("run", "setup", "build", "clean", "dist", "test") } {
+    { $_ -in @("run", "setup", "build", "clean", "dist", "test", "build-exe") } {
         & bash @bashArgs
     }
     default {
@@ -62,7 +62,14 @@ switch ($Task) {
             Write-Host "    build          Build the framework"
             Write-Host "    run            Run the example application"
             Write-Host "    dist           Build Python wheel package"
+            Write-Host "    build-exe <builder> [entry_point] [options]"
+            Write-Host "                   Build standalone executable"
+            Write-Host "                   builder: pyinstaller or nuitka"
             Write-Host "    venv           Activate virtual environment"
+            Write-Host ""
+            Write-Host "Examples:"
+            Write-Host "    .\cicd.ps1 build-exe pyinstaller"
+            Write-Host "    .\cicd.ps1 build-exe nuitka examples/my_example/main.py"
             Write-Host ""
         } else {
             & bash @bashArgs

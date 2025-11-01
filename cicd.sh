@@ -151,6 +151,94 @@ function dist()
     python -m build
 }
 
+function build_exe_pyinstaller()
+{
+    local entry_point="${1:-$ENTRYPOINT}"
+    local extra_args="${@:2}"
+    
+    project_setup
+    activate_venv
+    
+    echo "INFO: Building executable with PyInstaller..."
+    echo "INFO: Entry point: $entry_point"
+    
+    # Check if PyInstaller is available
+    if ! python -c "import PyInstaller" 2>/dev/null; then
+        echo "INFO: PyInstaller not found, installing..."
+        $VENV_PATH/pip install pyinstaller
+    fi
+    
+    # Use opaque-build CLI if available, otherwise use PyInstaller directly
+    if python -c "from opaque.build_tools.cli import main" 2>/dev/null; then
+        echo "INFO: Using OPAQUE build tools..."
+        python -m opaque.build_tools.cli pyinstaller "$entry_point" $extra_args
+    else
+        echo "INFO: Using PyInstaller directly..."
+        $VENV_PATH/pyinstaller --onefile --windowed "$entry_point" $extra_args
+    fi
+    
+    echo "INFO: PyInstaller build completed!"
+}
+
+function build_exe_nuitka()
+{
+    local entry_point="${1:-$ENTRYPOINT}"
+    local extra_args="${@:2}"
+    
+    project_setup
+    activate_venv
+    
+    echo "INFO: Building executable with Nuitka..."
+    echo "INFO: Entry point: $entry_point"
+    
+    # Check if Nuitka is available
+    if ! python -c "import nuitka" 2>/dev/null; then
+        echo "INFO: Nuitka not found, installing..."
+        $VENV_PATH/pip install nuitka
+    fi
+    
+    # Use opaque-build CLI if available, otherwise use Nuitka directly
+    if python -c "from opaque.build_tools.cli import main" 2>/dev/null; then
+        echo "INFO: Using OPAQUE build tools..."
+        python -m opaque.build_tools.cli nuitka "$entry_point" $extra_args
+    else
+        echo "INFO: Using Nuitka directly..."
+        $VENV_PATH/nuitka --standalone --onefile --enable-plugin=pyside6 --windows-disable-console "$entry_point" $extra_args
+    fi
+    
+    echo "INFO: Nuitka build completed!"
+}
+
+function build_exe()
+{
+    local builder="${1}"
+    local entry_point="${2:-$ENTRYPOINT}"
+    local extra_args="${@:3}"
+    
+    case $builder in
+        pyinstaller)
+            build_exe_pyinstaller "$entry_point" $extra_args
+            ;;
+        nuitka)
+            build_exe_nuitka "$entry_point" $extra_args
+            ;;
+        *)
+            echo "ERROR: Unknown builder '$builder'. Use 'pyinstaller' or 'nuitka'"
+            echo ""
+            echo "Available builders:"
+            echo "  pyinstaller  - Build with PyInstaller (fast build, larger executable)"
+            echo "  nuitka       - Build with Nuitka (slower build, optimized executable)"
+            echo ""
+            echo "Usage examples:"
+            echo "  $0 build-exe pyinstaller"
+            echo "  $0 build-exe nuitka"
+            echo "  $0 build-exe pyinstaller examples/my_example/main.py"
+            echo "  $0 build-exe nuitka examples/my_example/main.py --name MyApp"
+            exit 1
+            ;;
+    esac
+}
+
 function usage()
 {
     echo ""
@@ -168,6 +256,10 @@ function usage()
     echo "                         -b: Force build befor run"
     echo "    test                 Run tests"
     echo "    dist                 Build the Python wheel package"
+    echo "    build-exe <builder> [entry_point] [options]"
+    echo "                         Build standalone executable"
+    echo "                         builder: pyinstaller or nuitka"
+    echo "                         entry_point: Python file to build (default: $ENTRYPOINT)"
     echo "    venv                 Activate virtual environment"
     echo ""
     echo "   -h, --help            Display this usage message"
@@ -179,6 +271,12 @@ function usage()
     echo "    $0 run               # Run application"
     echo "    $0 run -b            # Force a build before Run application"
     echo "    $0 dist              # Build the Python wheel package"
+    echo "    $0 build-exe pyinstaller"
+    echo "                         # Build executable with PyInstaller (default entry point)"
+    echo "    $0 build-exe nuitka examples/my_example/main.py"
+    echo "                         # Build specific example with Nuitka"
+    echo "    $0 build-exe pyinstaller examples/my_example/main.py --name MyApp"
+    echo "                         # Build with custom name and options"
     echo ""
     exit 0
 }
@@ -216,6 +314,9 @@ case $firstArg in
         ;;
     dist)
         dist
+        ;;
+    build-exe)
+        build_exe $secondArg "${@:3}"
         ;;
     upload)
         upload $secondArg

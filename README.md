@@ -243,6 +243,142 @@ python main.py
 
 Features: Simple todo list application showing basic framework usage.
 
+### Professional Build System
+
+- **Dual Build Tools** - Support for both PyInstaller and Nuitka with optimized configurations
+- **Version Management** - Automatic version detection and injection into executables
+- **CI/CD Integration** - Shell and PowerShell scripts for automated building
+- **Professional Executables** - Windows version resources, icons, and metadata
+
+## Building Executables
+
+OPAQUE Framework provides a comprehensive build system for creating professional standalone executables using **PyInstaller** or **Nuitka**. The system automatically handles version management, metadata injection, and resource bundling.
+
+### Key Features
+
+✅ **Automatic Version Detection** - From pyproject.toml, setup.py, Git tags, or environment variables  
+✅ **Professional Metadata** - Windows version resources, company info, descriptions  
+✅ **Icon Integration** - Automatic icon embedding from multiple formats  
+✅ **Advanced Optimization** - Performance tuning for both development and production  
+✅ **CI/CD Ready** - Automated scripts for continuous integration  
+✅ **Cross-Platform** - Windows, macOS, and Linux support  
+
+### Quick Start
+
+```bash
+# Install with build tools
+pip install "opaque-framework[build]"  # Both PyInstaller and Nuitka
+pip install "opaque-framework[pyinstaller]"  # PyInstaller only  
+pip install "opaque-framework[nuitka]"  # Nuitka only
+
+# Simple builds
+opaque-build pyinstaller main.py               # Fast development build
+opaque-build nuitka main.py                    # Optimized production build
+
+# Professional builds with metadata
+opaque-build pyinstaller main.py \
+    --name "MyApp" \
+    --version "1.2.0" \
+    --icon assets/icon.ico \
+    --onefile --windowed
+
+opaque-build nuitka main.py \
+    --name "MyApp" \
+    --version "auto" \
+    --icon assets/icon.ico \
+    --optimize --windows-disable-console
+```
+
+### CI/CD Integration
+
+Use the included automation scripts for continuous integration:
+
+```bash
+# Linux/macOS Shell Scripts
+./cicd.sh build_pyinstaller_exe "MyApp" "1.0.0"  # Explicit version
+./cicd.sh build_nuitka_exe "MyApp" "auto"        # Auto-detect version
+
+# Windows PowerShell Scripts  
+.\cicd.ps1 Build-PyInstallerExe -AppName "MyApp" -Version "1.0.0"
+.\cicd.ps1 Build-NuitkaExe -AppName "MyApp" -Version "auto"
+```
+
+### Version Management System
+
+The framework includes a sophisticated version management system:
+
+```python
+# Automatic version detection in your app
+from opaque.models.configuration import DefaultApplicationConfiguration
+
+class MyAppConfig(DefaultApplicationConfiguration):
+    def __init__(self):
+        super().__init__()
+        # Version info automatically available from:
+        # - pyproject.toml
+        # - setup.py  
+        # - Git tags
+        # - Environment variables
+        version_info = self.version_manager.get_version_info()
+        print(f"App version: {version_info['version']}")
+```
+
+### Builder Comparison
+
+| Feature | PyInstaller | Nuitka |
+|---------|-------------|--------|
+| **Build Speed** | ⚡ Fast (2-5 min) | 🐌 Slow (10-60 min) |
+| **Executable Size** | 📦 Larger (50-200MB) | 📦 Smaller (20-100MB) |
+| **Runtime Performance** | ⚙️ Standard Python speed | 🚀 2-10x faster |
+| **Startup Time** | ⚡ Fast startup | ⚡ Very fast startup |
+| **Memory Usage** | 💾 Higher | 💾 Lower |
+| **Best For** | Development/Testing | Production/Performance |
+| **Compatibility** | 🟢 Excellent | 🟡 Good (some limitations) |
+
+### Advanced Configuration
+
+For complex applications, use configuration templates:
+
+```bash
+# Generate template files
+opaque-build generate-config pyinstaller > build_config.py
+opaque-build generate-config nuitka > build_config.cfg
+
+# Customize and build
+pyinstaller build_config.py
+nuitka @build_config.cfg main.py
+```
+
+### Version UI Integration
+
+Display version information in your application:
+
+```python
+from opaque.view.dialogs.version_info import (
+    VersionInfoDialog, VersionStatusWidget, AboutDialog
+)
+
+# Show comprehensive version dialog
+version_info = self.configuration.version_manager.get_version_info()
+dialog = VersionInfoDialog(version_info, parent=self)
+dialog.exec()
+
+# Add version widget to status bar
+version_widget = VersionStatusWidget(version_info)
+self.status_bar.addPermanentWidget(version_widget)
+
+# Professional about dialog
+about_dialog = AboutDialog(version_info, self.windowIcon(), self)
+about_dialog.exec()
+```
+
+**📖 Complete Documentation:**
+
+- [BUILD_GUIDE.md](docs/BUILD_GUIDE.md) - Comprehensive building guide
+- [VERSION_MANAGEMENT.md](docs/VERSION_MANAGEMENT.md) - Version system documentation  
+- [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) - Quick command reference
+- [API_REFERENCE.md](docs/API_REFERENCE.md) - Complete API documentation
+
 ## Configuration
 
 ### Application Configuration

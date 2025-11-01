@@ -108,7 +108,8 @@ class BaseApplication(QMainWindow):
         ServiceLocator.register_service(self.theme_service)
 
         # Initialize settings service
-        self.settings_service = SettingsService(configuration.get_settings_file_path())
+        self.settings_service = SettingsService(
+            configuration.get_settings_file_path())
         self.settings_service.initialize()
         ServiceLocator.register_service(self.settings_service)
 
@@ -118,7 +119,8 @@ class BaseApplication(QMainWindow):
         ServiceLocator.register_service(self.notification_service)
 
         # Initialize logger service
-        self.logger_service = LoggerService(application_name=configuration.get_application_name())
+        self.logger_service = LoggerService(
+            application_name=configuration.get_application_name())
         self.logger_service.initialize()
         ServiceLocator.register_service(self.logger_service)
 
@@ -136,13 +138,14 @@ class BaseApplication(QMainWindow):
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
         model = ApplicationModel(self)
-        view = ApplicationView(self) # dummy only for settings
+        view = ApplicationView(self)  # dummy only for settings
         presenter = ApplicationPresenter(model, view, self)
         # add settings presenter directly to registered features so it is not displayed on toolbar
         self._registered_features[presenter.feature_id] = presenter
         settings_service = ServiceLocator.get_service("settings")
         if isinstance(settings_service, SettingsService):
-            settings_service.register_model(presenter.feature_id, presenter.model)
+            settings_service.register_model(
+                presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
         menu_bar = self.menuBar()
@@ -186,7 +189,8 @@ class BaseApplication(QMainWindow):
 
         self._registered_features[feature_name] = presenter
         self.workspace_service.register_feature(presenter)
-        self.settings_service.register_model(presenter.feature_id, presenter.model)
+        self.settings_service.register_model(
+            presenter.feature_id, presenter.model)
 
         # Add toolbar button for the feature
         self.toolbar.add_feature(presenter)
@@ -301,7 +305,8 @@ class BaseApplication(QMainWindow):
                     file_path = urls[0].toLocalFile()
                     if file_path.lower().endswith('.lab'):
                         if self.workspace_service:
-                            name = self.workspace_service.load_workspace(file_path)
+                            name = self.workspace_service.load_workspace(
+                                file_path)
                             self.update_application_title(name)
                         event.acceptProposedAction()
                         return
