@@ -29,6 +29,15 @@ A flexible, modern MDI (Multiple Document Interface) application framework built
 - **Integrated Logging** - File and console logging with automatic notification integration
 - **Interactive Management** - Mark as read, filter by level, clear notifications
 
+### Console System
+
+- **Real-Time Output Capture** - Automatic stdout/stderr redirection and display
+- **Rich Console Display** - Color-coded output with timestamp support
+- **Export Functionality** - Save console output to text files for analysis
+- **Search & Filter** - Find specific text and filter by output type
+- **Interactive Controls** - Clear, auto-scroll, word wrap, and visibility toggles
+- **MDI Integration** - Full console window with comprehensive toolbar
+
 ### Configuration & Persistence
 
 - **Annotation-Based Settings** - Type-safe configuration with automatic UI generation
@@ -242,6 +251,15 @@ python main.py
 ```
 
 Features: Simple todo list application showing basic framework usage.
+
+### Console Example
+
+```bash
+cd examples/console_example
+python main.py
+```
+
+Features: Complete console system demonstration with real-time output capture, export functionality, and interactive controls.
 
 ### Professional Build System
 
