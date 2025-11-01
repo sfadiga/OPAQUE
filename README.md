@@ -188,23 +188,26 @@ opaque/
 ├── models/                 # Data models and business logic
 │   ├── abstract_model.py   # Base model interfaces
 │   ├── annotations.py      # Configuration field annotations
-│   ├── app_model.py       # Application-level model
-│   ├── configuration.py   # Configuration management
-│   ├── logger_model.py    # Logging model
-│   ├── model.py          # Base model implementation
-│   ├── notification_model.py        # Notification model
+│   ├── app_model.py        # Application-level model
+│   ├── configuration.py    # Configuration management
+│   ├── console_model.py    # Console output model
+│   ├── logger_model.py     # Logging model
+│   ├── model.py                        # Base model implementation
+│   ├── notification_model.py           # Notification model
 │   └── notification_settings_model.py  # Notification settings
-├── presenters/            # Business logic coordinators
-│   ├── app_presenter.py   # Application presenter
+├── presenters/                      # Business logic coordinators
+│   ├── app_presenter.py             # Application presenter
+│   ├── console_presenter.py         # Console system presenter
 │   ├── notification_presenter.py    # Notification system presenter
-│   └── presenter.py       # Base presenter
-├── services/              # Reusable services
-│   ├── logger_service.py  # Logging service
+│   └── presenter.py                 # Base presenter
+├── services/                        # Reusable services
+│   ├── console_service.py           # Console output capture service
+│   ├── logger_service.py            # Logging service
 │   ├── notification_service.py      # Notification service
-│   ├── service.py         # Base service and ServiceLocator
+│   ├── service.py                   # Base service and ServiceLocator
 │   ├── settings_service.py          # Settings persistence
 │   ├── single_instance_service.py   # Single instance management
-│   ├── theme_service.py   # Theme management
+│   ├── theme_service.py             # Theme management
 │   └── workspace_service.py         # Workspace persistence
 └── view/                  # User interface components
     ├── dialogs/           # Dialog windows
@@ -212,13 +215,15 @@ opaque/
     ├── layouts/           # Custom layouts
     │   └── flow.py        # Flow layout
     ├── widgets/           # Custom widgets
+    │   ├── closeable_tab_widget.py   # Closeable tab widget
     │   ├── color_picker.py           # Color picker widget
-    │   ├── mdi_window.py  # MDI window implementation
+    │   ├── console_widget.py         # Console display widget
+    │   ├── mdi_window.py             # MDI window implementation
     │   ├── notification_widget.py    # Notification panel
-    │   └── toolbar.py     # Custom toolbar
+    │   └── toolbar.py                # Custom toolbar
     ├── app_view.py        # Main application view
     ├── application.py     # Base application class
-    └── view.py           # Base view implementation
+    └── view.py            # Base view implementation
 ```
 
 ## Examples
