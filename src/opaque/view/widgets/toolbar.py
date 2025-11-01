@@ -18,6 +18,7 @@ from PySide6.QtGui import QIcon, QPalette
 
 from opaque.presenters.presenter import BasePresenter
 
+
 class OpaqueMainToolbar(QToolBar):
     """
     A toolbar that automatically populates with buttons for registered features.
@@ -68,14 +69,12 @@ class OpaqueMainToolbar(QToolBar):
         # 5. Window is closed -> Un-highlight button
         self.connect_signal_to_set_inactive(presenter.view.window_closed.connect, button)
 
-
         # button is returned as a reference so signals/slots can be associated with
         return button
 
     def add_separator(self):
-        "wrapper to be used in when a peparator is required" 
+        "wrapper to be used in when a peparator is required"
         self.addSeparator()
-
 
     def connect_slot_to_button_click(self, open_close_slot: Callable, button: QToolButton):
         button.clicked.connect(open_close_slot)
@@ -177,7 +176,6 @@ class OpaqueMainToolbar(QToolBar):
         # Update the active button if there is one
         if self._active_button:
             self._active_button.setStyleSheet(self._current_highlight_style)
-
 
     def _set_active(self, button_to_activate: QToolButton) -> None:
         """

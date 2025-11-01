@@ -1,252 +1,462 @@
 # OPAQUE Framework
 
-**OPAQUE** - **O**pinionated **P**ython **A**pplication with **Q**t **U**I for **E**ngineering
+**OPAQUE** - *Opinionated Python Application with Qt UI for Engineering*
 
-An opinionated PySide6-based MDI application framework designed to accelerate the development of professional desktop applications following the Model-View-Presenter (MVP) pattern.
-
-![OPAQUE Framework Screenshot](resources/example.gif)
+A flexible, modern MDI (Multiple Document Interface) application framework built on PySide6, designed for creating professional desktop applications with enterprise-grade features.
 
 ## Features
 
-- 🪟 **MDI Window Management** - Multiple Document Interface with dockable windows.
-- 🏗️ **MVP Architecture** - Clean separation of concerns between data (Model), UI (View), and logic (Presenter).
-- 🎨 **Theme Management** - 40+ themes including qt-material, qt-themes, and QDarkStyle.
-- 💾 **Persistence Layer** - Automatic saving/loading of settings and workspace state.
-- ⚙️ **Global & Feature Settings** - Extensible settings system with a unified dialog.
-- 🔍 **Enhanced Settings Search** - Search through both group names and individual settings.
-- 📦 **State Management** - Save and restore complete workspace states.
-- 🔧 **Service Locator** - Manages shared services across the application.
+### Core Architecture
+
+- **MVP Pattern** - Clean Model-View-Presenter architecture for maintainable code
+- **Service-Oriented Design** - Modular services with dependency injection via ServiceLocator
+- **Plugin-Based Features** - Extensible feature system with automatic registration
+- **Single Instance Support** - Prevent multiple application instances with inter-process communication
+
+### User Interface
+
+- **MDI Interface** - Multiple Document Interface with dockable windows
+- **Theme Support** - Light and dark themes with automatic OS detection
+- **Responsive Layout** - Adaptive layouts that work across different screen sizes
+- **Dockable Widgets** - Flexible widget positioning and management
+
+### Notification & Logging System
+
+- **Multi-Level Notifications** - DEBUG, INFO, WARNING, ERROR, CRITICAL levels
+- **Real-Time Notifications** - Live notification widget with visual indicators
+- **Integrated Logging** - File and console logging with automatic notification integration
+- **Interactive Management** - Mark as read, filter by level, clear notifications
+
+### Configuration & Persistence
+
+- **Annotation-Based Settings** - Type-safe configuration with automatic UI generation
+- **Workspace Management** - Save and restore application state
+- **Settings Persistence** - Automatic settings storage and retrieval
+- **Custom Paths** - Configurable file locations for settings and workspaces
+
+## Installation
+
+### Requirements
+
+- Python 3.8 or higher
+- PySide6 6.0.0 or higher
+
+### Install from PyPI
+
+```bash
+pip install opaque-framework
+```
+
+### Install from Source
+
+```bash
+git clone https://github.com/sfadiga/OPAQUE.git
+cd OPAQUE
+pip install -e .
+```
+
+### Optional Dependencies
+
+```bash
+# For additional themes
+pip install "opaque-framework[themes]"
+
+# For development
+pip install "opaque-framework[dev]"
+```
 
 ## Quick Start
 
-### Installation
-
-```bash
-# Install from PyPI (once published)
-pip install opaque-framework
-
-# With additional themes
-pip install opaque-framework[themes]
-
-# For development
-pip install opaque-framework[dev]
-```
-
-### Basic Usage
+### Basic Application
 
 ```python
-# main.py
-import sys
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QIcon
-from opaque.core.application import BaseApplication
-from features.my_feature.presenter import MyFeaturePresenter
+from opaque.view.application import BaseApplication
+from opaque.models.configuration import DefaultApplicationConfiguration
+import sys
+
+class MyAppConfig(DefaultApplicationConfiguration):
+    def get_application_name(self) -> str:
+        return "MyApp"
+    
+    def get_application_title(self) -> str:
+        return "My Application"
 
 class MyApplication(BaseApplication):
-    def application_name(self) -> str:
-        return "MyApp"
-
-    def organization_name(self) -> str:
-        return "MyCompany"
-
-    def application_title(self) -> str:
-        return "My OPAQUE Application"
-
-    def application_icon(self) -> QIcon:
-        return QIcon("path/to/your/icon.ico")
-    
-    def application_description(self) -> str:
-        return "A simple application created with the OPAQUE framework."
-
     def __init__(self):
-        super().__init__()
-        self._register_features()
-
-    def _register_features(self):
-        # Register features using their presenters
-        my_feature_presenter = MyFeaturePresenter(feature_id="my_feature_1")
-        self.register_feature(my_feature_presenter)
+        config = MyAppConfig()
+        super().__init__(config)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    main_win = MyApplication()
-    main_win.show()
+    main_window = MyApplication()
+    
+    if not main_window.try_acquire_lock():
+        main_window.show_already_running_message()
+        sys.exit(1)
+        
+    main_window.show()
     sys.exit(app.exec())
+```
+
+### Adding Features with MVP Pattern
+
+```python
+# Model
+from opaque.models.model import BaseModel
+
+class CalculatorModel(BaseModel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.result = 0
+    
+    def add(self, a: float, b: float) -> float:
+        self.result = a + b
+        return self.result
+
+# View  
+from opaque.view.view import BaseView
+from PySide6.QtWidgets import QPushButton, QLineEdit, QVBoxLayout
+
+class CalculatorView(BaseView):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+    
+    def setup_ui(self):
+        layout = QVBoxLayout()
+        self.input_a = QLineEdit()
+        self.input_b = QLineEdit()
+        self.add_button = QPushButton("Add")
+        self.result_label = QLabel("Result: 0")
+        
+        layout.addWidget(self.input_a)
+        layout.addWidget(self.input_b)
+        layout.addWidget(self.add_button)
+        layout.addWidget(self.result_label)
+        self.setLayout(layout)
+
+# Presenter
+from opaque.presenters.presenter import BasePresenter
+
+class CalculatorPresenter(BasePresenter):
+    def __init__(self, model: CalculatorModel, view: CalculatorView, parent=None):
+        super().__init__(model, view, parent)
+        self.setup_connections()
+    
+    def setup_connections(self):
+        self.view.add_button.clicked.connect(self.on_add_clicked)
+    
+    def on_add_clicked(self):
+        a = float(self.view.input_a.text() or 0)
+        b = float(self.view.input_b.text() or 0)
+        result = self.model.add(a, b)
+        self.view.result_label.setText(f"Result: {result}")
+```
+
+### Using the Notification System
+
+```python
+# Get notification presenter (automatically available in BaseApplication)
+notification_presenter = self.get_notification_presenter()
+
+# Add notifications
+notification_presenter.notify_info("Success", "Operation completed successfully")
+notification_presenter.notify_warning("Warning", "This is a warning message")
+notification_presenter.notify_error("Error", "Something went wrong")
+
+# Log with automatic notifications
+notification_presenter.log_error("Critical error occurred", "MyComponent")
+notification_presenter.log_warning("Performance degraded", "MyComponent")
 ```
 
 ## Project Structure
 
 ```
-src/
-└── opaque/
-    ├── core/               # Core MVP components (BaseApplication, BaseModel, BaseView, BasePresenter)
-    ├── managers/           # Managers for settings, themes, workspace, etc.
-    ├── models/             # Data models and field annotations
-    └── widgets/            # Custom UI widgets (Toolbar, MDI area, dialogs)
-examples/
-└── basic_example/          # Example application demonstrating framework features
-pyproject.toml              # Package configuration
+opaque/
+├── models/                 # Data models and business logic
+│   ├── abstract_model.py   # Base model interfaces
+│   ├── annotations.py      # Configuration field annotations
+│   ├── app_model.py       # Application-level model
+│   ├── configuration.py   # Configuration management
+│   ├── logger_model.py    # Logging model
+│   ├── model.py          # Base model implementation
+│   ├── notification_model.py        # Notification model
+│   └── notification_settings_model.py  # Notification settings
+├── presenters/            # Business logic coordinators
+│   ├── app_presenter.py   # Application presenter
+│   ├── notification_presenter.py    # Notification system presenter
+│   └── presenter.py       # Base presenter
+├── services/              # Reusable services
+│   ├── logger_service.py  # Logging service
+│   ├── notification_service.py      # Notification service
+│   ├── service.py         # Base service and ServiceLocator
+│   ├── settings_service.py          # Settings persistence
+│   ├── single_instance_service.py   # Single instance management
+│   ├── theme_service.py   # Theme management
+│   └── workspace_service.py         # Workspace persistence
+└── view/                  # User interface components
+    ├── dialogs/           # Dialog windows
+    │   └── settings.py    # Settings dialog
+    ├── layouts/           # Custom layouts
+    │   └── flow.py        # Flow layout
+    ├── widgets/           # Custom widgets
+    │   ├── color_picker.py           # Color picker widget
+    │   ├── mdi_window.py  # MDI window implementation
+    │   ├── notification_widget.py    # Notification panel
+    │   └── toolbar.py     # Custom toolbar
+    ├── app_view.py        # Main application view
+    ├── application.py     # Base application class
+    └── view.py           # Base view implementation
 ```
 
-## Key Concepts
+## Examples
 
-### Model-View-Presenter (MVP)
+The framework includes several comprehensive examples:
 
-OPAQUE is built on the MVP pattern to ensure a clean separation of concerns.
+### Basic Example
 
--   **Model**: Manages the application's data and business logic. It knows nothing about the UI. In OPAQUE, models inherit from `BaseModel` and use `Field` annotations to define their properties.
--   **View**: Displays the data from the model and sends user actions to the presenter. It is passive and does not contain any application logic. Views inherit from `BaseView`.
--   **Presenter**: Acts as the middleman between the Model and the View. It retrieves data from the model, formats it for display in the view, and processes user input. Presenters inherit from `BasePresenter`.
+```bash
+cd examples/basic_example
+python main.py
+```
 
-### Feature Registration
+Features: Calculator, Data Viewer, and Logging components demonstrating MVP pattern.
 
-Features are self-contained components of your application, each following the MVP pattern. You register a feature by creating an instance of its presenter and passing it to the `register_feature` method of your main application class.
+### Notification Example
 
-### Settings and State Management
+```bash
+cd examples/notification_example  
+python main.py
+```
 
--   **Settings**: User-configurable options that persist across sessions. Defined in a model using `Field(settings=True)`.
--   **Workspace State**: Data that captures the current state of a feature, like open files or current values. Defined using `Field(workspace=True)`.
+Features: Complete notification and logging system demonstration.
 
-Settings are automatically handled by the `SettingsManager` and displayed in a unified settings dialog.
+### Todo List Example
 
-## Step-by-Step Guide: Creating a Feature
+```bash
+cd examples/my_example
+python main.py
+```
 
-This guide walks you through creating a "Text Editor" feature.
+Features: Simple todo list application showing basic framework usage.
 
-### Step 1: Define the Model
+## Configuration
 
-The model defines the data and state for the feature.
+### Application Configuration
 
-`features/text_editor/model.py`:
+Use annotations to define type-safe configuration:
+
 ```python
-from opaque.core.model import BaseModel
-from opaque.models.annotations import BoolField, IntField, StringField
-from PySide6.QtGui import QIcon
+from opaque.models.annotations import StringField, IntField, BoolField
+from opaque.models.configuration import DefaultApplicationConfiguration
 
-class TextEditorModel(BaseModel):
-    FEATURE_NAME = "Text Editor"
-
-    # Settings
-    word_wrap = BoolField(default=True, description="Enable word wrap", settings=True)
-    font_size = IntField(default=12, min_value=8, max_value=72, description="Font size", settings=True)
-
-    # Workspace State
-    content = StringField(default="", workspace=True)
-    file_path = StringField(default="", workspace=True)
-
-    def feature_name(self) -> str:
-        return self.FEATURE_NAME
-
-    def feature_icon(self) -> QIcon:
-        return QIcon.fromTheme("accessories-text-editor")
+class MyAppConfig(DefaultApplicationConfiguration):
+    # Basic app info
+    app_name = StringField(default="MyApp")
+    app_version = StringField(default="1.0.0")
+    app_title = StringField(default="My Application")
+    
+    # Window settings
+    window_width = IntField(default=1280, description="Window width")
+    window_height = IntField(default=720, description="Window height")
+    
+    # Features
+    enable_notifications = BoolField(default=True, description="Enable notifications")
+    enable_logging = BoolField(default=True, description="Enable file logging")
 ```
 
-### Step 2: Create the View
+### Theme Configuration
 
-The view defines the UI components for the feature.
-
-`features/text_editor/view.py`:
 ```python
-from opaque.core.view import BaseView
-from PySide6.QtWidgets import QTextEdit, QVBoxLayout, QWidget, QToolBar, QAction
-from PySide6.QtGui import QIcon
+# Available themes
+themes = ["light", "dark", "auto"]  # auto follows system
 
-class TextEditorView(BaseView):
-    def __init__(self, feature_id: str):
-        super().__init__(feature_id)
-        self.setWindowTitle("Text Editor")
-
-        main_widget = QWidget()
-        layout = QVBoxLayout(main_widget)
-
-        self.toolbar = QToolBar()
-        self.open_action = QAction(QIcon.fromTheme("document-open"), "Open", self)
-        self.save_action = QAction(QIcon.fromTheme("document-save"), "Save", self)
-        self.toolbar.addAction(self.open_action)
-        self.toolbar.addAction(self.save_action)
-        layout.addWidget(self.toolbar)
-
-        self.text_edit = QTextEdit()
-        layout.addWidget(self.text_edit)
-
-        self.set_content(main_widget)
+# Set theme programmatically
+theme_service = ServiceLocator.get_service("theme")
+theme_service.set_theme("dark")
 ```
 
-### Step 3: Implement the Presenter
+### Notification Settings
 
-The presenter connects the model and the view, handling the logic.
-
-`features/text_editor/presenter.py`:
 ```python
-from opaque.core.presenter import BasePresenter
-from .model import TextEditorModel
-from .view import TextEditorView
-from PySide6.QtWidgets import QFileDialog
+# Configure notification behavior
+notification_presenter = self.get_notification_presenter()
 
-class TextEditorPresenter(BasePresenter):
-    def __init__(self, feature_id: str):
-        model = TextEditorModel(feature_id)
-        view = TextEditorView(feature_id)
-        super().__init__(feature_id, model, view)
+# Set logging levels that trigger notifications
+notification_presenter.set_notification_on_error(True)
+notification_presenter.set_notification_on_critical(True)
 
-    def bind_events(self):
-        self.view.open_action.triggered.connect(self._open_file)
-        self.view.save_action.triggered.connect(self._save_file)
-        self.view.text_edit.textChanged.connect(self._on_text_changed)
-
-    def update(self, property_name: str, value: any):
-        if property_name == "content":
-            self.view.text_edit.setPlainText(value)
-        elif property_name == "font_size":
-            font = self.view.text_edit.font()
-            font.setPointSize(value)
-            self.view.text_edit.setFont(font)
-
-    def _on_text_changed(self):
-        self.model.content = self.view.text_edit.toPlainText()
-
-    def _open_file(self):
-        path, _ = QFileDialog.getOpenFileName(self.view, "Open File")
-        if path:
-            with open(path, 'r') as f:
-                self.model.content = f.read()
-            self.model.file_path = path
-
-    def _save_file(self):
-        path = self.model.file_path
-        if not path:
-            path, _ = QFileDialog.getSaveFileName(self.view, "Save File")
-        
-        if path:
-            with open(path, 'w') as f:
-                f.write(self.model.content)
-            self.model.file_path = path
+# Configure logging
+notification_presenter.set_log_level("INFO")
+notification_presenter.set_file_logging(True)
+notification_presenter.set_console_logging(True)
 ```
 
-### Step 4: Register the Feature
+## 🔧 API Reference
 
-Finally, register the feature in your main application.
+### Core Classes
 
-`main.py`:
+#### BaseApplication
+
+Main application class providing MDI interface and service management.
+
+**Key Methods:**
+
+- `register_feature(presenter)` - Register a feature presenter
+- `get_notification_presenter()` - Get notification system access
+- `try_acquire_lock()` - Single instance management
+- `save_workspace()` / `load_workspace()` - Workspace persistence
+
+#### BasePresenter
+
+Base class for implementing MVP presenters.
+
+**Key Methods:**
+
+- `initialize()` - Initialize presenter after construction
+- `cleanup()` - Clean up resources
+- `get_view_title()` - Get display title for the view
+
+#### BaseModel
+
+Base class for data models with automatic persistence.
+
+**Key Features:**
+
+- Automatic property persistence with annotations
+- Signal emission on property changes
+- Integration with settings service
+
+#### BaseView
+
+Base class for UI components with MDI support.
+
+**Key Features:**
+
+- Automatic docking widget creation
+- Theme-aware styling
+- Signal/slot connection helpers
+
+### Services
+
+#### NotificationService
+
+Manages application notifications with multiple severity levels.
+
+**Key Methods:**
+
+- `add_notification(level, title, message, source, persistent)` - Add notification
+- `mark_as_read(notification_id)` - Mark notification as read
+- `get_notifications(level_filter, unread_only)` - Retrieve notifications
+- `clear_notifications(level_filter)` - Clear notifications
+
+#### LoggerService  
+
+Provides structured logging with file and console output.
+
+**Key Methods:**
+
+- `debug()`, `info()`, `warning()`, `error()`, `critical()` - Log messages
+- `set_log_level(level)` - Configure logging level
+- `set_file_logging(enabled)` - Enable/disable file logging
+
+#### ServiceLocator
+
+Central registry for application services.
+
+**Key Methods:**
+
+- `register_service(name, service)` - Register a service
+- `get_service(name)` - Retrieve a service
+- `unregister_service(name)` - Remove a service
+
+## 🏗️ Development
+
+### Setting Up Development Environment
+
+```bash
+# Clone repository
+git clone https://github.com/sfadiga/OPAQUE.git
+cd OPAQUE
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install in development mode
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Format code
+black src/ examples/
+
+# Type checking
+mypy src/
+```
+
+### Creating Custom Features
+
+1. **Create Model** - Implement business logic and data management
+2. **Create View** - Design user interface components  
+3. **Create Presenter** - Connect model and view, handle user interactions
+4. **Register Feature** - Add to application using `register_feature()`
+
+### Extending Services
+
 ```python
-# ... (imports and MyApplication class definition)
-    def _register_features(self):
-        text_editor_presenter = TextEditorPresenter(feature_id="text_editor_1")
-        self.register_feature(text_editor_presenter)
+from opaque.services.service import BaseService
+
+class MyCustomService(BaseService):
+    def __init__(self):
+        super().__init__()
+        # Initialize service
+    
+    def my_method(self):
+        # Implement functionality
+        pass
+
+# Register with ServiceLocator
+ServiceLocator.register_service("my_service", MyCustomService())
 ```
-
-## What You Get Automatically
-
-✅ **Toolbar Integration**: Your feature appears as a button in the main toolbar.  
-✅ **MDI Management**: Your window can be docked, floated, and arranged.  
-✅ **Settings Dialog**: Your feature's settings appear automatically.  
-✅ **Persistence**: Settings and workspace state are saved and loaded.  
-✅ **Theme Support**: Your feature inherits the application theme.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues.
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Guidelines
+
+1. Follow PEP 8 code style
+2. Add tests for new features
+3. Update documentation
+4. Ensure compatibility with Python 3.8+
+
+### Development Process
+
+1. Fork the repository
+2. Create a feature branch
+3. Make changes and add tests
+4. Run the test suite
+5. Submit a pull request
 
 ## License
 
-MIT License - See the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/sfadiga/OPAQUE/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/sfadiga/OPAQUE/discussions)  
+- **Email**: <sfadiga@gmail.com>
+
+## Acknowledgments
+
+- Built with [PySide6](https://doc.qt.io/qtforpython-6/) - Qt for Python
+- Inspired by enterprise application patterns
+- Thanks to the Qt and Python communities
+
+---
+
+**OPAQUE Framework** - Building professional desktop applications made simple.

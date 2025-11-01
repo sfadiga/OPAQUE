@@ -18,6 +18,7 @@ from PySide6.QtCore import QObject, Signal
 
 from opaque.services.service import BaseService
 
+
 class SettingsService(BaseService):
     """Manages application settings persistence."""
 

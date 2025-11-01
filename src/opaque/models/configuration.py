@@ -30,12 +30,18 @@ class DefaultApplicationConfiguration(AbstractModel):
     application_title = StringField(default="My Application")
     application_description = StringField(default="My Application Description")
     application_icon_path = StringField(default="")
-    application_version = StringField(default="0.0.1", description="Application Version")
-    application_organization = StringField(default="My Company", description="Application Owner")
-    application_min_width = IntField(default=800, description="Application min width")
-    application_max_width = IntField(default=1980, description="Application max width")
-    application_min_height = IntField(default=600, description="Application min height")
-    application_max_height = IntField(default=720, description="Application max height")
+    application_version = StringField(
+        default="0.0.1", description="Application Version")
+    application_organization = StringField(
+        default="My Company", description="Application Owner")
+    application_min_width = IntField(
+        default=800, description="Application min width")
+    application_max_width = IntField(
+        default=1980, description="Application max width")
+    application_min_height = IntField(
+        default=600, description="Application min height")
+    application_max_height = IntField(
+        default=720, description="Application max height")
     settings_file_path = StringField(default="")  # Will be set in __init__
     workspace_file_extension = StringField(default=".wks")
 
@@ -45,7 +51,8 @@ class DefaultApplicationConfiguration(AbstractModel):
         # Now set the dynamic default for settings_file_path
         app_name = self.get_application_name().lower().replace(' ', '_')
         file_path = str(Path.home() / f".{app_name}" / "settings.json")
-        self.settings_file_path = file_path  # This sets the value through the property setter
+        # This sets the value through the property setter
+        self.settings_file_path = file_path
 
     @abstractmethod
     def get_application_name(self) -> str:
@@ -106,13 +113,13 @@ class DefaultApplicationConfiguration(AbstractModel):
         """
         Return a tuple of width, heigh that sets the minimum size of the application
         """
-        return None #self.application_min_width, self.application_min_height
+        return None  # self.application_min_width, self.application_min_height
 
     def get_application_max_size(self) -> Optional[tuple[int, int]]:
         """
         Return a tuple of width, heigh that sets the maximum size of the application
         """
-        return None #self.application_max_width, self.application_max_height
+        return None  # self.application_max_width, self.application_max_height
 
     def get_settings_file_path(self) -> Path:
         """

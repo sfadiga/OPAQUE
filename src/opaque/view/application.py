@@ -24,11 +24,15 @@ from opaque.presenters.presenter import BasePresenter
 from opaque.services.service import ServiceLocator
 from opaque.models.configuration import DefaultApplicationConfiguration
 
+from opaque.services.single_instance_service import SingleInstanceService
 from opaque.services.workspace_service import WorkspaceService
 from opaque.services.theme_service import ThemeService
 from opaque.services.settings_service import SettingsService
+from opaque.services.notification_service import NotificationService
+from opaque.services.logger_service import LoggerService
 
 from opaque.presenters.app_presenter import ApplicationPresenter
+from opaque.presenters.notification_presenter import NotificationPresenter
 from opaque.models.app_model import ApplicationModel
 from opaque.view.app_view import ApplicationView
 
@@ -88,6 +92,11 @@ class BaseApplication(QMainWindow):
         # features to be loaded with application
         self._registered_features: Dict[str, BasePresenter] = {}
 
+        # Initialize single instead service
+        self.single_instance_service = SingleInstanceService()
+        self.single_instance_service.initialize()
+        ServiceLocator.register_service(self.single_instance_service)
+
         # Initialize workspace service
         self.workspace_service = WorkspaceService()
         self.workspace_service.initialize()
@@ -103,6 +112,22 @@ class BaseApplication(QMainWindow):
         self.settings_service.initialize()
         ServiceLocator.register_service(self.settings_service)
 
+        # Initialize notification service
+        self.notification_service = NotificationService()
+        self.notification_service.initialize()
+        ServiceLocator.register_service(self.notification_service)
+
+        # Initialize logger service
+        self.logger_service = LoggerService()
+        self.logger_service.initialize()
+        ServiceLocator.register_service(self.logger_service)
+
+        # Initialize notification presenter (integrates notification system with UI)
+        # Store services as instance variables to prevent garbage collection
+        self._services_initialized = True
+        self.notification_presenter = NotificationPresenter(self)
+        self.notification_presenter.initialize()
+
         # Initialize application settings
         self._init_application_settings()
 
@@ -115,8 +140,9 @@ class BaseApplication(QMainWindow):
         presenter = ApplicationPresenter(model, view, self)
         # add settings presenter directly to registered features so it is not displayed on toolbar
         self._registered_features[presenter.feature_id] = presenter
-        settings_service: SettingsService = ServiceLocator.get_service("settings")
-        settings_service.register_model(presenter.feature_id, presenter.model)
+        settings_service = ServiceLocator.get_service("settings")
+        if isinstance(settings_service, SettingsService):
+            settings_service.register_model(presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
         menu_bar = self.menuBar()
@@ -159,9 +185,7 @@ class BaseApplication(QMainWindow):
             raise ValueError(f"Feature '{feature_name}' is already registered")
 
         self._registered_features[feature_name] = presenter
-
         self.workspace_service.register_feature(presenter)
-
         self.settings_service.register_model(presenter.feature_id, presenter.model)
 
         # Add toolbar button for the feature
@@ -234,8 +258,7 @@ class BaseApplication(QMainWindow):
     def try_acquire_lock(self):
         # The application name must be known before creating the QApplication
         # to ensure the single instance check is reliable.
-        # instance_manager = SingleInstanceManager(app_name=self.application_name(), port=49153)
-        return True  # instance_manager.try_acquire_lock()
+        return self.single_instance_service.try_acquire_lock()
 
     def show_already_running_message(self):
         """Show a message box informing the user that another instance is already running."""

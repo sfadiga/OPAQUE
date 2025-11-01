@@ -80,9 +80,12 @@ class OpaqueMdiSubWindow(QMdiSubWindow):
         """Applies a geometry and state from a dictionary."""
         if not state:
             return
-        width = max(state.get('width', self._minimum_size[0]), self._minimum_size[0])
-        height = max(state.get('height', self._minimum_size[1]), self._minimum_size[1])
-        self.setGeometry(state.get('left', 0), state.get('top', 0), width, height)
+        width = max(
+            state.get('width', self._minimum_size[0]), self._minimum_size[0])
+        height = max(
+            state.get('height', self._minimum_size[1]), self._minimum_size[1])
+        self.setGeometry(state.get('left', 0),
+                         state.get('top', 0), width, height)
 
         state_name = state.get('state')
         if state_name:
@@ -130,8 +133,10 @@ class OpaqueMdiSubWindow(QMdiSubWindow):
 
         widget_size_hint = widget.sizeHint()
         if widget_size_hint.isValid() and not widget_size_hint.isEmpty():
-            preferred_width: int = max(widget_size_hint.width(), self._minimum_size[0])
-            preferred_height: int = max(widget_size_hint.height(), self._minimum_size[1])
+            preferred_width: int = max(
+                widget_size_hint.width(), self._minimum_size[0])
+            preferred_height: int = max(
+                widget_size_hint.height(), self._minimum_size[1])
         else:
             preferred_width = max(widget.width(), self._minimum_size[0])
             preferred_height = max(widget.height(), self._minimum_size[1])
@@ -142,7 +147,7 @@ class OpaqueMdiSubWindow(QMdiSubWindow):
         if self._fixed_size:
             self.setMaximumSize(self._fixed_size[0], self._fixed_size[1])
             self.setMinimumSize(self._fixed_size[0], self._fixed_size[1])
-            self.setWindowFlags((self.windowFlags() | Qt.WindowType.CustomizeWindowHint) 
+            self.setWindowFlags((self.windowFlags() | Qt.WindowType.CustomizeWindowHint)
                                 & ~Qt.WindowType.WindowMaximizeButtonHint)
 
         focus_event_filter = FocusInEventFilter(self)

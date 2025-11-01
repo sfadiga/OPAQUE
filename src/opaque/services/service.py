@@ -15,6 +15,7 @@ from typing import Optional
 
 from PySide6.QtCore import QObject, Signal
 
+
 class BaseService(QObject):
     """
     Abstract base class for all services in the application.
@@ -27,6 +28,7 @@ class BaseService(QObject):
         Args:
             name: service name for identification
         """
+        super().__init__()  # Initialize QObject properly
         self._name = name
         self._initialized = False
 
@@ -97,7 +99,7 @@ class ServiceLocator:
                 f"Service '{service.name}' must be initialized before being registered"
             )
 
-        service.initialize()
+        # Don't call initialize() again - service should already be initialized
         cls._services[service.name] = service
 
     @classmethod

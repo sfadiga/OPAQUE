@@ -43,7 +43,7 @@ class BasePresenter(ABC):
             self._feature_id = self.__class__.__name__
         else:
             self._feature_id = feature_id
-            
+
         self._app: 'BaseApplication' = app
         # a presenter must have be associated with a view and a model
         # if there is a need for a presenter without one of those
@@ -54,7 +54,6 @@ class BasePresenter(ABC):
         # Connect to view events
         self._view.window_opened.connect(self.on_view_show)
         self._view.window_closed.connect(self.on_view_close)
-
 
         # Set window title from feature interface
         self._view.setWindowTitle(self._model.feature_name())
@@ -152,7 +151,8 @@ class BasePresenter(ABC):
         fields = type(self.model).get_fields()
         for name, field in fields.items():
             if field.is_workspace:
-                workspace_object[self.__class__.__name__][name] = getattr(self.model, name)
+                workspace_object[self.__class__.__name__][name] = getattr(
+                    self.model, name)
 
     def load_workspace(self, workspace_object: dict) -> None:
         """
