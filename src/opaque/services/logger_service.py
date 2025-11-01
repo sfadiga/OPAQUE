@@ -42,12 +42,18 @@ class LoggerService(BaseService):
         'CRITICAL': logging.CRITICAL
     }
 
-    def __init__(self, log_directory: Optional[str] = None):
+    def __init__(self, log_directory: Optional[str] = None, application_name: Optional[str] = None):
         super().__init__("logger")
         self._log_directory = log_directory or "logs"
+        self._application_name = application_name or "application"
         self._logger: Optional[logging.Logger] = None
         self._file_handler: Optional[RotatingFileHandler] = None
         self._console_handler: Optional[logging.StreamHandler[Any]] = None
+
+        # Generate timestamp for this session
+        self._session_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self._session_folder: Optional[Path] = None
+        self._session_log_file: Optional[Path] = None
 
         # Configuration
         self._log_level = logging.INFO
@@ -90,18 +96,24 @@ class LoggerService(BaseService):
             self._setup_console_logging()
 
     def _setup_file_logging(self) -> None:
-        """Set up rotating file handler"""
+        """Set up rotating file handler with timestamped folder structure"""
         try:
-            # Ensure log directory exists
-            log_dir = Path(self._log_directory)
-            log_dir.mkdir(parents=True, exist_ok=True)
+            # Ensure base log directory exists
+            base_log_dir = Path(self._log_directory)
+            base_log_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create log file path
-            log_file = log_dir / "application.log"
+            # Create session folder name: application_name_YYYYMMDD_HHMMSS
+            session_folder_name = f"{self._application_name}_{self._session_timestamp}"
+            self._session_folder = base_log_dir / session_folder_name
+            self._session_folder.mkdir(parents=True, exist_ok=True)
+
+            # Create log file name: application_name_YYYYMMDD_HHMMSS.log
+            log_file_name = f"{self._application_name}_{self._session_timestamp}.log"
+            self._session_log_file = self._session_folder / log_file_name
 
             # Create rotating file handler
             self._file_handler = RotatingFileHandler(
-                filename=str(log_file),
+                filename=str(self._session_log_file),
                 maxBytes=self._max_file_size,
                 backupCount=self._backup_count,
                 encoding='utf-8'
@@ -116,7 +128,8 @@ class LoggerService(BaseService):
             self._file_handler.setLevel(self._log_level)
 
             # Add to logger
-            self._logger.addHandler(self._file_handler)
+            if self._logger:
+                self._logger.addHandler(self._file_handler)
 
         except Exception as e:
             print(f"Failed to set up file logging: {e}")
@@ -135,7 +148,8 @@ class LoggerService(BaseService):
             self._console_handler.setLevel(self._log_level)
 
             # Add to logger
-            self._logger.addHandler(self._console_handler)
+            if self._logger:
+                self._logger.addHandler(self._console_handler)
 
         except Exception as e:
             print(f"Failed to set up console logging: {e}")
@@ -295,20 +309,39 @@ class LoggerService(BaseService):
 
     def get_log_file_path(self) -> Optional[str]:
         """Get the path to the current log file"""
-        if self._file_handler:
+        if self._session_log_file:
+            return str(self._session_log_file)
+        elif self._file_handler:
             return self._file_handler.baseFilename
         return None
+
+    def get_session_folder_path(self) -> Optional[str]:
+        """Get the path to the current session folder"""
+        if self._session_folder:
+            return str(self._session_folder)
+        return None
+
+    def get_session_timestamp(self) -> str:
+        """Get the timestamp for the current session"""
+        return self._session_timestamp
+
+    def get_application_name(self) -> str:
+        """Get the application name used for logging"""
+        return self._application_name
 
     def get_configuration(self) -> Dict[str, Any]:
         """Get current logger configuration"""
         return {
             'log_level': logging.getLevelName(self._log_level),
             'log_directory': self._log_directory,
+            'application_name': self._application_name,
+            'session_timestamp': self._session_timestamp,
             'max_file_size': self._max_file_size,
             'backup_count': self._backup_count,
             'console_logging_enabled': self._console_logging_enabled,
             'file_logging_enabled': self._file_logging_enabled,
             'notify_on_error': self._notify_on_error,
             'notify_on_critical': self._notify_on_critical,
-            'log_file_path': self.get_log_file_path()
+            'log_file_path': self.get_log_file_path(),
+            'session_folder_path': self.get_session_folder_path()
         }

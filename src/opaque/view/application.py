@@ -118,7 +118,7 @@ class BaseApplication(QMainWindow):
         ServiceLocator.register_service(self.notification_service)
 
         # Initialize logger service
-        self.logger_service = LoggerService()
+        self.logger_service = LoggerService(application_name=configuration.get_application_name())
         self.logger_service.initialize()
         ServiceLocator.register_service(self.logger_service)
 
