@@ -54,6 +54,8 @@ class NotificationPresenter(QObject):
         service = ServiceLocator.get_service("notification")
         if service and isinstance(service, NotificationService):
             service.notification_added.connect(self._on_service_notification_added)
+            service.notification_removed.connect(self._on_service_notification_removed)
+            service.notifications_cleared.connect(self._on_service_notifications_cleared)
 
     def _setup_models(self) -> None:
         """Initialize the models"""
@@ -130,6 +132,36 @@ class NotificationPresenter(QObject):
         # Show Toast if enabled
         if self._settings_model and self._settings_model.enable_toasts:
             self._show_toast(notification)
+
+    def _on_service_notification_removed(self, notification_id: str):
+        """Handle notification removal from service"""
+        if self._notification_list:
+            self._notification_list.remove_notification(notification_id)
+
+    def _on_service_notifications_cleared(self, level_filter: Optional[NotificationLevel] = None):
+        """Handle notifications cleared from service"""
+        if self._notification_list:
+            # If a filter is applied, we might need to handle it selectively
+            # For now, if no filter or if filter matches, we reload or clear
+            if level_filter is None:
+                self._notification_list.clear()
+            else:
+                # If specific level cleared, might need to iterate and check
+                # For simplicity in this fix, we'll just clear all if the intention was to clear
+                # But to be precise, we should probably re-sync with service or iterate items
+                # Given SimplifiedNotificationList structure, 'clear' removes all widgets.
+                # If we only cleared some, we should probably just remove those.
+                # Since SimplifiedNotificationList doesn't store level easily accessible without object inspection,
+                # let's just clear all for now as 'Clear All' button passes None.
+                # If we needed to support partial clear, we'd need to improve SimplifiedNotificationList
+                self._notification_list.clear()
+                
+                # Reload remaining notifications
+                service = ServiceLocator.get_service("notification")
+                if service and isinstance(service, NotificationService):
+                    notifications = service.get_notifications()
+                    for notification in notifications:
+                        self._notification_list.add_notification(notification)
 
     def _show_toast(self, notification: Notification):
         if not self._main_window:

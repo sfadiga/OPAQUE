@@ -129,6 +129,19 @@ class MyExampleApplication(BaseApplication):
         except ImportError as e:
             print(f"Could not load Tab Manager feature: {e}")
 
+        # Register Notification Tester Feature
+        try:
+            from features.notification_tester.model import NotificationTesterModel
+            from features.notification_tester.view import NotificationTesterView
+            from features.notification_tester.presenter import NotificationTesterPresenter
+            
+            notif_model = NotificationTesterModel(self)
+            notif_view = NotificationTesterView(self)
+            notif_presenter = NotificationTesterPresenter(notif_model, notif_view, self)
+            self.register_feature(notif_presenter)
+        except ImportError as e:
+            print(f"Could not load Notification Tester feature: {e}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
