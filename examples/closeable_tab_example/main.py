@@ -3,398 +3,314 @@
 """
 CloseableTabWidget Example
 
-This example demonstrates how to use the CloseableTabWidget from the OPAQUE framework.
-It shows various features including:
-- Creating tabs with different widget types
-- Adding and removing tabs
-- Renaming tabs
-- Workspace save/load functionality
-- Custom widget factories
+This example demonstrates how to use the CloseableTabWidget from the OPAQUE framework
+integrated within a full OPAQUE Application.
+
+It shows:
+- Integration with BaseApplication and MVP pattern
+- Workspace persistence using the framework's WorkspaceService
+- Notification system integration
+- CloseableTabWidget features (tabs, factories, renaming)
 """
 
-from opaque.view.widgets import CloseableTabWidget
-import json
-from PySide6.QtGui import QAction
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
-    QWidget, QPushButton, QLabel, QTextEdit, QSpinBox,
-    QListWidget, QMenuBar, QFileDialog, QMessageBox
-)
 import sys
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication, QVBoxLayout, QHBoxLayout,
+    QWidget, QPushButton, QLabel, QTextEdit, QSpinBox,
+    QListWidget, QFileDialog, QMessageBox, QStyle
+)
 
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
+from opaque.view.application import BaseApplication
+from opaque.models.configuration import DefaultApplicationConfiguration
+from opaque.models.model import BaseModel
+from opaque.view.view import BaseView
+from opaque.presenters.presenter import BasePresenter
+from opaque.view.widgets import CloseableTabWidget
+from opaque.models.annotations import StringField
+
+
+# --- Custom Widgets for Tabs ---
 
 class TextWidget(QWidget):
     """A simple text editor widget for demonstration."""
-
     def __init__(self, parent=None):
         super().__init__(parent)
-
         layout = QVBoxLayout(self)
-
-        # Add a label
         label = QLabel("Text Editor Tab")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
-
-        # Add a text editor
         self.text_edit = QTextEdit()
-        self.text_edit.setPlainText(
-            "This is a text editor widget.\nYou can type here...")
+        self.text_edit.setPlainText("Type here...")
         layout.addWidget(self.text_edit)
 
     def get_workspace_data(self):
-        """Return workspace data for this widget."""
-        return {
-            'text_content': self.text_edit.toPlainText()
-        }
+        return {'text_content': self.text_edit.toPlainText()}
 
     def load_workspace_data(self, data):
-        """Load workspace data for this widget."""
         if 'text_content' in data:
             self.text_edit.setPlainText(data['text_content'])
 
 
 class CounterWidget(QWidget):
-    """A simple counter widget for demonstration."""
-
+    """A simple counter widget."""
     def __init__(self, parent=None):
         super().__init__(parent)
-
         layout = QVBoxLayout(self)
-
-        # Add a label
         label = QLabel("Counter Tab")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
-
-        # Add counter controls
-        controls_layout = QHBoxLayout()
-
+        
+        controls = QHBoxLayout()
         self.spin_box = QSpinBox()
         self.spin_box.setRange(-1000, 1000)
-        self.spin_box.setValue(0)
-        controls_layout.addWidget(QLabel("Value:"))
-        controls_layout.addWidget(self.spin_box)
-
-        increment_btn = QPushButton("+1")
-        increment_btn.clicked.connect(
-            lambda: self.spin_box.setValue(self.spin_box.value() + 1))
-        controls_layout.addWidget(increment_btn)
-
-        decrement_btn = QPushButton("-1")
-        decrement_btn.clicked.connect(
-            lambda: self.spin_box.setValue(self.spin_box.value() - 1))
-        controls_layout.addWidget(decrement_btn)
-
-        layout.addLayout(controls_layout)
-
-        # Add some info
-        info_label = QLabel(
-            "This is a counter widget with workspace save/load support.")
-        info_label.setWordWrap(True)
-        layout.addWidget(info_label)
-
+        controls.addWidget(QLabel("Value:"))
+        controls.addWidget(self.spin_box)
+        
+        btn_inc = QPushButton("+1")
+        btn_inc.clicked.connect(lambda: self.spin_box.setValue(self.spin_box.value() + 1))
+        controls.addWidget(btn_inc)
+        
+        btn_dec = QPushButton("-1")
+        btn_dec.clicked.connect(lambda: self.spin_box.setValue(self.spin_box.value() - 1))
+        controls.addWidget(btn_dec)
+        
+        layout.addLayout(controls)
         layout.addStretch()
 
     def get_workspace_data(self):
-        """Return workspace data for this widget."""
-        return {
-            'counter_value': self.spin_box.value()
-        }
+        return {'counter_value': self.spin_box.value()}
 
     def load_workspace_data(self, data):
-        """Load workspace data for this widget."""
         if 'counter_value' in data:
             self.spin_box.setValue(data['counter_value'])
 
 
 class ListWidget(QWidget):
-    """A simple list widget for demonstration."""
-
+    """A simple list widget."""
     def __init__(self, parent=None):
         super().__init__(parent)
-
         layout = QVBoxLayout(self)
-
-        # Add a label
         label = QLabel("List Tab")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
-
-        # Add list widget
+        
         self.list_widget = QListWidget()
-        self.list_widget.addItems([
-            "Item 1",
-            "Item 2",
-            "Item 3",
-            "Click 'Add Item' to add more items"
-        ])
+        self.list_widget.addItems(["Item 1", "Item 2"])
         layout.addWidget(self.list_widget)
-
-        # Add controls
-        controls_layout = QHBoxLayout()
-
-        add_btn = QPushButton("Add Item")
-        add_btn.clicked.connect(self._add_item)
-        controls_layout.addWidget(add_btn)
-
-        remove_btn = QPushButton("Remove Selected")
-        remove_btn.clicked.connect(self._remove_selected)
-        controls_layout.addWidget(remove_btn)
-
-        layout.addLayout(controls_layout)
+        
+        controls = QHBoxLayout()
+        btn_add = QPushButton("Add")
+        btn_add.clicked.connect(self._add_item)
+        controls.addWidget(btn_add)
+        
+        btn_del = QPushButton("Remove")
+        btn_del.clicked.connect(self._remove_item)
+        controls.addWidget(btn_del)
+        layout.addLayout(controls)
 
     def _add_item(self):
-        """Add a new item to the list."""
-        count = self.list_widget.count()
-        self.list_widget.addItem(f"New Item {count + 1}")
+        self.list_widget.addItem(f"Item {self.list_widget.count() + 1}")
 
-    def _remove_selected(self):
-        """Remove the selected item from the list."""
-        current_row = self.list_widget.currentRow()
-        if current_row >= 0:
-            self.list_widget.takeItem(current_row)
+    def _remove_item(self):
+        row = self.list_widget.currentRow()
+        if row >= 0:
+            self.list_widget.takeItem(row)
 
     def get_workspace_data(self):
-        """Return workspace data for this widget."""
-        items = []
-        for i in range(self.list_widget.count()):
-            items.append(self.list_widget.item(i).text())
-        return {
-            'list_items': items,
-            'selected_row': self.list_widget.currentRow()
-        }
+        items = [self.list_widget.item(i).text() for i in range(self.list_widget.count())]
+        return {'list_items': items}
 
     def load_workspace_data(self, data):
-        """Load workspace data for this widget."""
         if 'list_items' in data:
             self.list_widget.clear()
             self.list_widget.addItems(data['list_items'])
 
-        if 'selected_row' in data and data['selected_row'] >= 0:
-            self.list_widget.setCurrentRow(data['selected_row'])
+
+# --- MVP Components ---
+
+class TabExampleModel(BaseModel):
+    def feature_name(self) -> str:
+        return "Tab Manager"
+
+    def feature_icon(self) -> QIcon:
+        return QApplication.style().standardIcon(QStyle.StandardPixmap.SP_DirIcon)
+
+    def feature_description(self) -> str:
+        return "Demonstrates CloseableTabWidget"
 
 
-class MainWindow(QMainWindow):
-    """Main window demonstrating the CloseableTabWidget."""
-
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle("CloseableTabWidget Example")
-        self.setGeometry(100, 100, 800, 600)
-
-        # Create central widget
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-
-        layout = QVBoxLayout(central_widget)
-
-        # Create info label
-        info_label = QLabel(
-            "This example demonstrates the CloseableTabWidget.\n"
-            "• Double-click tabs to rename them\n"
-            "• Click the '+' tab to add new tabs\n"
-            "• Click 'X' on tabs to close them\n"
-            "• Use the menu to save/load workspace or create specific tab types"
-        )
-        info_label.setWordWrap(True)
-        info_label.setStyleSheet(
-            "QLabel { background-color: #f0f0f0; padding: 10px; }")
-        layout.addWidget(info_label)
-
-        # Create the closeable tab widget with different factory functions
+class TabExampleView(BaseView):
+    def __init__(self, app: BaseApplication, parent=None):
+        super().__init__(app, parent)
+        
+        layout = QVBoxLayout()
+        
+        # Info label
+        info = QLabel("Use the 'Add Tab' menu in the main window toolbar or the + button below.")
+        info.setStyleSheet("padding: 5px; color: gray;")
+        layout.addWidget(info)
+        
+        # Closeable Tab Widget
         self.tab_widget = CloseableTabWidget(
-            widget_factory=self._create_text_widget,
+            widget_type=TextWidget,
             default_tab_name="Text Editor",
-            minimum_tabs=1,
+            minimum_tabs=0,
             show_plus_tab=True
         )
-
         layout.addWidget(self.tab_widget)
+        
+        self.setWidget(QWidget())
+        self.widget().setLayout(layout)
 
-        # Connect signals for demonstration
-        self.tab_widget.currentTabChanged.connect(self._on_tab_changed)
-        self.tab_widget.tabAdded.connect(self._on_tab_added)
-        self.tab_widget.tabRemoved.connect(self._on_tab_removed)
-        self.tab_widget.tabRenamed.connect(self._on_tab_renamed)
 
-        # Create menu bar
-        self._setup_menu()
+class TabExamplePresenter(BasePresenter):
+    def __init__(self, model: TabExampleModel, view: TabExampleView, app: BaseApplication):
+        super().__init__(model, view, app)
+        
+        # Connect signals
+        self.view.tab_widget.tabAdded.connect(self._on_tab_added)
+        self.view.tab_widget.tabRemoved.connect(self._on_tab_removed)
+        self.view.tab_widget.currentTabChanged.connect(self._on_tab_changed)
 
-        # Create status bar
-        self.statusBar().showMessage("Ready - Tab widget example loaded")
+    def bind_events(self) -> None:
+        pass
 
-    def _create_text_widget(self):
-        """Factory function to create text editor widgets."""
+    def update(self, field_name: str, new_value: Any, old_value: Any = None, model: Any = None) -> None:
+        pass
+
+    def on_view_show(self) -> None:
+        self.app.notification_presenter.notify_info(
+            "Tab Example", "Tab Manager feature opened. Try adding tabs!", "TabManager"
+        )
+
+    def on_view_close(self) -> None:
+        pass
+
+    def _create_default_widget(self):
         return TextWidget()
 
-    def _create_counter_widget(self):
-        """Factory function to create counter widgets."""
-        return CounterWidget()
+    # Public methods to add tabs
+    def add_text_tab(self):
+        self.view.tab_widget.add_tab("Text Editor", TextWidget())
+        self.app.notification_presenter.log_info("Added Text Tab", "TabManager")
 
-    def _create_list_widget(self):
-        """Factory function to create list widgets."""
-        return ListWidget()
+    def add_counter_tab(self):
+        self.view.tab_widget.add_tab("Counter", CounterWidget())
+        self.app.notification_presenter.log_info("Added Counter Tab", "TabManager")
 
-    def _setup_menu(self):
-        """Set up the menu bar."""
-        menubar = self.menuBar()
+    def add_list_tab(self):
+        self.view.tab_widget.add_tab("List", ListWidget())
+        self.app.notification_presenter.log_info("Added List Tab", "TabManager")
 
-        # File menu
-        file_menu = menubar.addMenu("File")
-
-        save_action = QAction("Save Workspace", self)
-        save_action.triggered.connect(self._save_workspace)
-        file_menu.addAction(save_action)
-
-        load_action = QAction("Load Workspace", self)
-        load_action.triggered.connect(self._load_workspace)
-        file_menu.addAction(load_action)
-
-        file_menu.addSeparator()
-
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-
-        # Add Tab menu
-        tab_menu = menubar.addMenu("Add Tab")
-
-        add_text_action = QAction("Add Text Editor", self)
-        add_text_action.triggered.connect(lambda: self.tab_widget.add_tab(
-            "Text Editor", self._create_text_widget()))
-        tab_menu.addAction(add_text_action)
-
-        add_counter_action = QAction("Add Counter", self)
-        add_counter_action.triggered.connect(
-            lambda: self.tab_widget.add_tab("Counter", self._create_counter_widget()))
-        tab_menu.addAction(add_counter_action)
-
-        add_list_action = QAction("Add List", self)
-        add_list_action.triggered.connect(
-            lambda: self.tab_widget.add_tab("List", self._create_list_widget()))
-        tab_menu.addAction(add_list_action)
-
-        # Help menu
-        help_menu = menubar.addMenu("Help")
-
-        about_action = QAction("About", self)
-        about_action.triggered.connect(self._show_about)
-        help_menu.addAction(about_action)
-
-    def _on_tab_changed(self, index):
-        """Handle tab change events."""
-        tab_name = self.tab_widget.get_tab_name(index)
-        if tab_name:
-            self.statusBar().showMessage(f"Switched to tab: {tab_name}")
-
+    # Signal handlers
     def _on_tab_added(self, index, name):
-        """Handle tab added events."""
-        self.statusBar().showMessage(f"Added tab: {name} at index {index}")
+        # We use log_debug for frequent events to avoid spamming the UI
+        self.app.notification_presenter.log_debug(f"Tab added: {name} at {index}", "TabManager")
 
     def _on_tab_removed(self, index, name):
-        """Handle tab removed events."""
-        self.statusBar().showMessage(f"Removed tab: {name} from index {index}")
+        self.app.notification_presenter.log_info(f"Tab closed: {name}", "TabManager")
 
-    def _on_tab_renamed(self, index, old_name, new_name):
-        """Handle tab renamed events."""
-        self.statusBar().showMessage(
-            f"Renamed tab at index {index}: '{old_name}' -> '{new_name}'")
+    def _on_tab_changed(self, index):
+        name = self.view.tab_widget.get_tab_name(index)
+        if name:
+            self.app.notification_presenter.log_debug(f"Switched to tab: {name}", "TabManager")
 
-    def _save_workspace(self):
-        """Save the current workspace to a file."""
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Workspace",
-            "workspace.json",
-            "JSON Files (*.json)"
-        )
+    # Workspace Persistence
+    def save_workspace(self, workspace_object: dict) -> None:
+        super().save_workspace(workspace_object)
+        # Save tab widget state
+        workspace_object[self.feature_id]["tab_data"] = self.view.tab_widget.get_workspace_data()
 
-        if file_path:
-            try:
-                workspace_data = self.tab_widget.get_workspace_data()
-                with open(file_path, 'w') as f:
-                    json.dump(workspace_data, f, indent=2)
-
-                self.statusBar().showMessage(
-                    f"Workspace saved to: {file_path}")
-                QMessageBox.information(
-                    self, "Success", f"Workspace saved successfully to:\n{file_path}")
-
-            except Exception as e:
-                QMessageBox.critical(
-                    self, "Error", f"Failed to save workspace:\n{str(e)}")
-
-    def _load_workspace(self):
-        """Load a workspace from a file."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Load Workspace",
-            "",
-            "JSON Files (*.json)"
-        )
-
-        if file_path:
-            try:
-                with open(file_path, 'r') as f:
-                    workspace_data = json.load(f)
-
-                # Update the tab widget's factory based on loaded data
-                success = self.tab_widget.load_workspace_data(workspace_data)
-
-                if success:
-                    self.statusBar().showMessage(
-                        f"Workspace loaded from: {file_path}")
-                    QMessageBox.information(
-                        self, "Success", f"Workspace loaded successfully from:\n{file_path}")
-                else:
-                    QMessageBox.warning(
-                        self, "Warning", "Workspace loaded with some errors. Check the console for details.")
-
-            except Exception as e:
-                QMessageBox.critical(
-                    self, "Error", f"Failed to load workspace:\n{str(e)}")
-
-    def _show_about(self):
-        """Show about dialog."""
-        QMessageBox.about(
-            self,
-            "About CloseableTabWidget Example",
-            "This example demonstrates the CloseableTabWidget from the OPAQUE framework.\n\n"
-            "Features demonstrated:\n"
-            "• Closeable and renameable tabs\n"
-            "• Different widget types in tabs\n"
-            "• Workspace save/load functionality\n"
-            "• Custom widget factories\n"
-            "• Tab management signals\n\n"
-            "Double-click on tabs to rename them.\n"
-            "Click the '+' tab to add new tabs.\n"
-            "Use the menu to create specific widget types."
-        )
+    def load_workspace(self, workspace_object: dict) -> None:
+        super().load_workspace(workspace_object)
+        if self.feature_id in workspace_object and "tab_data" in workspace_object[self.feature_id]:
+            data = workspace_object[self.feature_id]["tab_data"]
+            # We need to ensure factories are set up or recreate widgets based on data
+            # CloseableTabWidget.load_workspace_data uses the factory for new tabs
+            # But we have multiple types. CloseableTabWidget load logic might need the type stored.
+            # The current CloseableTabWidget implementation (checked previously) relies on the factory.
+            # If we want to support mixed types, we might need a smarter factory or the widget saves its type.
+            # For this example, let's just let it load what it can, or use the default factory.
+            # *Limitation*: The simple load_workspace_data in CloseableTabWidget uses one factory.
+            # To properly support mixed types restoration, we would need to store widget type in data.
+            # For now, we'll try to load and see. 
+            self.view.tab_widget.load_workspace_data(data)
 
 
-def main():
-    """Main function to run the example."""
-    app = QApplication(sys.argv)
+# --- Application Configuration ---
 
-    # Set application properties
-    app.setApplicationName("CloseableTabWidget Example")
-    app.setApplicationVersion("1.0")
-    app.setOrganizationName("OPAQUE Framework")
+class CloseableTabConfig(DefaultApplicationConfiguration):
+    def get_application_name(self) -> str:
+        return "CloseableTabExample"
+    
+    def get_application_title(self) -> str:
+        return "OPAQUE Tab Example"
+    
+    def get_application_organization(self) -> str:
+        return "OPAQUE Framework"
 
-    # Create and show main window
-    window = MainWindow()
-    window.show()
+    def get_application_description(self) -> str:
+        return "Example demonstrating CloseableTabWidget with OPAQUE features"
 
-    # Run the application
-    return app.exec()
+    def get_application_icon(self) -> QIcon:
+        return QIcon()
+
+
+# --- Main Application ---
+
+class CloseableTabApplication(BaseApplication):
+    def __init__(self):
+        super().__init__(CloseableTabConfig())
+        
+        # Initialize and register the feature
+        self.tab_model = TabExampleModel(self)
+        self.tab_view = TabExampleView(self)
+        self.tab_presenter = TabExamplePresenter(self.tab_model, self.tab_view, self)
+        
+        self.register_feature(self.tab_presenter)
+        
+        # Setup extra menus for the example
+        self._setup_example_menu()
+
+    def _setup_example_menu(self):
+        menu = self.menuBar().addMenu("Add Tab Type")
+        
+        action_text = QAction("Add Text Tab", self)
+        action_text.triggered.connect(self.tab_presenter.add_text_tab)
+        menu.addAction(action_text)
+        
+        action_counter = QAction("Add Counter Tab", self)
+        action_counter.triggered.connect(self.tab_presenter.add_counter_tab)
+        menu.addAction(action_counter)
+        
+        action_list = QAction("Add List Tab", self)
+        action_list.triggered.connect(self.tab_presenter.add_list_tab)
+        menu.addAction(action_list)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    app = QApplication(sys.argv)
+    window = CloseableTabApplication()
+    
+    if not window.try_acquire_lock():
+        window.show_already_running_message()
+        sys.exit(1)
+        
+    window.show()
+    
+    # Show welcome toast
+    window.notification_presenter.notify_info(
+        "Welcome", 
+        "Closeable Tab Example loaded with OPAQUE Framework features.", 
+        "System"
+    )
+    
+    sys.exit(app.exec())

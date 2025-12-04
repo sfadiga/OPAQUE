@@ -47,11 +47,13 @@ class CalculatorPresenter(BasePresenter):
         elif field_name == "current_value":
             if new_value == "Error":
                 self.view.set_status("Error in calculation")
+                self.app.notification_presenter.notify_error("Calculator", "Calculation error occurred")
                 self._log("error", "Calculation error")
             else:
                 self.view.set_status(f"Result: {new_value}")
         elif field_name == "error":
             self.view.set_status(f"Error: {new_value}")
+            self.app.notification_presenter.notify_error("Calculator", f"Error: {new_value}")
             self._log("error", f"Calculation error: {new_value}")
 
     def _update_view(self):
