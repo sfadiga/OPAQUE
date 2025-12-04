@@ -62,6 +62,13 @@ class MyExampleApplication(BaseApplication):
         self._configuration = MyApplicationConfiguration()
         super().__init__(self._configuration)
         self.register_features()
+        
+        # Welcome notification
+        self.notification_presenter.notify_info(
+            "Welcome", 
+            "Basic Example loaded with Console, Tabs, Logging, and more.", 
+            "System"
+        )
 
     def register_features(self):
         """Register MVP features and services."""
@@ -96,6 +103,31 @@ class MyExampleApplication(BaseApplication):
         log_view = LoggingView(self)
         log_presenter = LoggingPresenter(log_model, log_view, self)
         self.register_feature(log_presenter)
+
+        # Register Console Feature
+        try:
+            from opaque.presenters.console_presenter import ConsolePresenter
+            from opaque.models.console_model import ConsoleModel
+            
+            console_model = ConsoleModel(self)
+            console_presenter = ConsolePresenter(console_model, self)
+            self.register_feature(console_presenter)
+            console_presenter.initialize() # Capture stdout/stderr
+        except ImportError as e:
+            print(f"Could not load Console feature: {e}")
+
+        # Register Tab Manager Feature
+        try:
+            from features.tab_manager.model import TabManagerModel
+            from features.tab_manager.view import TabManagerView
+            from features.tab_manager.presenter import TabManagerPresenter
+            
+            tab_model = TabManagerModel(self)
+            tab_view = TabManagerView(self)
+            tab_presenter = TabManagerPresenter(tab_model, tab_view, self)
+            self.register_feature(tab_presenter)
+        except ImportError as e:
+            print(f"Could not load Tab Manager feature: {e}")
 
 
 if __name__ == "__main__":
