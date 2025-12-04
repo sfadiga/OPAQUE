@@ -85,6 +85,45 @@ class OpaqueMainToolbar(QToolBar):
     def connect_signal_to_set_inactive(self, deactivate_signal: Callable, button: QToolButton):
         deactivate_signal(lambda: self._set_active(button))
 
+    def add_notification_button(self, callback: Callable) -> QToolButton:
+        """Adds a notification toggle button to the toolbar."""
+        notif_button = QToolButton()
+        notif_button.setText(self.tr("Notifications"))
+        notif_button.setToolTip(self.tr("Toggle Notifications Panel"))
+        # Use a generic icon or theme icon if available
+        # "dialog-information" is a standard icon name often available
+        notif_button.setIcon(QIcon.fromTheme("dialog-information"))
+        notif_button.setIconSize(QSize(24, 24))
+        notif_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        notif_button.setMinimumSize(70, 0)
+        notif_button.clicked.connect(callback)
+        
+        # Insert before the last separator (which is added in _setup_default_buttons)
+        # However, _setup_default_buttons adds cascade, tiled, then separator.
+        # So we probably want it next to them.
+        # Since we are calling this after initialization, simply addWidget will append to end.
+        # If we want it "near" tile/cascade, appending is fine as tile/cascade are default buttons.
+        # But features are added via add_feature which also uses addWidget.
+        # If we want it specifically grouped with cascade/tile, we might need to insert it.
+        # Cascade and Tile are added in __init__. Features are added later.
+        # If we append now, it will be after Cascade/Tile and before features (if features added after).
+        # Actually features are added in register_feature.
+        # Let's just append it. It will be near the start.
+        
+        # But wait, _setup_default_buttons adds a separator at the end.
+        # So if we addWidget now, it will be after the separator.
+        # To be "near" them (group with window management), maybe we want it before the separator?
+        # QToolBar doesn't have insertWidget easily without an action reference.
+        # But we can get actions() list.
+        
+        actions = self.actions()
+        if actions and actions[-1].isSeparator():
+             self.insertWidget(actions[-1], notif_button)
+        else:
+             self.addWidget(notif_button)
+             
+        return notif_button
+
     def update_theme(self) -> None:
         """
         Public method to update the toolbar when theme changes.

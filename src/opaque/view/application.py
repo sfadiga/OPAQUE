@@ -129,6 +129,9 @@ class BaseApplication(QMainWindow):
         self._services_initialized = True
         self.notification_presenter = NotificationPresenter(self)
         self.notification_presenter.initialize()
+        
+        # Add notification toggle to toolbar
+        self.toolbar.add_notification_button(self.notification_presenter.toggle_notifications)
 
         # Initialize application settings
         self._init_application_settings()
