@@ -3,6 +3,9 @@ include README.md
 include LICENSE
 include pyproject.toml
 
+# Include documentation
+recursive-include docs *.md
+
 # Include all source code
 recursive-include src/opaque *.py
 recursive-include src/opaque *.pyi
