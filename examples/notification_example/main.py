@@ -232,7 +232,7 @@ class NotificationTestApplication(BaseApplication):
         try:
             self.notification_presenter.notify_info(
                 "Welcome!",
-                "Notification system test application is ready. Use the controls to test different notification types. Check the docked notification panel on the right.",
+                "Notification system test application is ready. Use the controls to test different notification types. Check the notification panel at the bottom.",
                 "System"
             )
         except Exception as e:

@@ -10,7 +10,7 @@
 """
 
 from opaque.models.abstract_model import AbstractModel
-from opaque.models.annotations import BooleanField, StringField, IntField, ChoiceField
+from opaque.models.annotations import BoolField, StringField, IntField, ChoiceField
 
 
 class NotificationSettingsModel(AbstractModel):
@@ -19,17 +19,22 @@ class NotificationSettingsModel(AbstractModel):
     """
 
     # General notification settings
-    notifications_enabled = BooleanField(
+    notifications_enabled = BoolField(
         default=True,
         description="Enable/disable all notifications"
     )
 
-    show_notification_count = BooleanField(
+    enable_toasts = BoolField(
+        default=True,
+        description="Enable transient toast notifications"
+    )
+
+    show_notification_count = BoolField(
         default=True,
         description="Show notification count in the widget"
     )
 
-    auto_hide_notifications = BooleanField(
+    auto_hide_notifications = BoolField(
         default=False,
         description="Automatically hide non-persistent notifications after timeout"
     )
@@ -40,27 +45,27 @@ class NotificationSettingsModel(AbstractModel):
     )
 
     # Notification level filters
-    show_debug_notifications = BooleanField(
+    show_debug_notifications = BoolField(
         default=False,
         description="Show DEBUG level notifications"
     )
 
-    show_info_notifications = BooleanField(
+    show_info_notifications = BoolField(
         default=True,
         description="Show INFO level notifications"
     )
 
-    show_warning_notifications = BooleanField(
+    show_warning_notifications = BoolField(
         default=True,
         description="Show WARNING level notifications"
     )
 
-    show_error_notifications = BooleanField(
+    show_error_notifications = BoolField(
         default=True,
         description="Show ERROR level notifications"
     )
 
-    show_critical_notifications = BooleanField(
+    show_critical_notifications = BoolField(
         default=True,
         description="Show CRITICAL level notifications"
     )
@@ -72,12 +77,12 @@ class NotificationSettingsModel(AbstractModel):
         description="Minimum logging level"
     )
 
-    console_logging_enabled = BooleanField(
+    console_logging_enabled = BoolField(
         default=True,
         description="Enable console logging output"
     )
 
-    file_logging_enabled = BooleanField(
+    file_logging_enabled = BoolField(
         default=True,
         description="Enable file logging output"
     )
@@ -87,17 +92,17 @@ class NotificationSettingsModel(AbstractModel):
         description="Custom log file path (empty for default)"
     )
 
-    notification_on_warning = BooleanField(
+    notification_on_warning = BoolField(
         default=False,
         description="Create notifications for WARNING log messages"
     )
 
-    notification_on_error = BooleanField(
+    notification_on_error = BoolField(
         default=True,
         description="Create notifications for ERROR log messages"
     )
 
-    notification_on_critical = BooleanField(
+    notification_on_critical = BoolField(
         default=True,
         description="Create notifications for CRITICAL log messages"
     )

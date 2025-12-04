@@ -48,6 +48,8 @@ dev = [
     "black>=22.0",
     "pylint>=2.0",
     "mypy>=1.0",
+    "build",
+    "wheel",
 ]
 
 [project.scripts]

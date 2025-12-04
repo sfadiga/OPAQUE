@@ -12,6 +12,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Optional
+import threading
 
 from PySide6.QtCore import QObject, Signal
 
@@ -65,6 +66,7 @@ class ServiceLocator:
     This is a singleton that provides static methods for service management.
     """
     _services: dict[str, BaseService] = {}
+    _lock = threading.RLock()
 
     @classmethod
     def get_service(cls, name: str) -> Optional[BaseService]:
@@ -77,7 +79,8 @@ class ServiceLocator:
         Returns:
             Service instance or None if not found
         """
-        return cls._services.get(name)
+        with cls._lock:
+            return cls._services.get(name)
 
     @classmethod
     def register_service(cls, service: BaseService) -> None:
@@ -91,16 +94,17 @@ class ServiceLocator:
             ValueError: If a service with the same name already exists
                         or if the service is not initialized.
         """
-        if service.name in cls._services:
-            raise ValueError(f"Service '{service.name}' is already registered")
+        with cls._lock:
+            if service.name in cls._services:
+                raise ValueError(f"Service '{service.name}' is already registered")
 
-        if not service.is_initialized:
-            raise ValueError(
-                f"Service '{service.name}' must be initialized before being registered"
-            )
+            if not service.is_initialized:
+                raise ValueError(
+                    f"Service '{service.name}' must be initialized before being registered"
+                )
 
-        # Don't call initialize() again - service should already be initialized
-        cls._services[service.name] = service
+            # Don't call initialize() again - service should already be initialized
+            cls._services[service.name] = service
 
     @classmethod
     def unregister_service(cls, name: str) -> bool:
@@ -113,18 +117,20 @@ class ServiceLocator:
         Returns:
             True if the service was removed, False if not found
         """
-        if name in cls._services:
-            service = cls._services[name]
-            service.cleanup()
-            del cls._services[name]
-            return True
-        return False
+        with cls._lock:
+            if name in cls._services:
+                service = cls._services[name]
+                service.cleanup()
+                del cls._services[name]
+                return True
+            return False
 
     @classmethod
     def cleanup_services(cls) -> None:
         """
         Clean up all registered services.
         """
-        for service in cls._services.values():
-            service.cleanup()
-        cls._services.clear()
+        with cls._lock:
+            for service in cls._services.values():
+                service.cleanup()
+            cls._services.clear()
