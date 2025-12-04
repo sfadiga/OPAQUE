@@ -9,18 +9,20 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
-from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QMainWindow
+from PySide6.QtCore import QObject, Qt, QPoint, QTimer
+from PySide6.QtWidgets import QMainWindow, QDockWidget
 
 from opaque.models.notification_model import NotificationModel
+from opaque.models.notification_settings_model import NotificationSettingsModel
 from opaque.models.logger_model import LoggerModel
-from opaque.view.widgets.notification_widget import NotificationWidget
-from opaque.services.notification_service import NotificationLevel
+from opaque.view.widgets.notification_widget import SimplifiedNotificationList, ToastWidget
+from opaque.services.notification_service import NotificationLevel, Notification, NotificationService
+from opaque.services.service import ServiceLocator
 
 
-class NotificationPresenter:
+class NotificationPresenter(QObject):
     """
     Presenter for managing notification system integration.
     Coordinates between notification models, services, and views.
@@ -28,24 +30,36 @@ class NotificationPresenter:
     """
 
     def __init__(self, main_window: Optional[QMainWindow] = None):
+        super().__init__()
         self._main_window = main_window
 
         # Models
         self._notification_model: Optional[NotificationModel] = None
+        self._settings_model: Optional[NotificationSettingsModel] = None
         self._logger_model: Optional[LoggerModel] = None
 
         # Views
-        self._notification_widget: Optional[NotificationWidget] = None
+        self._notification_list: Optional[SimplifiedNotificationList] = None
+        self._dock_widget: Optional[QDockWidget] = None
+        
+        # Toasts
+        self._active_toasts: List[ToastWidget] = []
 
         # Initialize components
         self._setup_models()
         self._setup_views()
         self._connect_signals()
+        
+        # Connect to service for direct toast trigger
+        service = ServiceLocator.get_service("notification")
+        if service and isinstance(service, NotificationService):
+            service.notification_added.connect(self._on_service_notification_added)
 
     def _setup_models(self) -> None:
         """Initialize the models"""
         try:
             self._notification_model = NotificationModel(self._main_window)
+            self._settings_model = NotificationSettingsModel()
             self._logger_model = LoggerModel(self._main_window)
 
             # Initialize models after services are ready
@@ -53,21 +67,32 @@ class NotificationPresenter:
                 self._notification_model.initialize()
             if self._logger_model:
                 self._logger_model.initialize()
+            
+            # Register settings model
+            settings_service = ServiceLocator.get_service("settings")
+            if settings_service:
+                 # settings_service.register_model("notification_settings", self._settings_model)
+                 pass # Assuming registration happens elsewhere or manual loading
+
         except Exception as e:
             print(f"Failed to setup notification models: {e}")
 
     def _setup_views(self) -> None:
         """Initialize the views"""
         try:
-            # Create notification widget
-            self._notification_widget = NotificationWidget(self._main_window)
+            # Create simplified list widget
+            self._notification_list = SimplifiedNotificationList(self._main_window)
+            
+            # Wrap in a dock widget for layout compatibility
+            self._dock_widget = QDockWidget("Notifications", self._main_window)
+            self._dock_widget.setWidget(self._notification_list)
+            self._dock_widget.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
 
             # Add to main window as dock widget if available
             if self._main_window:
-                from PySide6.QtCore import Qt
                 self._main_window.addDockWidget(
                     Qt.DockWidgetArea.BottomDockWidgetArea,
-                    self._notification_widget
+                    self._dock_widget
                 )
 
         except Exception as e:
@@ -97,12 +122,61 @@ class NotificationPresenter:
         except Exception as e:
             print(f"Failed to connect notification signals: {e}")
 
+    def _on_service_notification_added(self, notification: Notification):
+        # Add to list
+        if self._notification_list:
+            self._notification_list.add_notification(notification)
+            
+        # Show Toast if enabled
+        if self._settings_model and self._settings_model.enable_toasts:
+            self._show_toast(notification)
+
+    def _show_toast(self, notification: Notification):
+        if not self._main_window:
+            return
+
+        toast = ToastWidget(notification, self._main_window)
+        toast.closed.connect(self._on_toast_closed)
+        
+        # Position logic (bottom right stack)
+        self._active_toasts.append(toast)
+        self._reposition_toasts()
+        
+        toast.show()
+
+    def _on_toast_closed(self, notification_id: str):
+        # Find and remove toast
+        for toast in self._active_toasts[:]:
+            if toast.notification.id == notification_id:
+                self._active_toasts.remove(toast)
+                toast.deleteLater()
+        self._reposition_toasts()
+
+    def _reposition_toasts(self):
+        if not self._main_window: return
+        
+        margin = 10
+        spacing = 5
+        x = self._main_window.width() - margin
+        y = self._main_window.height() - margin
+        
+        for toast in reversed(self._active_toasts):
+            width = toast.sizeHint().width()
+            height = toast.sizeHint().height()
+            
+            # Ensure proper size
+            toast.adjustSize()
+            width = toast.width()
+            height = toast.height()
+            
+            toast.move(x - width, y - height)
+            y -= (height + spacing)
+
     # Model event handlers
     def _on_notifications_changed(self) -> None:
         """Handle notifications changed in model"""
-        if self._notification_widget:
-            # Widget will automatically update through its service connection
-            pass
+        # Logic moved to _on_service_notification_added mostly
+        pass
 
     def _on_notification_count_changed(self, count: int) -> None:
         """Handle notification count changed"""
@@ -121,19 +195,19 @@ class NotificationPresenter:
     # Public API for other presenters/components
     def show_notifications(self) -> None:
         """Show the notification widget"""
-        if self._notification_widget:
-            self._notification_widget.show()
-            self._notification_widget.raise_()
+        if self._dock_widget:
+            self._dock_widget.show()
+            self._dock_widget.raise_()
 
     def hide_notifications(self) -> None:
         """Hide the notification widget"""
-        if self._notification_widget:
-            self._notification_widget.hide()
+        if self._dock_widget:
+            self._dock_widget.hide()
 
     def toggle_notifications(self) -> None:
         """Toggle notification widget visibility"""
-        if self._notification_widget:
-            if self._notification_widget.isVisible():
+        if self._dock_widget:
+            if self._dock_widget.isVisible():
                 self.hide_notifications()
             else:
                 self.show_notifications()
@@ -189,9 +263,9 @@ class NotificationPresenter:
             self._logger_model.critical(message, source, notify)
 
     # Configuration methods
-    def get_notification_widget(self) -> Optional[NotificationWidget]:
+    def get_notification_widget(self) -> Optional[QDockWidget]:
         """Get the notification widget instance"""
-        return self._notification_widget
+        return self._dock_widget
 
     def get_notification_model(self) -> Optional[NotificationModel]:
         """Get the notification model instance"""
@@ -262,9 +336,10 @@ class NotificationPresenter:
     def cleanup(self) -> None:
         """Clean up resources"""
         try:
-            if self._notification_widget:
-                self._notification_widget.setParent(None)
-                self._notification_widget = None
+            if self._dock_widget:
+                self._dock_widget.setParent(None)
+                self._dock_widget = None
+            self._notification_list = None
 
             if self._notification_model:
                 self._notification_model = None
