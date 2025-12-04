@@ -397,6 +397,29 @@ nuitka --debug @nuitka_config.cfg main.py
 5. **Automate** - Integrate builds into CI/CD pipelines
 6. **Document** - Document your build process and requirements
 
+## Common File Locations
+
+```
+your_project/
+├── main.py                          # Application entry point
+├── pyproject.toml                   # Project configuration and dependencies
+├── pyinstaller_config.py           # PyInstaller build config (optional)
+├── nuitka_config.cfg               # Nuitka build config (optional)
+├── assets/                         # Icons, images, etc.
+│   └── icon.ico
+├── config/                         # Configuration files
+├── dist/                           # Built executables
+└── features/                       # Your application features
+    ├── feature1/
+    │   ├── model.py
+    │   ├── view.py
+    │   └── presenter.py
+    └── feature2/
+        ├── model.py
+        ├── view.py
+        └── presenter.py
+```
+
 ## Example Workflows
 
 ### Development Workflow

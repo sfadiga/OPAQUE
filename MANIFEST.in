@@ -20,7 +20,6 @@ global-exclude *.dll
 # Explicitly exclude examples and tests
 prune examples
 prune tests
-prune docs
 prune resources
 prune .venv
 prune .git

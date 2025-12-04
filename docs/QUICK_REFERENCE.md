@@ -243,7 +243,7 @@ my_service = ServiceLocator.get_service("my_service")
 ```
 your_project/
 ├── main.py                          # Application entry point
-├── requirements.txt                 # Dependencies
+├── pyproject.toml                   # Project configuration and dependencies
 ├── pyinstaller_config.py           # PyInstaller build config (optional)
 ├── nuitka_config.cfg               # Nuitka build config (optional)
 ├── assets/                         # Icons, images, etc.
