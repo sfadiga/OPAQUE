@@ -7,7 +7,7 @@ name = "opaque-framework"
 version = "1.0.2"
 description = "OPAQUE - Opinionated Python Application with Qt UI for Engineering. A flexible MDI application framework for PySide6."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Sandro Fadiga", email = "sfadiga@gmail.com"}
@@ -19,11 +19,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: User Interfaces",
@@ -56,10 +54,10 @@ dev = [
 opaque-build = "opaque.build_tools.cli:main"
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/opaque-framework"
-"Bug Tracker" = "https://github.com/yourusername/opaque-framework/issues"
-"Documentation" = "https://github.com/yourusername/opaque-framework#readme"
-"Source Code" = "https://github.com/yourusername/opaque-framework"
+"Homepage" = "https://github.com/sfadiga/OPAQUE"
+"Bug Tracker" = "https://github.com/sfadiga/OPAQUE/issues"
+"Documentation" = "https://github.com/sfadiga/OPAQUE#readme"
+"Source Code" = "https://github.com/sfadiga/OPAQUE"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -70,7 +68,7 @@ include = ["opaque*"]
 exclude = ["tests*", "examples*", "docs*"]
 
 [tool.setuptools.package-data]
-opaque = ["py.typed", "core/py.typed", "translations/*.qm", "translations/*.ts"]
+opaque = ["py.typed", "translations/*.qm", "translations/*.ts"]
 
 [tool.pylint.MASTER]
 extension-pkg-whitelist = ["PySide6"]
@@ -81,4 +79,10 @@ ignored-modules = ["PySide6", "PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidg
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = "-ra --strict-markers"
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/opaque"]
+ignore_missing_imports = true
