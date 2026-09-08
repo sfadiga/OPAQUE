@@ -91,17 +91,22 @@ class NotificationPresenter(QObject):
             # Create simplified list widget
             self._notification_list = SimplifiedNotificationList(self._main_window)
             
-            # Wrap in a dock widget for layout compatibility
-            self._dock_widget = QDockWidget("Notifications", self._main_window)
+            self._dock_widget = QDockWidget(
+                self.tr("Notifications"), self._main_window)
+            # QMainWindow.saveState() drops any dock without an object name.
+            self._dock_widget.setObjectName("NotificationDock")
             self._dock_widget.setWidget(self._notification_list)
-            self._dock_widget.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+            self._dock_widget.setAllowedAreas(
+                Qt.DockWidgetArea.AllDockWidgetAreas)
 
-            # Add to main window as dock widget if available
             if self._main_window:
                 self._main_window.addDockWidget(
                     Qt.DockWidgetArea.BottomDockWidgetArea,
                     self._dock_widget
                 )
+                # The dock starts closed. The toolbar button opens it. An empty
+                # panel must not take height from the MDI area at start up.
+                self._dock_widget.hide()
 
         except Exception as e:
             print(f"Failed to setup notification views: {e}")
@@ -403,18 +408,16 @@ class NotificationPresenter(QObject):
             print(f"Error during notification presenter cleanup: {e}")
 
     def initialize(self) -> None:
-        """Initialize the notification system"""
+        """
+        Initialize the notification system.
+
+        Nothing is shown to the user here. A start up toast that reports that
+        the notification system started tells the user nothing, and it covers
+        the corner of the window before the user has done anything.
+        """
         try:
-            # Log system initialization
             self.log_info("Notification system initialized",
                           "NotificationPresenter")
-
-            # Add welcome notification
-            self.notify_info(
-                "System Ready",
-                "Notification and logging system is now active",
-                "System"
-            )
         except Exception as e:
             print(f"Failed to initialize notification system: {e}")
             # Still continue - don't let this crash the application
