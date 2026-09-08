@@ -78,8 +78,22 @@ class BasePresenter(ABC):
         # Attach presenter to model as observer
         self._model.attach(self)
 
-        # Bind events
-        self.bind_events()
+        # Bind events. This is the last step of __init__ on purpose: the
+        # model and the view are both ready by now. It also means the
+        # subclass cannot bind an attribute it creates after its own
+        # super().__init__(...) call, so translate that failure into a
+        # message that says so.
+        try:
+            self.bind_events()
+        except AttributeError as error:
+            raise AttributeError(
+                f"{type(self).__name__}.bind_events() used an attribute that "
+                f"does not exist yet: {error}. BasePresenter.__init__ calls "
+                f"bind_events() as its last step, so anything your __init__ "
+                f"creates after super().__init__(...) is not there yet. "
+                f"Create it before the super() call, or move the connection "
+                f"into on_view_show()."
+            ) from error
 
     def __hash__(self) -> int:
         """Prensenter feature_id will be used to identify a prensenter"""

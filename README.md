@@ -162,7 +162,7 @@ uv run python examples/quickstart/main.py
 
 Two traps that cost an hour each:
 
-- `BasePresenter.__init__` calls `bind_events()` at its end. An attribute your subclass creates *after* `super().__init__(...)` does not exist yet inside `bind_events()`. Create it before the `super()` call, or guard for `None`.
+- `BasePresenter.__init__` calls `bind_events()` at its end. An attribute your subclass creates *after* `super().__init__(...)` does not exist yet inside `bind_events()`. Create it before the `super()` call, or connect it in `on_view_show()`. Getting it wrong raises an `AttributeError` that states this rule.
 - `on_view_close()` is a plain hook. Override it to save state; do not call `super()` and do not call `cleanup()`. `BasePresenter._handle_view_closed()` owns the order and calls `cleanup()` straight after the hook returns.
 
 ## 📚 Documentation

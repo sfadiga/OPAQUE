@@ -135,3 +135,37 @@ def test_showing_the_view_reaches_the_hook(presenter):
     presenter.view.window_opened.emit()
 
     assert "on_view_show" in presenter.events
+
+
+class _LatePresenter(BasePresenter):
+    """A presenter that binds an attribute it creates after super()."""
+
+    def __init__(self, model, view) -> None:
+        super().__init__(model, view, None)
+        self.widget = object()
+
+    def bind_events(self) -> None:
+        _ = self.widget
+
+    def update(self, field_name, new_value, old_value=None, model=None):
+        pass
+
+    def on_view_show(self) -> None:
+        pass
+
+
+def test_an_early_bind_events_explains_the_order(qapp):
+    with pytest.raises(AttributeError) as error:
+        _LatePresenter(_FakeModel(None), _FakeView())
+
+    message = str(error.value)
+    assert "bind_events" in message
+    assert "super().__init__" in message
+    assert "_LatePresenter" in message
+
+
+def test_the_original_attribute_name_survives_in_the_message(qapp):
+    with pytest.raises(AttributeError) as error:
+        _LatePresenter(_FakeModel(None), _FakeView())
+
+    assert "widget" in str(error.value)
