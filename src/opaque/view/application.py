@@ -204,14 +204,21 @@ class BaseApplication(QMainWindow):
         self.file_menu.addSeparator()
 
         settings_action = QAction(self.tr("Settings..."), self)
-        settings_action.setShortcut(QKeySequence.StandardKey.Preferences)
+        # Not QKeySequence.StandardKey.Preferences. Qt has no standard
+        # Preferences shortcut on Windows. Before Qt 6.11 it answered with
+        # the multimedia key name "Settings", and from 6.11 with an empty
+        # sequence, so the user never got a shortcut either way. Qt maps
+        # Ctrl to Command on macOS, so this string is native everywhere.
+        settings_action.setShortcut(QKeySequence(self.tr("Ctrl+,")))
         settings_action.triggered.connect(self.show_settings_dialog)
         self.file_menu.addAction(settings_action)
 
         self.file_menu.addSeparator()
 
         exit_action = QAction(self.tr("Exit"), self)
-        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        # Not QKeySequence.StandardKey.Quit, for the same reason as Settings
+        # above. Before Qt 6.11 this was the multimedia key "Exit".
+        exit_action.setShortcut(QKeySequence(self.tr("Ctrl+Q")))
         exit_action.triggered.connect(self.close)
         self.file_menu.addAction(exit_action)
 

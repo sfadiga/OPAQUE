@@ -182,6 +182,13 @@ def test_the_file_menu_actions_have_shortcuts(app_window):
     ]
     assert "" not in shortcuts
     assert len(shortcuts) == 4
+    # A bare key name is not a usable shortcut. Qt has no standard
+    # Preferences or Quit shortcut on Windows, and before Qt 6.11 it
+    # answered with the multimedia key names "Settings" and "Exit". Both
+    # are non-empty, so the emptiness check above passed while the two
+    # menu items had no shortcut a keyboard could produce.
+    without_modifier = [text for text in shortcuts if "+" not in text]
+    assert without_modifier == []
 
 
 _UI_MODULES = [
