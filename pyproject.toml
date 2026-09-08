@@ -28,15 +28,18 @@ classifiers = [
 ]
 dependencies = [
     "PySide6>=6.0.0",
-    "qt-material>=2.14",
-    "QDarkStyle>=3.2.0",
 ]
 
 [project.optional-dependencies]
+# Extra theme sources. The framework offers Default, Light and Dark with no
+# extra package. Install this extra to add the qt-themes, qt-material and
+# QDarkStyleSheet themes. See src/opaque/services/theme_providers.py.
 themes = [
     # 0.4.0 is the latest qt-themes on PyPI. The floor used to say 1.0.0,
     # which has never been published, so this extra could not install at all.
     "qt-themes>=0.4.0",
+    "qt-material>=2.14",
+    "QDarkStyle>=3.2.0",
 ]
 build = [
     "pyinstaller>=5.0",

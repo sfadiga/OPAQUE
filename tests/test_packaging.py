@@ -65,3 +65,21 @@ def test_the_pinned_interpreter_matches_the_declared_floor(metadata):
         encoding="utf-8"
     ).strip()
     assert metadata["project"]["requires-python"] == f">={pinned}"
+
+
+def test_no_theme_package_is_a_hard_dependency(metadata):
+    required = " ".join(metadata["project"]["dependencies"]).lower()
+    for package in ("qt-material", "qdarkstyle", "qt-themes"):
+        assert package not in required
+
+
+def test_every_theme_package_is_in_the_themes_extra(metadata):
+    extras = metadata["project"]["optional-dependencies"]
+    themes = " ".join(extras["themes"]).lower()
+    for package in ("qt-material", "qdarkstyle", "qt-themes"):
+        assert package in themes
+
+
+def test_pyside6_is_still_a_hard_dependency(metadata):
+    required = " ".join(metadata["project"]["dependencies"]).lower()
+    assert "pyside6" in required

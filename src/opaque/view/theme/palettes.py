@@ -25,7 +25,7 @@ from PySide6.QtGui import QColor, QPalette
 
 
 @dataclass(frozen=True)
-class _PaletteSpec:
+class _PaletteSpec:  # pylint: disable=too-many-instance-attributes
     """One complete colour set. Every field is a hex string."""
 
     window: str

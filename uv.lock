@@ -523,8 +523,6 @@ version = "1.0.2"
 source = { editable = "." }
 dependencies = [
     { name = "pyside6" },
-    { name = "qdarkstyle" },
-    { name = "qt-material" },
 ]
 
 [package.optional-dependencies]
@@ -542,6 +540,8 @@ dev = [
     { name = "wheel" },
 ]
 themes = [
+    { name = "qdarkstyle" },
+    { name = "qt-material" },
     { name = "qt-themes" },
 ]
 
@@ -556,8 +556,8 @@ requires-dist = [
     { name = "pyside6", specifier = ">=6.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.0" },
-    { name = "qdarkstyle", specifier = ">=3.2.0" },
-    { name = "qt-material", specifier = ">=2.14" },
+    { name = "qdarkstyle", marker = "extra == 'themes'", specifier = ">=3.2.0" },
+    { name = "qt-material", marker = "extra == 'themes'", specifier = ">=2.14" },
     { name = "qt-themes", marker = "extra == 'themes'", specifier = ">=0.4.0" },
     { name = "wheel", marker = "extra == 'dev'" },
 ]

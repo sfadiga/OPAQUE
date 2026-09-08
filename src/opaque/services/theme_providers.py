@@ -52,6 +52,7 @@ class QtThemesProvider:
     PREFIX = "qt-themes: "
 
     def names(self) -> List[str]:
+        """See ThemeProvider.names(). Empty when qt-themes is not installed."""
         if not _package_present(self.PACKAGE):
             return []
         try:
@@ -67,6 +68,7 @@ class QtThemesProvider:
             return []
 
     def apply(self, name: str, app: QApplication) -> bool:
+        """See ThemeProvider.apply(). Delegates to qt_themes.set_theme()."""
         if name not in self.names():
             return False
         key = name[len(self.PREFIX):].replace(" ", "_").lower()
@@ -89,6 +91,7 @@ class QtMaterialProvider:
     PACKAGE = "qt_material"
 
     def names(self) -> List[str]:
+        """See ThemeProvider.names(). Empty when qt-material is not installed."""
         if not _package_present(self.PACKAGE):
             return []
         try:
@@ -101,6 +104,7 @@ class QtMaterialProvider:
             return []
 
     def apply(self, name: str, app: QApplication) -> bool:
+        """See ThemeProvider.apply(). Delegates to qt_material.apply_stylesheet()."""
         if name not in self.names():
             return False
         try:
@@ -128,11 +132,13 @@ class QDarkStyleProvider:
     LIGHT_NAME = "QLightStyle"
 
     def names(self) -> List[str]:
+        """See ThemeProvider.names(). Empty when qdarkstyle is not installed."""
         if not _package_present(self.PACKAGE):
             return []
         return [self.DARK_NAME, self.LIGHT_NAME]
 
     def apply(self, name: str, app: QApplication) -> bool:
+        """See ThemeProvider.apply(). Delegates to qdarkstyle.load_stylesheet()."""
         if name not in self.names():
             return False
         try:

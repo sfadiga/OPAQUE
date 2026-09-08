@@ -70,14 +70,13 @@ jobs:
     # editable mode and always includes the `themes` extra, and the test suite
     # reads `src` directly because of `pythonpath = ["src"]`.
     #
-    # This job fails today, and that is deliberate.
-    # `src/opaque/services/theme_service.py` imports `qt_themes` at module
+    # This job used to fail: `theme_service.py` imported `qt_themes` at module
     # scope, and `qt-themes` is in the optional `themes` extra, so
-    # `pip install opaque-framework` produces a package that cannot be
-    # imported. That is review item 2.1. Plan 03 makes every theme provider
-    # import lazy, and Plan 03 removes the continue-on-error below.
+    # `pip install opaque-framework` produced a package that could not be
+    # imported. That was review item 2.1. Plan 03 made every theme provider
+    # import lazy and moved qt-material and QDarkStyle into the same extra,
+    # so this job now gates for real.
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4

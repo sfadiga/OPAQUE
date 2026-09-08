@@ -40,7 +40,7 @@ class ThemeProvider(Protocol):
 
     def names(self) -> List[str]:
         """Return the theme names this provider can apply. Empty if absent."""
-        ...
+        ...  # pylint: disable=unnecessary-ellipsis
 
     def apply(self, name: str, app: QApplication) -> bool:
         """
@@ -51,4 +51,4 @@ class ThemeProvider(Protocol):
             this provider offers, or the package refused to apply it. Return
             False instead of raising.
         """
-        ...
+        ...  # pylint: disable=unnecessary-ellipsis
