@@ -167,3 +167,74 @@ def test_update_theme_keeps_the_checked_state(qtbot):
     toolbar.update_theme()
 
     assert button.isChecked() is True
+
+
+def test_the_notification_button_is_checkable(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_notification_button(lambda: None)
+    assert button.isCheckable() is True
+    assert button.isChecked() is False
+
+
+def test_set_notifications_visible_updates_the_checked_state(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_notification_button(lambda: None)
+
+    toolbar.set_notifications_visible(True)
+    assert button.isChecked() is True
+
+    toolbar.set_notifications_visible(False)
+    assert button.isChecked() is False
+
+
+def test_a_zero_count_shows_the_plain_label(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_notification_button(lambda: None)
+
+    toolbar.set_notification_count(0)
+
+    assert button.text() == "Notifications"
+
+
+def test_a_positive_count_appears_in_the_button_text(qtbot):
+    """
+    Defect W6. The count must be readable as text, not as a coloured dot,
+    so it survives a colour-blindness simulation and a screen reader.
+    """
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_notification_button(lambda: None)
+
+    toolbar.set_notification_count(3)
+
+    assert "3" in button.text()
+
+
+def test_a_positive_count_appears_in_the_accessible_name(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_notification_button(lambda: None)
+
+    toolbar.set_notification_count(3)
+
+    assert "3" in button.accessibleName()
+
+
+def test_a_large_count_is_capped(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_notification_button(lambda: None)
+
+    toolbar.set_notification_count(250)
+
+    assert "99+" in button.text()
+
+
+def test_the_count_api_is_safe_before_the_button_exists(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    toolbar.set_notification_count(5)
+    toolbar.set_notifications_visible(True)

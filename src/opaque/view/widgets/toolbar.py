@@ -35,6 +35,9 @@ class OpaqueMainToolbar(QToolBar):
         # Every feature button, in the order it was added. The checked state is
         # exclusive across this list.
         self._feature_buttons: List[QToolButton] = []
+        # The notification toggle. None until add_notification_button runs.
+        self._notification_button: Optional[QToolButton] = None
+        self._notification_count: int = 0
 
         self._setup_default_buttons()
 
@@ -88,43 +91,74 @@ class OpaqueMainToolbar(QToolBar):
         deactivate_signal(lambda: self._set_inactive(button))
 
     def add_notification_button(self, callback: Callable) -> QToolButton:
-        """Adds a notification toggle button to the toolbar."""
+        """
+        Add the notification panel toggle.
+
+        The button is checkable so it reports whether the panel is open. Call
+        set_notifications_visible to keep it in step with the dock, and
+        set_notification_count to show the unread count.
+        """
         notif_button = QToolButton()
         notif_button.setText(self.tr("Notifications"))
         notif_button.setToolTip(self.tr("Toggle Notifications Panel"))
-        # Use a generic icon or theme icon if available
-        # "dialog-information" is a standard icon name often available
         notif_button.setIcon(QIcon.fromTheme("dialog-information"))
         notif_button.setIconSize(QSize(24, 24))
         notif_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         notif_button.setMinimumSize(70, 0)
+        notif_button.setCheckable(True)
+        notif_button.setAccessibleName(self.tr("Notifications"))
         notif_button.clicked.connect(callback)
-        
-        # Insert before the last separator (which is added in _setup_default_buttons)
-        # However, _setup_default_buttons adds cascade, tiled, then separator.
-        # So we probably want it next to them.
-        # Since we are calling this after initialization, simply addWidget will append to end.
-        # If we want it "near" tile/cascade, appending is fine as tile/cascade are default buttons.
-        # But features are added via add_feature which also uses addWidget.
-        # If we want it specifically grouped with cascade/tile, we might need to insert it.
-        # Cascade and Tile are added in __init__. Features are added later.
-        # If we append now, it will be after Cascade/Tile and before features (if features added after).
-        # Actually features are added in register_feature.
-        # Let's just append it. It will be near the start.
-        
-        # But wait, _setup_default_buttons adds a separator at the end.
-        # So if we addWidget now, it will be after the separator.
-        # To be "near" them (group with window management), maybe we want it before the separator?
-        # QToolBar doesn't have insertWidget easily without an action reference.
-        # But we can get actions() list.
-        
+
+        self._notification_button = notif_button
+
+        # Group the toggle with Cascade and Tiled, which sit before the
+        # separator that _setup_default_buttons adds.
         actions = self.actions()
         if actions and actions[-1].isSeparator():
-             self.insertWidget(actions[-1], notif_button)
+            self.insertWidget(actions[-1], notif_button)
         else:
-             self.addWidget(notif_button)
-             
+            self.addWidget(notif_button)
+
         return notif_button
+
+    # The highest count shown as a number. Above this the label reads "99+",
+    # because an exact count stops being useful and starts widening the button.
+    NOTIFICATION_COUNT_LIMIT: int = 99
+
+    def set_notifications_visible(self, visible: bool) -> None:
+        """Keep the notification toggle in step with the panel."""
+        if self._notification_button is None:
+            return
+        self._notification_button.setChecked(visible)
+
+    def set_notification_count(self, count: int) -> None:
+        """
+        Show the unread notification count on the toggle.
+
+        The count is text, not a coloured dot, so it stays readable for a user
+        with a colour vision deficiency and it reaches a screen reader.
+        """
+        self._notification_count = max(0, count)
+        if self._notification_button is None:
+            return
+
+        label = self.tr("Notifications")
+        if self._notification_count == 0:
+            self._notification_button.setText(label)
+            self._notification_button.setAccessibleName(label)
+            self._notification_button.setToolTip(
+                self.tr("Toggle Notifications Panel"))
+            return
+
+        if self._notification_count > self.NOTIFICATION_COUNT_LIMIT:
+            shown = f"{self.NOTIFICATION_COUNT_LIMIT}+"
+        else:
+            shown = str(self._notification_count)
+
+        self._notification_button.setText(f"{label} ({shown})")
+        self._notification_button.setAccessibleName(f"{label} ({shown})")
+        self._notification_button.setToolTip(
+            self.tr("Toggle Notifications Panel. Unread: ") + shown)
 
     def update_theme(self) -> None:
         """
