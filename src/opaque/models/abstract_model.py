@@ -91,7 +91,8 @@ class ModelMeta(ABCMeta):
                         setattr(self, f'_{name}', value)
                         # The observer list belongs to this instance, not to
                         # the Field object, which every instance shares.
-                        self._notify_field_change(name, old_value, value)
+                        self._notify_field_change(  # pylint: disable=protected-access
+                            name, old_value, value)
                         self.mark_dirty()
 
                 setattr(cls, attr_name, property(getter, setter))
