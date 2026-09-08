@@ -31,8 +31,6 @@ class ModelMeta(ABCMeta):
                 attr_value.name = attr_name
                 cls._fields[attr_name] = attr_value
 
-                private_name = f'_{attr_name}'
-
                 def getter(self, name=attr_name, default=attr_value.default):
                     return getattr(self, f'_{name}', default)
 
@@ -49,11 +47,15 @@ class ModelMeta(ABCMeta):
                             f"Value '{value}' for '{name}' is greater than the maximum allowed value: {field.max_value}")
                     # ------------------
 
-                    old_value = getattr(self, f'_{name}', None)
+                    # The fallback matches the getter's default: the field
+                    # has never been written, so its logical old value is
+                    # the field's own default, not None.
+                    old_value = getattr(self, f'_{name}', field.default)
                     if old_value != value:
                         setattr(self, f'_{name}', value)
-                        # All Field attributes are automatically observable
-                        field.notify(self, old_value, value)
+                        # The observer list belongs to this instance, not to
+                        # the Field object, which every instance shares.
+                        self._notify_field_change(name, old_value, value)
                         self.mark_dirty()
 
                 setattr(cls, attr_name, property(getter, setter))
@@ -156,65 +158,92 @@ class AbstractModel(ABC, metaclass=ModelMeta):
 
     # ========== Observer Pattern Methods ==========
 
-    def attach_to_all_fields(self, observer: Any) -> None:
-        """Automatically attach observer to ALL Field attributes."""
-        if not hasattr(observer, 'update'):
-            raise TypeError(
-                f"{str(observer)} does not implement the update function.")
+    def _observer_list(self) -> List[Any]:
+        """
+        Return this instance's observer list, creating it when needed.
 
-        for field in self.get_fields().values():
-            field.attach(observer)
-
-    def detach_from_all_fields(self, observer: Any) -> None:
-        """Detach observer from all Field attributes."""
-        for field in self.get_fields().values():
-            field.detach(observer)
+        A subclass may write a field inside its own __init__ before it calls
+        super().__init__(), and the write notifies. Building the list on
+        demand keeps that legal, and keeps the list on the instance, which is
+        the whole point: a list on the Field object is shared by every
+        instance of the model class.
+        """
+        observers = self.__dict__.get("_observers")
+        if observers is None:
+            observers = []
+            self._observers = observers
+        return observers
 
     def attach(self, observer: Any) -> None:
         """
-        Attach an observer to all observable fields.
-        This is the main method presenters should use.
+        Attach an observer to this model instance.
+
+        This is the method a presenter uses. BasePresenter.__init__ calls it.
 
         Args:
-            observer: The observer to attach
-        """
-        # Attach to all Field attributes automatically
-        self.attach_to_all_fields(observer)
+            observer: An object with an
+                update(field_name, new_value, old_value, model) method.
 
-        # Also keep in model's observer list for compatibility with legacy code
-        if observer not in self._observers:
-            self._observers.append(observer)
+        Raises:
+            TypeError: When the observer has no update method. Failing here
+                is deliberate: a silent miss would look like a model that
+                never changes.
+        """
+        if not callable(getattr(observer, "update", None)):
+            raise TypeError(
+                f"{type(observer).__name__} cannot observe "
+                f"{type(self).__name__}: it has no callable update("
+                f"field_name, new_value, old_value, model) method.")
+
+        observers = self._observer_list()
+        if observer not in observers:
+            observers.append(observer)
 
     def detach(self, observer: Any) -> None:
         """
-        Detach an observer from all fields and model.
+        Detach an observer from this model instance.
 
         Args:
-            observer: The observer to detach
+            observer: The observer to detach. Detaching an observer that was
+                never attached does nothing.
         """
-        # Detach from all fields
-        self.detach_from_all_fields(observer)
+        observers = self._observer_list()
+        if observer in observers:
+            observers.remove(observer)
 
-        # Remove from model's observer list
-        if observer in self._observers:
-            self._observers.remove(observer)
+    def _notify_field_change(
+            self, field_name: str, old_value: Any, new_value: Any) -> None:
+        """
+        Tell every observer of this instance that one field changed.
+
+        Called by the property setter that ModelMeta generates. The list is
+        copied first, because an observer is allowed to detach itself while
+        it is being told.
+        """
+        for observer in list(self._observer_list()):
+            observer.update(field_name, new_value, old_value, self)
 
     def notify(self, property_name: str, value: Any) -> None:
         """
-        Notify all observers of a property change.
-        This is mainly for backward compatibility and non-Field notifications.
+        Notify all observers of a change that is not a Field write.
+
+        Use this for derived state that no Field holds, for example
+        notify("error", message). A Field write notifies on its own; do not
+        call this from a setter.
 
         Args:
             property_name: Name of the changed property
             value: New value of the property
         """
-        for observer in self._observers:
-            if hasattr(observer, 'update'):
-                observer.update(property_name, value, None, self)
+        for observer in list(self._observer_list()):
+            observer.update(property_name, value, None, self)
 
     def cleanup(self) -> None:
-        """Clean up model resources. Override if needed."""
-        self._observers.clear()
-        # Also cleanup field observers
-        for field in self.get_fields().values():
-            field._observers.clear()
+        """
+        Release this instance's observers. Override if the model owns more.
+
+        Only this instance is affected. The previous version cleared the
+        observer list on every shared Field object, which silenced every
+        other instance of the same model class.
+        """
+        self._observer_list().clear()

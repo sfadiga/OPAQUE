@@ -28,9 +28,13 @@ class UIType(Enum):
 
 class Field:
     """
-    Configuration class for model fields. It provides metadata for validation,
-    persistence, and UI generation. All Field attributes are automatically
-    observable - they will notify attached observers when their values change.
+    Metadata for one model field. Validation, persistence and UI generation
+    read it.
+
+    A Field object is a class attribute, so one Field is shared by every
+    instance of the model class. It therefore holds no per-instance state and
+    no observer list. Observers live on the model instance; see
+    AbstractModel.attach.
     """
 
     def __init__(self,
@@ -56,28 +60,10 @@ class Field:
         self.choices = choices
         self.ui_type = ui_type
         self.extra_config = kwargs
-        self.name: str = ""  # Will be set by BaseModel
-        self._observers: List[Any] = []  # All Fields are observable
+        self.name: str = ""  # Will be set by ModelMeta
 
     def __set_name__(self, owner: Any, name: str):
         self.name = name
-
-    def attach(self, observer: Any) -> None:
-        """Attach an observer to this field."""
-        if observer not in self._observers:
-            self._observers.append(observer)
-
-    def detach(self, observer: Any) -> None:
-        """Detach an observer from this field."""
-        if observer in self._observers:
-            self._observers.remove(observer)
-
-    def notify(self, model_instance: Any, old_value: Any, new_value: Any) -> None:
-        """Notify all observers about field change."""
-        for observer in self._observers:
-            if hasattr(observer, 'update'):
-                observer.update(self.name, new_value,
-                                old_value, model_instance)
 
     def validate(self, value: Any) -> bool:
         """Validate the field value."""
