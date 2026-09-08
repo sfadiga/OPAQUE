@@ -34,7 +34,7 @@ The worked examples are `examples/quickstart/main.py` (smallest) and `examples/b
 
 ## Architecture
 
-- **One feature = one MVP triple.** `BaseModel` (`models/model.py`), `BaseView` (`view/view.py`, an MDI sub-window), `BasePresenter` (`presenters/presenter.py`). The shell class `BaseApplication` is a `QMainWindow` in `view/application.py` — despite the package name it owns the service registry, the feature registry, the toolbar, and the MDI area.
+- **One feature = one MVP triple.** `BaseModel` (`models/model.py`), `BaseView` (`view/view.py`, an MDI sub-window), `BasePresenter` (`presenters/presenter.py`). The shell class `BaseApplication` is a `QMainWindow` in `view/application.py` — despite the package name it owns the service registry, the feature registry, the toolbar, and the MDI area. The model must override `feature_name()`; `feature_icon()` and `feature_description()` have working defaults (a null icon and an empty string).
 - **Registration recipe** (inside the app subclass `__init__`, after `super().__init__(config)`): construct model, then view, then presenter — each takes the application object — then `self.register_feature(presenter)`. Order matters; wrong order raises a bare `AttributeError`.
 - **`BasePresenter.__init__` calls `bind_events()` at its end.** Anything a subclass creates after `super().__init__(...)` does not exist yet inside `bind_events()`. Create widgets/attributes before the `super()` call or guard for `None`.
 - **`on_view_close()` is a plain hook.** Override it to save state. Do not call `super()` and do not call `cleanup()`; `BasePresenter._handle_view_closed()` owns the order and calls `cleanup()` straight after the hook returns. It runs once even if the view emits `window_closed` twice.

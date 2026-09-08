@@ -29,21 +29,40 @@ class BaseModel(AbstractModel):
     def app(self) -> 'BaseApplication':
         return self._app
 
-    # --- FEATURE API (Override in subclasses) ---
+    # --- FEATURE API ---
+    # A name is identity, so a subclass must declare it. An icon and a
+    # description are decoration, so both have a default that works.
 
     def feature_name(self) -> str:
-        """Must be overridden in subclasses"""
+        """
+        The display name of this feature. A subclass must override it.
+
+        The toolbar button, the window title and the View menu all read it.
+        """
         raise NotImplementedError(
-            f"{self.__class__.__name__} must implement feature_name()")
+            f"{type(self).__name__} must implement feature_name(). Write:\n"
+            f"    def feature_name(self) -> str:\n"
+            f"        return self.tr(\"My Feature\")\n"
+            f"The toolbar button, the window title and the View menu read it."
+        )
 
     def feature_icon(self) -> QIcon:
-        """Override in subclasses to provide icon (can return str or QIcon)"""
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must implement feature_icon()")
+        """
+        The icon of this feature. Optional.
+
+        The default is a null QIcon, which the toolbar and the window title
+        both accept: they show text alone. Override it with
+        QIcon.fromTheme("name") or a QIcon built from a resource path.
+        """
+        return QIcon()
 
     def feature_description(self) -> str:
-        """Override in subclasses"""
-        raise NotImplementedError(
-            f"{self.__class__.__name__} must implement feature_description()")
+        """
+        One sentence about this feature. Optional.
+
+        Shown as the tool tip of the toolbar button. The default is empty,
+        which shows no tool tip.
+        """
+        return ""
 
     # ----------------------------------------------------
