@@ -26,6 +26,10 @@ class ConsoleWidget(QWidget):
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        # The block number where each displayed item starts. The model returns
+        # a match as an index into this list, and a QTextEdit can only find a
+        # line by its block number, so this list joins the two.
+        self._item_block_numbers: List[int] = []
         self.setup_ui()
         self._last_search_matches: List[int] = []
         self._current_search_index = 0
@@ -271,6 +275,9 @@ class ConsoleWidget(QWidget):
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.console_display.setTextCursor(cursor)
 
+        # Remember where this item starts, before any text is inserted.
+        self._item_block_numbers.append(cursor.blockNumber())
+
         # Set text color based on output type
         char_format = QTextCharFormat()
         if item.output_type == 'stderr':
@@ -318,9 +325,20 @@ class ConsoleWidget(QWidget):
         scrollbar.setValue(scrollbar.maximum())
 
     def clear_display(self):
-        """Clear the console display."""
+        """Clear the console display and forget every recorded block."""
         self.console_display.clear()
-        self.status_label.setText("Console cleared")
+        self._item_block_numbers.clear()
+        self._last_search_matches = []
+        self._current_search_index = 0
+        self.status_label.setText(self.tr("Console cleared"))
+
+    def displayed_item_count(self) -> int:
+        """Return how many output items the display currently holds."""
+        return len(self._item_block_numbers)
+
+    def block_number_for_items(self) -> List[int]:
+        """Return the starting block number of every displayed item, in order."""
+        return list(self._item_block_numbers)
 
     def update_stats(self, stats: dict):
         """
