@@ -11,6 +11,7 @@
 
 
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -71,7 +72,17 @@ class SettingsService(BaseService):
                     if hasattr(model.__class__, key) and isinstance(getattr(model.__class__, key), property):
                         if getattr(model.__class__, key).fset is None:
                             continue  # Skip read-only properties
-                    setattr(model, key, value)
+                    try:
+                        setattr(model, key, value)
+                    except ValueError:
+                        # A settings file written by an older version can hold
+                        # a value the field no longer allows. Keep the field
+                        # default and carry on. Raising here would stop the
+                        # application from starting.
+                        logging.getLogger(__name__).warning(
+                            "Ignoring stored setting %s.%s: value %r is no longer allowed",
+                            feature_id, key, value,
+                        )
 
     def _collect_annotated_settings(self, model: Any) -> Dict[str, Any]:
         """
