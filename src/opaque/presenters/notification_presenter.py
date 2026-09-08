@@ -20,6 +20,12 @@ from opaque.models.logger_model import LoggerModel
 from opaque.view.widgets.notification_widget import SimplifiedNotificationList, ToastWidget
 from opaque.services.notification_service import NotificationLevel, Notification, NotificationService
 from opaque.services.service import ServiceLocator
+from opaque.view.layouts.toast_stack import (
+    MAX_VISIBLE_TOASTS,
+    overflow_count,
+    stacked_toast_positions,
+    toast_anchor,
+)
 
 
 class NotificationPresenter(QObject):
@@ -163,46 +169,60 @@ class NotificationPresenter(QObject):
                     for notification in notifications:
                         self._notification_list.add_notification(notification)
 
-    def _show_toast(self, notification: Notification):
+    def _show_toast(self, notification: Notification) -> None:
+        """Show one toast and keep the stack inside the visible limit."""
         if not self._main_window:
             return
 
+        self._drop_oldest_toasts()
+
         toast = ToastWidget(notification, self._main_window)
         toast.closed.connect(self._on_toast_closed)
-        
-        # Position logic (bottom right stack)
         self._active_toasts.append(toast)
-        self._reposition_toasts()
-        
         toast.show()
+        self._reposition_toasts()
 
-    def _on_toast_closed(self, notification_id: str):
-        # Find and remove toast
+    def _drop_oldest_toasts(self) -> None:
+        """
+        Remove the oldest toasts so that one more toast still fits.
+
+        More than MAX_VISIBLE_TOASTS toasts at the same time cannot be read
+        before they expire, and they hide the window behind them.
+        """
+        for _ in range(overflow_count(len(self._active_toasts),
+                                      MAX_VISIBLE_TOASTS)):
+            oldest = self._active_toasts.pop(0)
+            oldest.hide()
+            oldest.deleteLater()
+
+    def _on_toast_closed(self, notification_id: str) -> None:
+        """Drop a toast that has finished its fade out, then close the gap."""
         for toast in self._active_toasts[:]:
             if toast.notification.id == notification_id:
                 self._active_toasts.remove(toast)
                 toast.deleteLater()
         self._reposition_toasts()
 
-    def _reposition_toasts(self):
-        if not self._main_window: return
-        
-        margin = 10
-        spacing = 5
-        x = self._main_window.width() - margin
-        y = self._main_window.height() - margin
-        
-        for toast in reversed(self._active_toasts):
-            width = toast.sizeHint().width()
-            height = toast.sizeHint().height()
-            
-            # Ensure proper size
+    def _reposition_toasts(self) -> None:
+        """
+        Place the toast stack in the bottom right corner of the main window.
+
+        A toast is a top level window, so move() takes global screen
+        coordinates. The width and the height of the main window are widget
+        local lengths and must never be used as coordinates here.
+        """
+        if not self._main_window:
+            return
+
+        newest_first = list(reversed(self._active_toasts))
+        for toast in newest_first:
             toast.adjustSize()
-            width = toast.width()
-            height = toast.height()
-            
-            toast.move(x - width, y - height)
-            y -= (height + spacing)
+
+        sizes = [toast.size() for toast in newest_first]
+        positions = stacked_toast_positions(
+            toast_anchor(self._main_window), sizes)
+        for toast, position in zip(newest_first, positions):
+            toast.move(position)
 
     # Model event handlers
     def _on_notifications_changed(self) -> None:

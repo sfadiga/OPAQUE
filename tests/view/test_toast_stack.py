@@ -2,11 +2,13 @@
 """Tests for the pure toast stack geometry."""
 
 from PySide6.QtCore import QPoint, QRect, QSize
+from PySide6.QtWidgets import QWidget
 
 from opaque.view.layouts.toast_stack import (
     MAX_VISIBLE_TOASTS,
     overflow_count,
     stacked_toast_positions,
+    toast_anchor,
 )
 
 ANCHOR = QRect(0, 0, 800, 600)
@@ -59,3 +61,31 @@ def test_one_toast_overflows_when_the_stack_is_full():
 
 def test_a_larger_backlog_overflows_by_more():
     assert overflow_count(MAX_VISIBLE_TOASTS + 3) == 4
+
+
+def test_the_anchor_uses_global_coordinates_not_widget_coordinates(qtbot):
+    window = QWidget()
+    qtbot.addWidget(window)
+    window.resize(320, 240)
+    window.move(40, 60)
+    window.show()
+    qtbot.waitExposed(window)
+
+    anchor = toast_anchor(window)
+    top_left = window.mapToGlobal(QPoint(0, 0))
+    bottom_right = window.mapToGlobal(QPoint(window.width(), window.height()))
+
+    assert anchor.left() >= top_left.x()
+    assert anchor.top() >= top_left.y()
+    assert anchor.left() + anchor.width() <= bottom_right.x()
+    assert anchor.top() + anchor.height() <= bottom_right.y()
+
+
+def test_the_anchor_is_never_empty(qtbot):
+    window = QWidget()
+    qtbot.addWidget(window)
+    window.resize(320, 240)
+    window.show()
+    qtbot.waitExposed(window)
+
+    assert not toast_anchor(window).isEmpty()
