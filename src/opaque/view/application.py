@@ -46,14 +46,18 @@ logger = logging.getLogger(__name__)
 
 class BaseApplication(QMainWindow):
     """
-    The main application window that manages the MDI area, toolbar, and features.
-    It handles feature registration, settings, and workspace persistence.
+    The main application window: the MDI area, the toolbar, the service
+    registry and the feature registry.
 
-    Developers must implement:
-    - application_name() - Returns the application name for QApplication
-    - application_title() - Returns the main window title
-    - application_organization() - Returns the organization name for QApplication  
-    ...
+    A subclass writes one `__init__` that calls
+    `super().__init__(configuration)` and then registers its features. It
+    implements nothing else; the five application accessors
+    (`get_application_name`, `get_application_title`,
+    `get_application_description`, `get_application_organization`,
+    `get_application_icon`) are abstract on
+    `DefaultApplicationConfiguration`, not on this class.
+
+    See `examples/quickstart/main.py` for the smallest complete subclass.
     """
 
     def __init__(self, configuration: DefaultApplicationConfiguration, parent: Optional[QWidget] = None) -> None:
@@ -300,11 +304,22 @@ class BaseApplication(QMainWindow):
 
     def register_feature(self, presenter: BasePresenter) -> None:
         """
-        Registers a feature using the MVP pattern.
-        The presenter will be instantiated when the feature is activated.
+        Register one built MVP triple and show its window.
+
+        The caller builds the triple, in this order: model, then view, then
+        presenter. Nothing is lazy: the presenter passed here is already
+        constructed and its `bind_events()` has already run.
+
+        Registration does four things: it adds the feature to the registry,
+        registers it with the workspace service and the settings service,
+        adds its toolbar button, and adds its view to the MDI area.
 
         Args:
-            presenter_class: The presenter class that will manage the feature
+            presenter: The presenter of the feature to register.
+
+        Raises:
+            ValueError: When another feature is already registered under the
+                same name.
         """
         feature_name = presenter.model.feature_name()
         if feature_name in self._registered_features:

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-OPAQUE — an opinionated PySide6 MDI application framework (MVP pattern). The library lives in `src/opaque`. The reference application is `examples/basic_example/main.py`. A ranked engineering review with verified defects and open decisions is in `docs/ENGINEERING_REVIEW.md` — read it before structural work.
+OPAQUE — an opinionated PySide6 MDI application framework (MVP pattern). The library lives in `src/opaque`. The reference applications are `examples/quickstart/main.py` (smallest, executed by the suite) and `examples/basic_example/main.py` (full). A ranked engineering review with verified defects and open decisions is in `docs/ENGINEERING_REVIEW.md` — read it before structural work.
 
 ## Commands
 
@@ -24,9 +24,13 @@ Notes:
 - Tests run headless. `tests/conftest.py` sets `QT_QPA_PLATFORM=offscreen` before Qt imports and provides deterministic palette fixtures. Keep new tests headless.
 - The interpreter floor is Python 3.11 and `uv` owns the environment. `uv.lock` is committed; run `uv sync --all-extras` after a pull that changes it.
 
-## Do not trust these docs
+## Documentation state
 
-`docs/API.md`, `docs/QUICK_REFERENCE.md`, the README quick start, and `src/opaque/build_tools/templates/basic_app_template/main.py` contain class names and signatures that do not exist (`Application`, `AppModel`, `build_executable`, ...). Verify every import and signature against the source. The one accurate worked example is `examples/basic_example/main.py`. The example *services* under `examples/basic_example/services/` import `opaque.core.services`, which does not exist — `opaque.core` is a ghost package still referenced in `app_presenter.py`; never import it. It used to be referenced in `pyproject.toml` as well, through a `core/py.typed` package-data entry, and that entry is gone.
+`docs/API.md` is deleted; it described a framework that does not exist. `docs/QUICK_REFERENCE.md` and the README quick start were rewritten from source on 2026-09-08 and are now guarded by tests: `tests/test_documentation.py` proves every `opaque` import printed in any Markdown file resolves, and `tests/test_quickstart.py` proves the README block is byte-identical to `examples/quickstart/main.py` and that it builds headless.
+
+If you change a public name, those two tests fail. Update the document in the same commit; do not add the file to `SKIPPED_FILES`.
+
+The worked examples are `examples/quickstart/main.py` (smallest) and `examples/basic_example/main.py` (full). The package `opaque.core` does not exist and never did — never import it.
 
 ## Architecture
 
