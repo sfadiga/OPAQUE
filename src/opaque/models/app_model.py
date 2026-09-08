@@ -12,6 +12,7 @@ from PySide6.QtGui import QIcon
 
 from opaque.models.model import BaseModel
 from opaque.models.annotations import Field, UIType
+from opaque.services.theme_service import ThemeService
 
 
 class ApplicationModel(BaseModel):
@@ -21,8 +22,12 @@ class ApplicationModel(BaseModel):
     """
     FEATURE_NAME = "Application"
 
+    # The default must be a name that ThemeService.get_available_themes()
+    # returns. "Default" is the one name that is always present. A name that is
+    # not on the list is applied as nothing, and the settings dialog then
+    # reports a theme the user is not looking at.
     theme = Field(
-        default="light",
+        default=ThemeService.DEFAULT_THEME,
         description="Application theme",
         ui_type=UIType.COMBOBOX,
         settings=True
