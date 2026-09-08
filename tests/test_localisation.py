@@ -12,9 +12,14 @@ import ast
 from pathlib import Path
 from typing import List, Tuple
 
-from PySide6.QtCore import QLocale
+import pytest
+from PySide6.QtCore import QLocale, Qt
 
-from opaque.localisation import install_translator, translation_candidates
+from opaque.localisation import (
+    apply_layout_direction,
+    install_translator,
+    translation_candidates,
+)
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "opaque"
 
@@ -186,3 +191,33 @@ def test_no_translator_is_installed_when_nothing_matches(qapp, tmp_path):
 
 def test_the_translations_directory_ships_with_the_package():
     assert (SOURCE_ROOT / "translations").is_dir()
+
+
+@pytest.fixture
+def restored_direction(qapp):
+    """Put the layout direction back after the test."""
+    original = qapp.layoutDirection()
+    yield qapp
+    qapp.setLayoutDirection(original)
+
+
+def test_an_arabic_locale_mirrors_the_layout(restored_direction):
+    direction = apply_layout_direction(
+        restored_direction, QLocale("ar_EG"))
+    assert direction == Qt.LayoutDirection.RightToLeft
+    assert restored_direction.layoutDirection() == \
+        Qt.LayoutDirection.RightToLeft
+
+
+def test_an_english_locale_does_not_mirror_the_layout(restored_direction):
+    direction = apply_layout_direction(
+        restored_direction, QLocale("en_GB"))
+    assert direction == Qt.LayoutDirection.LeftToRight
+    assert restored_direction.layoutDirection() == \
+        Qt.LayoutDirection.LeftToRight
+
+
+def test_a_hebrew_locale_mirrors_the_layout(restored_direction):
+    direction = apply_layout_direction(
+        restored_direction, QLocale("he_IL"))
+    assert direction == Qt.LayoutDirection.RightToLeft
