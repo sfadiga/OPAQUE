@@ -9,8 +9,16 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 from PySide6.QtWidgets import QWidget, QPushButton, QColorDialog, QHBoxLayout, QLineEdit
-from PySide6.QtGui import QColor, QPalette
+from PySide6.QtGui import QColor
 from PySide6.QtCore import Signal, Slot
+
+from opaque.view.theme import (
+    StatusRole,
+    interactive,
+    outline,
+    readable_foreground,
+    status_colors,
+)
 
 
 class ColorPicker(QWidget):
@@ -60,8 +68,24 @@ class ColorPicker(QWidget):
             self._update_button_color()
             self.colorChanged.emit(self._color.name())
 
-    def _update_button_color(self):
-        palette = self.button.palette()
-        palette.setColor(QPalette.Button, self._color)
-        self.button.setPalette(palette)
-        self.button.update()
+    def _update_button_color(self) -> None:
+        """
+        Paint the swatch with a style sheet.
+
+        The palette cannot be used here. Every theme this framework ships
+        installs an application wide style sheet, and a style sheet beats the
+        palette for every property it names, so a swatch set through
+        QPalette.Button never appeared on the screen.
+        """
+        self.button_text_colour = readable_foreground(self._color.name())
+        self.button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self._color.name()};
+                color: {self.button_text_colour};
+                border: 1px solid {outline()};
+                border-radius: 3px;
+            }}
+            QPushButton:focus {{
+                border: 2px solid {interactive()};
+            }}
+        """)
