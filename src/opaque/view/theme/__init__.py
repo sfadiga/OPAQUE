@@ -35,6 +35,7 @@ from opaque.view.theme.tokens import (
     surface,
     surface_variant,
 )
+from opaque.view.theme.type_scale import TypeScale
 
 __all__ = [
     "contrast_ratio",
@@ -52,4 +53,5 @@ __all__ = [
     "status_colors",
     "surface",
     "surface_variant",
+    "TypeScale",
 ]
