@@ -14,7 +14,9 @@
 from typing import Optional, Dict
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
-from PySide6.QtGui import QAction, QIcon, QCloseEvent, QDragEnterEvent, QDropEvent
+from PySide6.QtGui import (
+    QAction, QIcon, QCloseEvent, QDragEnterEvent, QDropEvent, QKeySequence,
+)
 from PySide6.QtCore import Qt
 
 from opaque.view.widgets.mdi_window import OpaqueMdiArea
@@ -66,7 +68,7 @@ class BaseApplication(QMainWindow):
         self._configuration = configuration
 
         # Set up the main window
-        self.update_application_title("")
+        self.update_application_title(None)
 
         self.setWindowIcon(QIcon(configuration.get_application_icon()))
 
@@ -79,15 +81,11 @@ class BaseApplication(QMainWindow):
             self.tr("Features"), self)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
 
-        # Application minimum size
-        min_size = configuration.get_application_min_size()
-        if min_size and len(min_size) == 2:
-            self.setMinimumSize(min_size[0], min_size[1])
-
-        # Application maximum size
-        max_size = configuration.get_application_max_size()
-        if max_size and len(max_size) == 2:
-            self.setMinimumSize(max_size[0], max_size[1])
+        self.apply_size_limits(
+            self,
+            configuration.get_application_min_size(),
+            configuration.get_application_max_size(),
+        )
 
         # features to be loaded with application
         self._registered_features: Dict[str, BasePresenter] = {}
@@ -151,32 +149,79 @@ class BaseApplication(QMainWindow):
                 presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
+        """Build the File menu. Every action carries a keyboard shortcut."""
         menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu(self.tr("&File"))
+        self.file_menu = menu_bar.addMenu(self.tr("&File"))
 
         save_workspace_action = QAction(self.tr("Save Workspace"), self)
+        save_workspace_action.setShortcut(QKeySequence.StandardKey.Save)
         save_workspace_action.triggered.connect(self.save_workspace)
-        file_menu.addAction(save_workspace_action)
+        self.file_menu.addAction(save_workspace_action)
 
         load_workspace_action = QAction(self.tr("Load Workspace"), self)
+        load_workspace_action.setShortcut(QKeySequence.StandardKey.Open)
         load_workspace_action.triggered.connect(self.load_workspace)
-        file_menu.addAction(load_workspace_action)
+        self.file_menu.addAction(load_workspace_action)
 
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
 
         settings_action = QAction(self.tr("Settings..."), self)
+        settings_action.setShortcut(QKeySequence.StandardKey.Preferences)
         settings_action.triggered.connect(self.show_settings_dialog)
-        file_menu.addAction(settings_action)
+        self.file_menu.addAction(settings_action)
 
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
 
         exit_action = QAction(self.tr("Exit"), self)
+        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
+        self.file_menu.addAction(exit_action)
 
-    def update_application_title(self, workspace: Optional[str]):
-        self.setWindowTitle(
-            f"{self._configuration.get_application_title()} {self._configuration.get_application_version()} [{workspace}]")
+    @staticmethod
+    def build_window_title(
+        title: str,
+        version: str,
+        workspace: Optional[str],
+    ) -> str:
+        """
+        Build the text of the window title bar.
+
+        Args:
+            title: The application title.
+            version: The application version.
+            workspace: The open workspace name, or None when none is open.
+
+        Returns:
+            The title. An empty or missing workspace leaves no bracket pair
+            behind, because an empty pair of brackets tells the user nothing.
+        """
+        base = f"{title} {version}".strip()
+        if workspace:
+            return f"{base} [{workspace}]"
+        return base
+
+    @staticmethod
+    def apply_size_limits(window: QWidget, min_size, max_size) -> None:
+        """
+        Apply the configured size limits to a window.
+
+        Args:
+            window: The window to limit.
+            min_size: A width and height pair, or None.
+            max_size: A width and height pair, or None.
+        """
+        if min_size and len(min_size) == 2:
+            window.setMinimumSize(min_size[0], min_size[1])
+        if max_size and len(max_size) == 2:
+            window.setMaximumSize(max_size[0], max_size[1])
+
+    def update_application_title(self, workspace: Optional[str]) -> None:
+        """Put the application name, the version and the workspace in the title."""
+        self.setWindowTitle(self.build_window_title(
+            self._configuration.get_application_title(),
+            self._configuration.get_application_version(),
+            workspace,
+        ))
 
     def register_feature(self, presenter: BasePresenter) -> None:
         """

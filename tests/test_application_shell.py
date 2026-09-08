@@ -13,7 +13,7 @@ opaque.view.application raises a circular import error.
 
 import pytest
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QLabel, QWidget
 
 from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.view.application import BaseApplication
@@ -134,3 +134,47 @@ def test_registering_the_same_feature_twice_is_refused(
     app_window.register_feature(make_feature("Twice Feature"))
     with pytest.raises(ValueError):
         app_window.register_feature(make_feature("Twice Feature"))
+
+
+def test_the_title_has_no_empty_brackets_without_a_workspace():
+    title = BaseApplication.build_window_title("My App", "1.0", None)
+    assert title == "My App 1.0"
+    assert "[" not in title
+
+
+def test_an_empty_workspace_name_is_the_same_as_none():
+    assert BaseApplication.build_window_title("My App", "1.0", "") == \
+        BaseApplication.build_window_title("My App", "1.0", None)
+
+
+def test_the_title_shows_the_workspace_when_there_is_one():
+    title = BaseApplication.build_window_title("My App", "1.0", "bench.wks")
+    assert title == "My App 1.0 [bench.wks]"
+
+
+def test_the_minimum_size_is_applied_as_a_minimum(qtbot):
+    widget = QWidget()
+    qtbot.addWidget(widget)
+    BaseApplication.apply_size_limits(widget, (640, 480), None)
+    assert widget.minimumWidth() == 640
+    assert widget.minimumHeight() == 480
+
+
+def test_the_maximum_size_is_applied_as_a_maximum(qtbot):
+    widget = QWidget()
+    qtbot.addWidget(widget)
+    BaseApplication.apply_size_limits(widget, None, (1920, 1080))
+    assert widget.maximumWidth() == 1920
+    assert widget.maximumHeight() == 1080
+    # The bug this replaces set the maximum as a minimum.
+    assert widget.minimumWidth() != 1920
+
+
+def test_the_file_menu_actions_have_shortcuts(app_window):
+    shortcuts = [
+        action.shortcut().toString()
+        for action in app_window.file_menu.actions()
+        if not action.isSeparator()
+    ]
+    assert "" not in shortcuts
+    assert len(shortcuts) == 4
