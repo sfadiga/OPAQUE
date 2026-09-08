@@ -14,7 +14,7 @@ from datetime import datetime
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QFrame, QScrollArea, QApplication, QGraphicsOpacityEffect
+    QLabel, QFrame, QScrollArea, QGraphicsOpacityEffect, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
 
@@ -224,25 +224,26 @@ class SimplifiedNotificationList(QWidget):
     A simpler list widget for notifications.
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        self.items: Dict[str, NotificationListItem] = {}
         self._setup_ui()
-        self.items = {}
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Header with Clear All
         header = QHBoxLayout()
-        title = QLabel("Notifications")
-        title.setStyleSheet("font-weight: bold; padding: 4px;")
-        header.addWidget(title)
+        self.title_label = QLabel(self.tr("Notifications"))
+        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+        header.addWidget(self.title_label)
         header.addStretch()
-        
-        clear_btn = QPushButton("Clear All")
-        clear_btn.clicked.connect(self._clear_all)
-        header.addWidget(clear_btn)
+
+        self.clear_button = QPushButton(self.tr("Clear All"))
+        self.clear_button.setToolTip(self.tr("Remove every notification"))
+        self.clear_button.setEnabled(False)
+        self.clear_button.clicked.connect(self._clear_all)
+        header.addWidget(self.clear_button)
         layout.addLayout(header)
         
         # Scroll Area
@@ -259,23 +260,33 @@ class SimplifiedNotificationList(QWidget):
         self.scroll_area.setWidget(self.container)
         layout.addWidget(self.scroll_area)
 
-    def add_notification(self, notification: Notification):
+    def add_notification(self, notification: Notification) -> None:
+        """Add one notification row at the top of the list."""
         item = NotificationListItem(notification)
         item.removed.connect(self._remove_item)
         self.container_layout.insertWidget(0, item)
         self.items[notification.id] = item
+        self._update_clear_button()
 
-    def remove_notification(self, notification_id: str):
+    def remove_notification(self, notification_id: str) -> None:
+        """Remove one notification row."""
         if notification_id in self.items:
             item = self.items.pop(notification_id)
             item.setParent(None)
             item.deleteLater()
+            self._update_clear_button()
 
-    def clear(self):
+    def clear(self) -> None:
+        """Remove every notification row."""
         for item in self.items.values():
             item.setParent(None)
             item.deleteLater()
         self.items.clear()
+        self._update_clear_button()
+
+    def _update_clear_button(self) -> None:
+        """Enable Clear All only when there is something to clear."""
+        self.clear_button.setEnabled(bool(self.items))
 
     def _remove_item(self, notification_id: str):
         # Notify service to remove
@@ -283,7 +294,28 @@ class SimplifiedNotificationList(QWidget):
         if service:
             service.remove_notification(notification_id)
 
-    def _clear_all(self):
+    def _confirm_clear_all(self) -> bool:
+        """
+        Ask the user before the whole notification history is destroyed.
+
+        A test replaces this method, so the question box never opens in a test
+        run. Keep the question in this method and nothing else.
+        """
+        answer = QMessageBox.question(
+            self,
+            self.tr("Clear all notifications?"),
+            self.tr("All notifications will be removed. This cannot be undone."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _clear_all(self) -> None:
+        """Clear every notification, after the user confirms it."""
+        if not self.items:
+            return
+        if not self._confirm_clear_all():
+            return
         service = ServiceLocator.get_service("notification")
         if service:
             service.clear_notifications()
