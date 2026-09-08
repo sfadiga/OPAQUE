@@ -173,3 +173,9 @@ package-lock.json
 src/*.egg-info/
 src/opaque_framework.egg-info/
 .pytest_cache/
+
+# Run time output that belongs next to the user, not next to the source.
+# `*.lock`, `*.wks` and `.venv` are already ignored earlier in this file,
+# and `*.lock` covers the single instance lock whatever the app is called.
+/logs/
+*.egg-link
