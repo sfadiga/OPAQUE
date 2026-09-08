@@ -188,3 +188,6 @@ src/opaque_framework.egg-info/
 # and `*.lock` covers the single instance lock whatever the app is called.
 /logs/
 *.egg-link
+
+# Local git worktrees used for isolated plan execution.
+/.worktrees/
