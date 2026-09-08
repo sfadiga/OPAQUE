@@ -80,8 +80,9 @@ target/
 profile_default/
 ipython_config.py
 
-# pyenv
-.python-version
+# `.python-version` is deliberately NOT ignored. uv reads it to choose the
+# interpreter, and it is committed so every machine and CI agree. The rule
+# that ignored it came from a pyenv layout this project never used.
 
 # pipenv
 Pipfile.lock
@@ -166,8 +167,16 @@ package-lock.json
 *~
 .~*
 
-# Single-instance runtime lock file the application writes on start up
+# Single-instance runtime lock file the application writes on start up.
+# The name comes from the application name, which a user of this framework
+# chooses, so the pattern has to stay a glob.
 *.lock
+# uv.lock is not a runtime lock. It is the dependency lock file, and it is
+# committed because uv owns the environment. This exception must stay after
+# the glob above: in .gitignore the last matching pattern wins. A later plan
+# moves the runtime lock out of the working directory, and once no lock file
+# is ever written next to the source, the glob and this exception can both go.
+!uv.lock
 
 # Build artifacts
 src/*.egg-info/

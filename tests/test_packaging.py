@@ -53,3 +53,15 @@ def test_the_package_data_names_no_ghost_package(metadata):
 def test_pytest_finds_the_sources_on_a_fresh_clone(metadata):
     """Bare `pytest` must work before an editable install."""
     assert metadata["tool"]["pytest"]["ini_options"]["pythonpath"] == ["src"]
+
+
+def test_the_pinned_interpreter_matches_the_declared_floor(metadata):
+    """
+    `.python-version` tells uv which interpreter to provision, and
+    `requires-python` tells a user which ones are supported. Nothing
+    connected the two, so they could drift without a failure.
+    """
+    pinned = (PYPROJECT.parent / ".python-version").read_text(
+        encoding="utf-8"
+    ).strip()
+    assert metadata["project"]["requires-python"] == f">={pinned}"
