@@ -14,6 +14,40 @@
 
 ---
 
+
+## Ordering constraint, found by the final review of Plan 01
+
+`src/opaque/services/theme_service.py:18-21` imports all three theme
+packages at module scope:
+
+```python
+import qt_themes
+from qdarkstyle import load_stylesheet
+from qdarkstyle.light.palette import LightPalette
+from qt_material import apply_stylesheet, list_themes
+```
+
+`qt-themes` is already in the optional `themes` extra, so a plain
+`pip install opaque-framework` produces a package that cannot be imported
+at all. That was proved by building the wheel and installing it into a bare
+environment: `import opaque` raises
+`ModuleNotFoundError: No module named 'qt_themes'`. It is review item 2.1.
+
+`qdarkstyle` and `qt_material` are safe today only because they are base
+`dependencies`. **This plan moves both of them into the `themes` extra.**
+So the order of work inside this plan is binding:
+
+1. Make every theme import lazy first, behind the provider classes.
+2. Move `qt-material` and `QDarkStyle` into the `themes` extra second.
+
+Doing it the other way round reintroduces the same crash for two more
+packages, and the release blocker gets worse rather than better.
+
+Plan 01 added a `wheel` job to `.github/workflows/ci.yml` that builds the
+wheel and imports it with no extras. It carries `continue-on-error: true`
+because it fails today. **This plan removes that flag** once the imports are
+lazy. That is the check that proves the work is done.
+
 ## Rules that apply to every task here
 
 1. Read `docs/superpowers/plans/2026-09-08-techdebt-00-index.md` first. The rules there are binding.

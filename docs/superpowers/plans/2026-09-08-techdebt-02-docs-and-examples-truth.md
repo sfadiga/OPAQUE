@@ -18,6 +18,23 @@ Read **Rules for the executing agent** in `2026-09-08-techdebt-00-index.md` befo
 
 ---
 
+
+## A gap the final review of Plan 01 found
+
+`tests/test_example_app.py`, added by Plan 01 Task 4, builds the reference
+example headless and passes. It looks like it covers the example services.
+It does not. `examples/basic_example/main.py` never imports
+`examples/basic_example/services/`, so the broken
+`from opaque.core.services import BaseService` in those three files never
+executes.
+
+`tests/test_imports.py` does not cover them either. It walks the `opaque`
+package only, and the examples live outside it.
+
+So review item 2.5 has no test coverage at all right now, from either
+direction. The import test this plan adds for the examples is the only
+thing that will catch it. Do not assume any existing test helps.
+
 ## File Structure
 
 | Path | Responsibility |

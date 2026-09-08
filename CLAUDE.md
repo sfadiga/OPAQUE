@@ -8,7 +8,7 @@ OPAQUE — an opinionated PySide6 MDI application framework (MVP pattern). The l
 
 ## Commands
 
-Use the project venv (Python 3.11) on Windows:
+`uv` owns the environment. It reads `.python-version`, which pins 3.11, and `uv.lock`, which is committed:
 
 ```bash
 uv sync --all-extras                                  # create or update the environment
@@ -26,7 +26,7 @@ Notes:
 
 ## Do not trust these docs
 
-`docs/API.md`, `docs/QUICK_REFERENCE.md`, the README quick start, and `src/opaque/build_tools/templates/basic_app_template/main.py` contain class names and signatures that do not exist (`Application`, `AppModel`, `build_executable`, ...). Verify every import and signature against the source. The one accurate worked example is `examples/basic_example/main.py`. The example *services* under `examples/basic_example/services/` import `opaque.core.services`, which does not exist — `opaque.core` is a ghost package also referenced in `app_presenter.py` and `pyproject.toml`; never import it.
+`docs/API.md`, `docs/QUICK_REFERENCE.md`, the README quick start, and `src/opaque/build_tools/templates/basic_app_template/main.py` contain class names and signatures that do not exist (`Application`, `AppModel`, `build_executable`, ...). Verify every import and signature against the source. The one accurate worked example is `examples/basic_example/main.py`. The example *services* under `examples/basic_example/services/` import `opaque.core.services`, which does not exist — `opaque.core` is a ghost package still referenced in `app_presenter.py`; never import it. It used to be referenced in `pyproject.toml` as well, through a `core/py.typed` package-data entry, and that entry is gone.
 
 ## Architecture
 
