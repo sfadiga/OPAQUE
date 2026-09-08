@@ -283,3 +283,36 @@ def test_two_dropped_files_are_refused():
 def test_the_extension_check_ignores_case():
     urls = [QUrl.fromLocalFile("C:/work/BENCH.WKS")]
     assert BaseApplication.workspace_path_from_urls(urls, ".wks") is not None
+
+
+def test_a_theme_change_reaches_the_toolbar(app_window, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        app_window.toolbar, "update_theme", lambda: calls.append(True))
+
+    app_window.theme_service.theme_changed.emit("Default")
+
+    assert calls == [True]
+
+
+def test_the_notification_dock_visibility_reaches_the_toolbar(
+        app_window, monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        app_window.toolbar, "set_notifications_visible", seen.append)
+
+    dock = app_window.notification_presenter.get_notification_widget()
+    dock.visibilityChanged.emit(True)
+
+    assert seen == [True]
+
+
+def test_the_notification_count_reaches_the_toolbar(app_window, monkeypatch):
+    seen = []
+    monkeypatch.setattr(
+        app_window.toolbar, "set_notification_count", seen.append)
+
+    model = app_window.notification_presenter.get_notification_model()
+    model.notification_count_changed.emit(7)
+
+    assert seen == [7]

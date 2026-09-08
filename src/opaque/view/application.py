@@ -132,12 +132,39 @@ class BaseApplication(QMainWindow):
         self.notification_presenter.initialize()
         
         # Add notification toggle to toolbar
-        self.toolbar.add_notification_button(self.notification_presenter.toggle_notifications)
+        self.toolbar.add_notification_button(
+            self.notification_presenter.toggle_notifications)
+
+        # The wiring must come after the notification button exists, because
+        # set_notifications_visible and set_notification_count act on it.
+        self._wire_shell_signals()
 
         # Initialize application settings
         self._init_application_settings()
 
         self._setup_file_menu()
+
+    def _wire_shell_signals(self) -> None:
+        """
+        Connect the toolbar to the services that change what it must show.
+
+        Every connection below goes through a lambda on purpose. A signal
+        connected straight to a bound method keeps the object it saw at
+        connect time, which makes the connection impossible to replace in a
+        test and impossible to follow when the toolbar is rebuilt.
+        """
+        self.theme_service.theme_changed.connect(
+            lambda _name: self.toolbar.update_theme())
+
+        dock = self.notification_presenter.get_notification_widget()
+        if dock is not None:
+            dock.visibilityChanged.connect(
+                lambda visible: self.toolbar.set_notifications_visible(visible))
+
+        model = self.notification_presenter.get_notification_model()
+        if model is not None:
+            model.notification_count_changed.connect(
+                lambda count: self.toolbar.set_notification_count(count))
 
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
