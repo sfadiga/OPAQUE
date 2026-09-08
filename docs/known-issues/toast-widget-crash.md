@@ -1,8 +1,15 @@
-# Known issue: intermittent access violation in ToastWidget during the full test suite
+# Known issue: intermittent access violation during the full test suite
 
-**Status:** Open, unfixed. Blocks Plan 09 (accessibility sweep) Task 4 and everything that depends on it (Plans 10, 11) in `docs/superpowers/plans/2026-09-07-opaque-ui-*.md`.
+**Status:** Fixed. See "Resolution" below. The crash was never in `ToastWidget` -
+that was a plausible but incorrect suspect that shaped this report's title and
+most of its investigation. The real cause was in `KeyboardMapDialog`
+(`src/opaque/view/dialogs/keyboard_map.py`), fixed on the `plan-09-accessibility`
+branch in the `opaque-plan-09` worktree, commit `3236c64` ("fix(a11y): stop
+KeyboardMapDialog from double-deleting itself on teardown").
 
-**Severity:** High. This is a Windows access violation (native crash, not a Python exception), found in code that ships in the framework (`ToastWidget`), not only in test code.
+**Severity:** High. This was a Windows access violation (native crash, not a
+Python exception), found in code that ships in the framework
+(`KeyboardMapDialog`), not only in test code.
 
 ## Symptom
 
@@ -68,14 +75,101 @@ Both fixes address plausible, real gaps in `ToastWidget`'s lifecycle management,
 ```python
 self._scroll_timer = QTimer()
 ```
-This timer has no Qt parent either. It is only started (`.start()`, single-shot, 10 ms) when auto-scroll batches an update, so it is less obviously live during the sweep than `ToastWidget`'s timers, but it shares the same "unparented QTimer on a widget with no explicit teardown" shape. Worth checking if this crash is ever chased again.
+This timer has no Qt parent either. It is only started (`.start()`, single-shot, 10 ms) when auto-scroll batches an update. It was checked during the resolution below (see "What actually happened") and ruled out - it is not part of this crash. It shares the same "unparented QTimer on a widget with no explicit teardown" shape as the `ToastWidget` red herring, so it may still be worth hardening on its own merits, but it is not urgent.
 
-## Suggested next steps for whoever picks this up
+## Resolution
 
-- Attach a native debugger (WinDbg, or run under a debug-build Python/PySide6) to get the actual C++ frame at the moment of the access violation, rather than just the Python frame.
-- Consider replacing `QGraphicsOpacityEffect` + `QPropertyAnimation` in `ToastWidget` with a simpler mechanism (e.g. a `QVariantAnimation` driving a stylesheet opacity, or a manual `QTimer`-stepped fade) if the effect/animation/target ownership triangle turns out to be the underlying PySide6 fragility.
-- Consider giving `ToastWidget` a real `closeEvent` override and `WA_DeleteOnClose`, and auditing every place a `ToastWidget` can be constructed and abandoned without going through `close_toast()` — the accessibility sweep test is the first place that does this, but production code should not be able to leak the same way if, for example, a presenter is torn down mid-toast.
+The `ToastWidget` structural fixes attempted above (animation reparenting,
+stopping the sweep test's abandoned toast's timer/animation) were all
+addressing the wrong object. Systematic bisection of the exact repro command
+(`pytest tests/theme tests/view/test_accessibility_sweep.py
+tests/view/test_notification_widget.py -q`) established the following, each
+confirmed by directly running the command, not by inspection alone:
+
+- Removing `ToastWidget` entirely from the accessibility sweep's widget list
+  did **not** stop the crash.
+- Disabling the fade-in animation's `.start()` call entirely (so no
+  `QPropertyAnimation` in the whole process was ever actually running) did
+  **not** stop the crash either.
+- Both results together rule out `ToastWidget` and its animation/effect
+  ownership triangle as the cause. The two partial fixes described above are
+  harmless but were never the fix.
+- Bisecting the sweep's widget list by half, then by pair, then by singleton,
+  isolated the crash to exactly one pair: `VersionInfoDialog` and
+  `KeyboardMapDialog` built together. Neither alone reproduces it, only both
+  together, which explains the original report's "needs enough Qt object
+  churn" observation - it was never about volume in general, only about
+  whether these two specific dialogs' construction and teardown landed close
+  enough together in the same run.
+
+### The real root cause
+
+`KeyboardMapDialog.__init__` (`src/opaque/view/dialogs/keyboard_map.py`) took
+a `window` argument, passed it as its own Qt parent
+(`super().__init__(parent or window)`), and then additionally stored
+`self._window = window`. That extra line was written to solve a real problem
+(a caller passing a `window` with no other Python reference would see it
+garbage collected immediately, and Qt would delete the dialog along with it,
+since the dialog is `window`'s child) - but it solved it by pointing a strong
+Python reference from the dialog back at its own Qt parent, which is the
+wrong direction and is itself unsafe:
+
+1. When the dialog's own Python wrapper is deallocated (for example, because
+   the accessibility sweep test's local `widgets` list goes out of scope),
+   clearing the dialog's `__dict__` drops the last reference to `self._window`.
+2. If nothing else references `window`, that triggers `window`'s own,
+   immediate deallocation, as part of the dialog's still-in-progress
+   deallocation.
+3. `window` has no Qt parent of its own, so deleting its C++ object runs
+   `~QWidget()`, which cascades through Qt's normal parent-child mechanism and
+   deletes its children's C++ objects - including the dialog's own C++
+   `QDialog`, the very object whose Python-side teardown is what started this
+   chain.
+4. The dialog's C++ object is now deleted a second time (or accessed after
+   its first, legitimate deletion) once control returns to the outer,
+   still-running deallocation of the dialog itself: a reentrant double
+   delete / use-after-free. This is consistent with why it needed `tests/theme`
+   churn and a second dialog (`VersionInfoDialog`) nearby to manifest as an
+   actual segfault reliably rather than silently landing on still-valid,
+   not-yet-reused memory - classic use-after-free behaviour.
+
+Every real (non-test) call site (`application.py`: `KeyboardMapDialog(self,
+parent=self)`) passes the running application window as both `window` and
+`parent`, which is never garbage collected mid-session, so this defect was
+invisible in production and only reachable from a test that passes a
+throwaway, unreferenced `QWidget()` - exactly what the accessibility sweep
+test did.
+
+### The fix
+
+- `src/opaque/view/dialogs/keyboard_map.py`: removed `self._window = window`.
+  Qt's own parent-child ownership already keeps the dialog alive exactly as
+  long as `window` is alive; the dialog does not need, and must not take, a
+  reference back to its own parent.
+- `tests/view/test_accessibility_sweep.py`: the sweep's throwaway host window
+  for `KeyboardMapDialog` is now a named `keyboard_map_window` local that is
+  tracked in the same `widgets` list the sweep already uses to keep every
+  other constructed object alive for the test's duration - the same pattern
+  already used to keep the shared `notification` object alive across the
+  `NotificationListItem` and `ToastWidget` entries.
+
+Verified via the exact repro command run 8 consecutive times with zero
+crashes, `tests/view/test_keyboard_map.py` (unaffected, still 5 passed), and
+the full suite (`pytest -q`) run twice with zero regressions, 222 passed both
+times (the same total as the unfixed baseline - this fix does not add or
+remove any tests). Committed on `plan-09-accessibility` in the
+`opaque-plan-09` worktree as `3236c64`.
+
+## Lesson for next time
+
+A plausible-looking, well-commented fix for one lifecycle hazard
+(`self._window = window`, guarding against premature garbage collection) can
+itself be the source of a second, worse hazard (a reentrant double delete) if
+it reverses the direction of an existing Qt parent-child ownership
+relationship. Never store a strong Python reference from a `QObject` back to
+its own Qt parent to keep that parent alive; keep it alive from outside the
+parent-child pair instead (as the accessibility sweep test now does).
 
 ## Where this was found
 
-Found while executing Plan 09 (`docs/superpowers/plans/2026-09-07-opaque-ui-09-accessibility.md`) Task 4, the accessibility sweep test, which is the first test in the suite to construct a `ToastWidget` purely for inspection and abandon it rather than running it through its normal close lifecycle.
+Found while executing Plan 09 (`docs/superpowers/plans/2026-09-07-opaque-ui-09-accessibility.md`) Task 4, the accessibility sweep test. The initial investigation misattributed it to `ToastWidget`, the first widget in the sweep's list to be constructed for inspection and abandoned rather than run through its normal close lifecycle; systematic bisection later traced it to `KeyboardMapDialog` and `VersionInfoDialog` instead (see "Resolution").
