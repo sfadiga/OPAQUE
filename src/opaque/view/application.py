@@ -369,38 +369,59 @@ class BaseApplication(QMainWindow):
                            Qt.WindowType.WindowStaysOnTopHint)
         msg.exec()
 
+    @staticmethod
+    def workspace_path_from_urls(urls, extension: str) -> Optional[str]:
+        """
+        Return the single dropped workspace file path, or None.
+
+        Args:
+            urls: The QUrl list carried by the drag or the drop event.
+            extension: The configured workspace extension, for example ".wks".
+
+        Returns:
+            The local file path, when exactly one file is offered and it has
+            the configured extension. None in every other case.
+        """
+        if len(urls) != 1:
+            return None
+
+        path = urls[0].toLocalFile()
+        if not path:
+            return None
+
+        if not path.lower().endswith(extension.lower()):
+            return None
+
+        return path
+
+    def _dropped_workspace_path(self, event) -> Optional[str]:
+        """Return the workspace file this event carries, or None."""
+        if not event.mimeData().hasUrls():
+            return None
+        return self.workspace_path_from_urls(
+            event.mimeData().urls(),
+            self._configuration.get_workspace_file_extension(),
+        )
+
     def dragEnterEvent(self, event: QDragEnterEvent):
         """
-        Handle drag enter events to accept .lab files.
+        Accept a drag that carries one workspace file.
+
+        The extension comes from the configuration. The old code compared
+        against a hardcoded extension that no configuration in this
+        framework ever uses.
         """
-        try:
-            if event.mimeData().hasUrls():
-                urls = event.mimeData().urls()
-                if len(urls) == 1:  # Only accept single file
-                    file_path = urls[0].toLocalFile()
-                    if file_path.lower().endswith('.lab'):
-                        event.acceptProposedAction()
-                        return
-        except Exception:
-            logger.exception("Failed to process the drag enter event")
+        if self._dropped_workspace_path(event):
+            event.acceptProposedAction()
+            return
         event.ignore()
 
     def dropEvent(self, event: QDropEvent):
-        """
-        Handle drop events to load .lab workspace files.
-        """
-        try:
-            if event.mimeData().hasUrls():
-                urls = event.mimeData().urls()
-                if len(urls) == 1:  # Only handle single file
-                    file_path = urls[0].toLocalFile()
-                    if file_path.lower().endswith('.lab'):
-                        if self.workspace_service:
-                            name = self.workspace_service.load_workspace(
-                                file_path)
-                            self.update_application_title(name)
-                        event.acceptProposedAction()
-                        return
-        except Exception:
-            logger.exception("Failed to process the drop event")
-        event.ignore()
+        """Load the workspace file this drop carries."""
+        file_path = self._dropped_workspace_path(event)
+        if not file_path:
+            event.ignore()
+            return
+
+        event.acceptProposedAction()
+        self.load_workspace(file_path)

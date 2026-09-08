@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 
 import pytest
+from PySide6.QtCore import QUrl
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QWidget
 
@@ -257,3 +258,28 @@ def test_load_workspace_does_nothing_when_the_user_cancels(
     app_window.load_workspace()
 
     assert loaded == []
+
+
+def test_a_dropped_file_with_the_configured_extension_is_accepted():
+    urls = [QUrl.fromLocalFile("C:/work/bench.wks")]
+    path = BaseApplication.workspace_path_from_urls(urls, ".wks")
+    assert path is not None
+    assert path.endswith("bench.wks")
+
+
+def test_a_dropped_file_with_another_extension_is_refused():
+    urls = [QUrl.fromLocalFile("C:/work/bench.lab")]
+    assert BaseApplication.workspace_path_from_urls(urls, ".wks") is None
+
+
+def test_two_dropped_files_are_refused():
+    urls = [
+        QUrl.fromLocalFile("C:/work/one.wks"),
+        QUrl.fromLocalFile("C:/work/two.wks"),
+    ]
+    assert BaseApplication.workspace_path_from_urls(urls, ".wks") is None
+
+
+def test_the_extension_check_ignores_case():
+    urls = [QUrl.fromLocalFile("C:/work/BENCH.WKS")]
+    assert BaseApplication.workspace_path_from_urls(urls, ".wks") is not None
