@@ -32,16 +32,34 @@ class ApplicationPresenter(BasePresenter):
 
         # --- Theme Management ---
         self.theme_service: ThemeService = ServiceLocator.get_service("themes")
-        # Dynamically populate the theme choices
+
+        # Fill the choices from the themes that are really installed. The list
+        # depends on which optional packages are present, so it cannot be
+        # declared on the field.
         theme_field = self.model.get_fields().get('theme')
         if theme_field:
             theme_field.choices = self.theme_service.get_available_themes()
-        # Apply theme on startup
-        self.theme_service.apply_theme(str(self.model.theme))
+
+        self._apply_current_theme()
+
+    def _apply_current_theme(self) -> None:
+        """
+        Apply the theme the model holds, falling back to the default.
+
+        A settings file written by an older version, or by a machine with a
+        different set of theme packages, can hold a name this machine cannot
+        apply. Replace it instead of leaving the user with no theme and no
+        message.
+        """
+        wanted = str(self.model.theme)
+        if not self.theme_service.is_valid_theme(wanted):
+            wanted = ThemeService.DEFAULT_THEME
+            self.model.theme = wanted
+        self.theme_service.apply_theme(wanted)
 
     def apply_settings(self) -> None:
         """Apply the theme when settings are changed."""
-        self.theme_service.apply_theme(str(self.model.theme))
+        self._apply_current_theme()
 
     def bind_events(self) -> None:
         pass

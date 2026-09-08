@@ -10,12 +10,12 @@
 """
 
 
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QSplitter,
     QListWidget, QListWidgetItem, QScrollArea, QWidget, QDialogButtonBox, QFormLayout,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QMessageBox, QLabel
+    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QLabel
 )
 from PySide6.QtCore import Qt
 
@@ -48,6 +48,12 @@ class SettingsDialog(QDialog):
         # Store all form widgets for highlighting search results
         self._current_form_widgets: Dict[str, QWidget] = {}
 
+        # Edits live here until the user presses OK or Apply. Writing straight
+        # into the model made Cancel unreliable, because a value that came
+        # from a field default was never on disk to reload.
+        # Shape: {feature_id: {field_name: new_value}}
+        self._pending_values: Dict[str, Dict[str, Any]] = {}
+
         # Main layout
         layout = QVBoxLayout(self)
 
@@ -78,12 +84,23 @@ class SettingsDialog(QDialog):
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel |
-            QDialogButtonBox.StandardButton.Apply
+            QDialogButtonBox.StandardButton.Apply |
+            QDialogButtonBox.StandardButton.RestoreDefaults
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(
             self._apply_settings)
+        self.button_box.button(
+            QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(
+                self._restore_defaults)
+
+        # A quiet status line. Applying settings is a routine action, so it
+        # gets a line of text and not a modal box.
+        self.status_label: QLabel = QLabel("")
+        self.status_label.setWordWrap(True)
+        layout.addWidget(self.status_label)
+
         layout.addWidget(self.button_box)
 
         # Set initial splitter sizes
@@ -93,23 +110,81 @@ class SettingsDialog(QDialog):
         if self.groups_list.count() > 0:
             self.groups_list.setCurrentRow(0)
 
+    def _record_pending(self, feature_id: str, field_name: str, value: Any) -> None:
+        """Store one edited value. Nothing reaches the model until Apply."""
+        self._pending_values.setdefault(feature_id, {})[field_name] = value
+
+    def pending_value(self, feature_id: str, field_name: str) -> Any:
+        """Return one pending value, or None when the field was not edited."""
+        return self._pending_values.get(feature_id, {}).get(field_name)
+
+    def has_pending_changes(self) -> bool:
+        """Return True while at least one edit is waiting to be committed."""
+        return any(self._pending_values.values())
+
     def accept(self) -> None:
         """Apply settings and accept the dialog."""
-        self._apply_settings(show_success_message=False)
+        self._apply_settings()
         super().accept()
 
-    def _apply_settings(self, show_success_message: bool = True) -> None:
-        """Saves all current settings."""
+    def reject(self) -> None:
+        """Discard every pending edit and close.
+
+        No disk reload is needed. Nothing was written to a model, so there is
+        nothing to undo.
+        """
+        self._pending_values.clear()
+        super().reject()
+
+    def _apply_settings(self) -> None:
+        """
+        Write the pending edits into the models, then persist them.
+
+        A value that the field rejects is skipped and reported, so one bad
+        entry cannot stop the rest of the dialog from saving.
+        """
+        rejected: List[str] = []
+
+        for feature_id, changes in self._pending_values.items():
+            presenter = self.features.get(feature_id)
+            if presenter is None:
+                continue
+            for field_name, value in changes.items():
+                try:
+                    setattr(presenter.model, field_name, value)
+                except ValueError:
+                    rejected.append(field_name)
+
+        self._pending_values.clear()
+
         for feature_id, presenter in self.features.items():
             self.settings_service.save_feature_settings(
                 feature_id, presenter.model)
             presenter.apply_settings()
-        if show_success_message:
-            # Inform user of success
-            msg_box = QMessageBox(self)
-            msg_box.setText(self.tr("Settings applied successfully."))
-            msg_box.setIcon(QMessageBox.Icon.Information)
-            msg_box.exec()
+
+        if rejected:
+            self.status_label.setText(
+                self.tr("Not saved, value not allowed: ")
+                + ", ".join(rejected))
+        else:
+            self.status_label.setText(self.tr("Settings applied."))
+
+    def _restore_defaults(self) -> None:
+        """
+        Queue the declared default of every settings field.
+
+        The values are queued, not written, so the user can still press Cancel
+        after pressing Restore Defaults.
+        """
+        for feature_id, presenter in self.features.items():
+            fields = type(presenter.model).get_fields()
+            for name, field in fields.items():
+                if not getattr(field, 'is_setting', False):
+                    continue
+                self._record_pending(feature_id, name, field.default)
+
+        # Redraw the visible form so the widgets show the queued defaults.
+        self._on_group_selected()
 
     def _build_settings_cache(self) -> None:
         """Build a cache of all settings field labels for searching."""
@@ -149,6 +224,7 @@ class SettingsDialog(QDialog):
                 self.groups_list.item(i).setHidden(False)
             # Also clear any highlighting in the current form
             self._clear_search_highlighting()
+            self.status_label.setText("")
             return
 
         first_match_index = -1
@@ -189,32 +265,36 @@ class SettingsDialog(QDialog):
         # Highlight matching fields in the current form
         self._highlight_matching_fields(search_text)
 
+        # Say how many groups matched. Without a count the user sees a shorter
+        # list and cannot tell whether the search worked.
+        matched = sum(
+            0 if self.groups_list.item(i).isHidden() else 1
+            for i in range(self.groups_list.count())
+        )
+        self.status_label.setText(
+            self.tr("Matching groups: ") + str(matched))
+
     def _clear_search_highlighting(self) -> None:
-        """Clear any search result highlighting in the current form."""
+        """Remove the search emphasis from every field label."""
         for label_widget in self._current_form_widgets.values():
             if isinstance(label_widget, QLabel):
-                # Reset to normal font
                 font = label_widget.font()
                 font.setBold(False)
                 label_widget.setFont(font)
-                label_widget.setStyleSheet("")
 
     def _highlight_matching_fields(self, search_text: str) -> None:
-        """Highlight fields in the current form that match the search text."""
+        """
+        Emphasise the field labels that match the search text.
+
+        The emphasis is weight only. A colour would need a contrast check
+        against whatever background the active theme paints, and the weight
+        change already tells the user which row matched.
+        """
         for field_name, label_widget in self._current_form_widgets.items():
             if isinstance(label_widget, QLabel):
-                if search_text in field_name.lower():
-                    # Highlight matching labels
-                    font = label_widget.font()
-                    font.setBold(True)
-                    label_widget.setFont(font)
-                    label_widget.setStyleSheet("color: palette(highlight);")
-                else:
-                    # Reset non-matching labels
-                    font = label_widget.font()
-                    font.setBold(False)
-                    label_widget.setFont(font)
-                    label_widget.setStyleSheet("")
+                font = label_widget.font()
+                font.setBold(search_text in field_name.lower())
+                label_widget.setFont(font)
 
     def _on_group_selected(self) -> None:
         """Called when a group is selected in the list. Generates the form."""
@@ -257,8 +337,8 @@ class SettingsDialog(QDialog):
                 # The 'stateChanged' signal emits an integer (0, 1, or 2).
                 # We compare it to the value of the Qt.CheckState.Checked enum member.
                 widget.stateChanged.connect(
-                    lambda state, model=target_model, name=name: setattr(
-                        model, name, state == Qt.CheckState.Checked.value)
+                    lambda state, fid=feature_id, name=name: self._record_pending(
+                        fid, name, state == Qt.CheckState.Checked.value)
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.SPINBOX:
                 widget = QSpinBox()
@@ -268,8 +348,8 @@ class SettingsDialog(QDialog):
                     widget.setMaximum(int(field.max_value))
                 widget.setValue(int(current_value))
                 widget.valueChanged.connect(
-                    lambda value, model=target_model, name=name: setattr(
-                        model, name, value)
+                    lambda value, fid=feature_id, name=name: self._record_pending(
+                        fid, name, value)
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.DOUBLE_SPINBOX:
                 widget = QDoubleSpinBox()
@@ -279,8 +359,8 @@ class SettingsDialog(QDialog):
                     widget.setMaximum(field.max_value)
                 widget.setValue(float(current_value))
                 widget.valueChanged.connect(
-                    lambda value, model=target_model, name=name: setattr(
-                        model, name, value)
+                    lambda value, fid=feature_id, name=name: self._record_pending(
+                        fid, name, value)
                 )
             elif (hasattr(field, 'ui_type') and field.ui_type == UIType.COMBOBOX) or (hasattr(field, 'choices') and field.choices):
                 widget = QComboBox()
@@ -288,20 +368,20 @@ class SettingsDialog(QDialog):
                     widget.addItems([str(c) for c in field.choices])
                 widget.setCurrentText(str(current_value))
                 widget.currentTextChanged.connect(
-                    lambda text, model=target_model, name=name: setattr(
-                        model, name, text)
+                    lambda text, fid=feature_id, name=name: self._record_pending(
+                        fid, name, text)
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.COLOR_PICKER:
                 widget = ColorPicker(initial_color=str(current_value))
                 widget.colorChanged.connect(
-                    lambda color, model=target_model, name=name: setattr(
-                        model, name, color)
+                    lambda color, fid=feature_id, name=name: self._record_pending(
+                        fid, name, color)
                 )
             else:  # Default to QLineEdit for "text"
                 widget = QLineEdit(str(current_value))
                 widget.textChanged.connect(
-                    lambda text, model=target_model, name=name: setattr(
-                        model, name, text)
+                    lambda text, fid=feature_id, name=name: self._record_pending(
+                        fid, name, text)
                 )
 
             if widget:
