@@ -166,7 +166,7 @@ class BaseApplication(QMainWindow):
         test and impossible to follow when the toolbar is rebuilt.
         """
         self.theme_service.theme_changed.connect(
-            lambda _name: self.toolbar.update_theme())
+            lambda _name: self._repaint_after_theme_change())
 
         dock = self.notification_presenter.get_notification_widget()
         if dock is not None:
@@ -177,6 +177,33 @@ class BaseApplication(QMainWindow):
         if model is not None:
             model.notification_count_changed.connect(
                 lambda count: self.toolbar.set_notification_count(count))
+
+    def _repaint_after_theme_change(self) -> None:
+        """
+        Give every widget in the shell a chance to repaint after a theme change.
+
+        A token is a string, not a live binding, so a widget that reads
+        surface() in its constructor keeps that colour for ever. Such a widget
+        declares apply_theme() with no arguments, and this walk calls it. The
+        walk also repolishes the tree, because Qt does not always repolish a
+        widget that was created before a style sheet was installed.
+
+        One walk in the shell means a new widget needs no signal wiring of its
+        own, which is what stops the next widget from being left behind.
+        """
+        self.toolbar.update_theme()
+
+        style = self.style()
+        for widget in self.findChildren(QWidget):
+            repaint = getattr(widget, "apply_theme", None)
+            if callable(repaint):
+                repaint()
+            style.unpolish(widget)
+            style.polish(widget)
+
+        style.unpolish(self)
+        style.polish(self)
+        self.update()
 
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""

@@ -400,3 +400,28 @@ def test_toggling_tabbed_mode_disables_cascade_and_tile(app_window):
     app_window.tabbed_action.setChecked(False)
     assert app_window.toolbar.cascade_button.isEnabled()
     assert app_window.toolbar.tiled_button.isEnabled()
+
+
+def test_a_theme_change_reaches_a_widget_that_paints_its_own_colours(
+        app_window):
+    calls = []
+
+    class _PaintingWidget(QWidget):
+        def apply_theme(self):
+            calls.append(True)
+
+    _PaintingWidget(app_window)
+
+    app_window.theme_service.theme_changed.emit("Default")
+
+    assert calls == [True]
+
+
+def test_a_widget_without_apply_theme_does_not_break_the_walk(app_window):
+    plain = QWidget(app_window)
+
+    app_window.theme_service.theme_changed.emit("Default")
+
+    # Nothing to assert on the widget itself. The test passes when the walk
+    # completes, which proves the walk does not require the method.
+    assert plain.parent() is app_window
