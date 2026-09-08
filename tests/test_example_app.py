@@ -41,12 +41,28 @@ def test_the_example_application_builds(qapp, isolated_locator, tmp_path, monkey
         module = importlib.import_module("main")
         window = module.MyExampleApplication()
         try:
-            assert window._registered_features, "no feature registered"
-            assert "Calculator" in str(list(window._registered_features))
+            registered = window._registered_features
+            # Exact key membership, not a substring of a stringified list.
+            # A substring match passed even when most features failed to
+            # register, because one surviving key was enough.
+            assert "Calculator" in registered, sorted(registered)
+            # The example is the documentation, so its feature set is the
+            # contract. Adding a feature to the example means updating this
+            # set, and that is the point.
+            expected = {
+                "ApplicationPresenter",
+                "Calculator",
+                "Console",
+                "Data Viewer",
+                "Logging",
+                "Notification Tester",
+                "Tab Manager",
+            }
+            assert set(registered) == expected, sorted(registered)
         finally:
             window.close()
             window.deleteLater()
     finally:
         sys.path.remove(str(EXAMPLE_DIR))
-        for name in [m for m in sys.modules if m == "main" or m.startswith("features.")]:
+        for name in [m for m in sys.modules if m in ("main", "features") or m.startswith("features.")]:
             del sys.modules[name]
