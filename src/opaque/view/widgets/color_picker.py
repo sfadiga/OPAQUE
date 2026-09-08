@@ -121,8 +121,8 @@ class ColorPicker(QWidget):
 
         The palette cannot be used here. Every theme this framework ships
         installs an application wide style sheet, and a style sheet beats the
-        palette for every property it names, so a swatch set through
-        QPalette.Button never appeared on the screen.
+        palette for every property it names, so a swatch set through the
+        palette's Button role never appeared on the screen.
         """
         self.button_text_colour = readable_foreground(self._color.name())
         self.button.setStyleSheet(f"""
