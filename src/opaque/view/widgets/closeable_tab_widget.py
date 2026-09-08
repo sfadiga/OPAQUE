@@ -39,6 +39,29 @@ class CloseableTabWidget(QWidget):
     # Emitted when tab is renamed (index, old_name, new_name)
     tabRenamed = Signal(int, str, str)
 
+    # The value stored in QTabBar.setTabData for the tab that adds new tabs.
+    # Identity must never come from the label. A label can be renamed by the
+    # user and it can be translated. Tab data cannot.
+    ADD_TAB_ROLE = "opaque.add_tab"
+
+    # The label of that tab. Presentation only. Never compare against it.
+    ADD_TAB_LABEL = "+"
+
+    def is_add_tab(self, index: int) -> bool:
+        """Return True when the tab at index is the add button, not content."""
+        if not self._show_plus_tab:
+            return False
+        if not (0 <= index < self.tab_widget.count()):
+            return False
+        return self.tab_widget.tabBar().tabData(index) == self.ADD_TAB_ROLE
+
+    def add_tab_index(self) -> int:
+        """Return the index of the add tab, or -1 when there is none."""
+        for i in range(self.tab_widget.count()):
+            if self.is_add_tab(i):
+                return i
+        return -1
+
     def __init__(
         self,
         widget_factory: Optional[Callable[[], QWidget]] = None,
@@ -69,6 +92,7 @@ class CloseableTabWidget(QWidget):
         self._tab_counter = 0
         self._current_widget = None
         self._removing_tab = False  # Flag to prevent dialog during tab removal
+        self._adding_tab = False    # Flag to stop add_tab calling itself
 
         # Validate factory/type parameters
         if not widget_factory and not widget_type:
@@ -147,13 +171,8 @@ class CloseableTabWidget(QWidget):
         if name is None:
             name = f"{self._default_tab_name} {self._tab_counter}"
 
-        # Find plus tab index and insert before it
-        plus_tab_index = -1
-        if self._show_plus_tab:
-            for i in range(self.tab_widget.count()):
-                if self.tab_widget.tabText(i) == "+":
-                    plus_tab_index = i
-                    break
+        # Insert before the add tab so the add tab always stays last.
+        plus_tab_index = self.add_tab_index()
 
         # Insert tab before plus tab, or add at end if no plus tab
         if plus_tab_index >= 0:
@@ -165,61 +184,81 @@ class CloseableTabWidget(QWidget):
         self.tab_widget.setCurrentIndex(index)
         self._current_widget = widget
 
+        self._update_close_buttons()
+
         # Emit signal
         self.tabAdded.emit(index, name)
 
         return index
 
-    def remove_tab(self, index: int) -> bool:
+    def can_close_tab(self, index: int) -> bool:
+        """Return True when the tab at index may be closed right now."""
+        if not (0 <= index < self.tab_widget.count()):
+            return False
+        if self.is_add_tab(index):
+            return False
+        return self._get_real_tab_count() > self._minimum_tabs
+
+    def _confirm_close_tab(self, name: str) -> bool:
+        """
+        Ask before a tab and everything in it are destroyed.
+
+        A test replaces this method, so the question box never opens in a test
+        run. Keep the question in this method and nothing else.
+        """
+        answer = QMessageBox.question(
+            self,
+            self.tr("Close this tab?"),
+            self.tr("The tab and everything in it will be removed."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def remove_tab(self, index: int, confirm: bool = True) -> bool:
         """
         Remove a tab at the specified index.
 
         Args:
             index: Index of the tab to remove
+            confirm: Ask the user first. Pass False from code that has already
+                asked, for example a workspace reload.
 
         Returns:
             True if tab was removed, False otherwise
         """
-        # Don't allow removing the plus tab
-        if index >= 0 and self._show_plus_tab and self.tab_widget.tabText(index) == "+":
+        if not self.can_close_tab(index):
+            # The close button is already hidden in this case, so reaching
+            # here means a call from code. Answer False and say nothing. A
+            # warning box would be a dead end for the user.
             return False
 
-        # Count real tabs (excluding plus tab)
-        real_tab_count = self._get_real_tab_count()
-
-        if real_tab_count <= self._minimum_tabs:
-            QMessageBox.warning(
-                self,
-                "Cannot Remove Tab",
-                f"At least {self._minimum_tabs} tab(s) must remain open."
-            )
+        if confirm and not self._confirm_close_tab(
+                self.tab_widget.tabText(index)):
             return False
 
-        # Set flag to prevent dialog during tab removal
         self._removing_tab = True
 
         try:
-            # Get tab name before removal
             tab_name = self.tab_widget.tabText(index)
-
-            # Get the widget and clean up
             widget = self.tab_widget.widget(index)
+
+            # Take the page out of the tab widget first. deleteLater() on a
+            # widget that is still a page schedules the destruction of a live
+            # child of the tab widget.
+            self.tab_widget.removeTab(index)
             if widget:
+                widget.setParent(None)
                 widget.deleteLater()
 
-            # Remove the tab
-            self.tab_widget.removeTab(index)
-
-            # Update current widget reference
             self._update_current_widget()
+            self._update_close_buttons()
 
-            # Emit signal
             self.tabRemoved.emit(index, tab_name)
 
             return True
 
         finally:
-            # Clear the flag
             self._removing_tab = False
 
     def rename_tab(self, index: int, new_name: str) -> bool:
@@ -238,8 +277,7 @@ class CloseableTabWidget(QWidget):
 
         current_name = self.tab_widget.tabText(index)
 
-        # Don't allow renaming the plus tab
-        if self._show_plus_tab and current_name == "+":
+        if self.is_add_tab(index):
             return False
 
         new_name = new_name.strip()
@@ -259,23 +297,22 @@ class CloseableTabWidget(QWidget):
         return True
 
     def _get_real_tab_count(self) -> int:
-        """Get the number of real tabs (excluding plus tab)."""
-        count = self.tab_widget.count()
-        if self._show_plus_tab:
-            for i in range(count):
-                if self.tab_widget.tabText(i) == "+":
-                    count -= 1
-                    break
-        return count
+        """Get the number of content tabs, not counting the add tab."""
+        return sum(
+            1 for i in range(self.tab_widget.count())
+            if not self.is_add_tab(i)
+        )
 
     def _is_tab_name_unique(self, name: str, exclude_index: int = -1) -> bool:
-        """Check if a tab name is unique."""
+        """Check if a tab name is free for a content tab to use."""
         name = name.strip()
-        if not name or (self._show_plus_tab and name == "+"):
+        if not name:
             return False
 
         for i in range(self.tab_widget.count()):
-            if i != exclude_index and self.tab_widget.tabText(i) == name:
+            if i == exclude_index or self.is_add_tab(i):
+                continue
+            if self.tab_widget.tabText(i) == name:
                 return False
         return True
 
@@ -289,23 +326,41 @@ class CloseableTabWidget(QWidget):
         plus_layout = QVBoxLayout(plus_widget)
         plus_layout.addWidget(QLabel("Click the '+' tab to add a new tab"))
 
-        # Add the plus tab
-        self.tab_widget.addTab(plus_widget, "+")
+        self.tab_widget.addTab(plus_widget, self.ADD_TAB_LABEL)
 
-        # Make the plus tab non-closable by removing the close button
         plus_index = self.tab_widget.count() - 1
+        # The marker moves with the tab when other tabs are inserted before it.
+        self.tab_widget.tabBar().setTabData(plus_index, self.ADD_TAB_ROLE)
         self.tab_widget.tabBar().setTabButton(
             plus_index, QTabBar.ButtonPosition.RightSide, None)
+
+    def _update_close_buttons(self) -> None:
+        """
+        Show a close button only on the tabs that may actually be closed.
+
+        A control that cannot do its job must not be offered. The old code
+        offered the close button always and answered with a warning box.
+        """
+        can_close = self._get_real_tab_count() > self._minimum_tabs
+        tab_bar = self.tab_widget.tabBar()
+        for i in range(self.tab_widget.count()):
+            if self.is_add_tab(i):
+                continue
+            button = tab_bar.tabButton(i, QTabBar.ButtonPosition.RightSide)
+            if button is not None:
+                button.setVisible(can_close)
+                button.setEnabled(can_close)
 
     def _update_current_widget(self):
         """Update the current widget reference after tab changes."""
         current_index = self.tab_widget.currentIndex()
         if current_index >= 0:
             self._current_widget = self.tab_widget.widget(current_index)
-            # If current tab is plus tab, switch to last real tab
-            if self._show_plus_tab and self.tab_widget.tabText(current_index) == "+":
+            # The add tab is a button, not a page. Fall back to the last
+            # content tab when it somehow becomes current.
+            if self.is_add_tab(current_index):
                 for i in range(self.tab_widget.count() - 1, -1, -1):
-                    if self.tab_widget.tabText(i) != "+":
+                    if not self.is_add_tab(i):
                         self.tab_widget.setCurrentIndex(i)
                         self._current_widget = self.tab_widget.widget(i)
                         break
@@ -314,10 +369,8 @@ class CloseableTabWidget(QWidget):
 
     def _on_tab_changed(self, index: int):
         """Handle tab change events."""
-        # Check if plus tab was clicked
-        if (index >= 0 and self._show_plus_tab and
-                self.tab_widget.tabText(index) == "+" and not self._removing_tab):
-            self._show_add_tab_dialog()
+        if self.is_add_tab(index) and not self._removing_tab:
+            self._request_new_tab()
             return
 
         self._update_current_widget()
@@ -330,8 +383,7 @@ class CloseableTabWidget(QWidget):
 
         current_name = self.tab_widget.tabText(index)
 
-        # Don't allow renaming the plus tab
-        if self._show_plus_tab and current_name == "+":
+        if self.is_add_tab(index):
             return
 
         while True:
@@ -348,84 +400,68 @@ class CloseableTabWidget(QWidget):
             if self.rename_tab(index, name):
                 break
 
-    def _show_add_tab_dialog(self):
-        """Show dialog to add a new tab with custom name."""
-        name, ok = QInputDialog.getText(
-            self,
-            'Add New Tab',
-            'Enter tab name:',
-            text=f"{self._default_tab_name} {self._tab_counter + 1}"
-        )
+    def _request_new_tab(self) -> None:
+        """
+        Add a tab because the user chose the add tab.
 
-        if not ok:
-            # Switch back to previous tab
-            self._update_current_widget()
+        No dialog opens here. A modal dialog started from currentChanged runs
+        a nested event loop inside a signal handler, and the tab bar is left
+        half changed behind it. The tab is created at once with a free name.
+        Double click the tab to rename it.
+        """
+        if self._adding_tab:
             return
+        self._adding_tab = True
+        try:
+            self.add_tab(self._next_free_tab_name())
+        finally:
+            self._adding_tab = False
 
-        name = name.strip()
-        if not name:
-            QMessageBox.warning(
-                self,
-                "Invalid Name",
-                "Tab name cannot be empty."
-            )
-            self._update_current_widget()
-            return
-
-        if not self._is_tab_name_unique(name):
-            QMessageBox.warning(
-                self,
-                "Duplicate Name",
-                f"A tab with the name '{name}' already exists. Please choose a different name."
-            )
-            self._update_current_widget()
-            return
-
-        self.add_tab(name)
+    def _next_free_tab_name(self) -> str:
+        """Return a default tab name that no other tab is using."""
+        number = self._tab_counter + 1
+        name = f"{self._default_tab_name} {number}"
+        while not self._is_tab_name_unique(name):
+            number += 1
+            name = f"{self._default_tab_name} {number}"
+        return name
 
     # Public API methods
 
     def get_current_widget(self) -> Optional[QWidget]:
-        """Get the currently active widget."""
-        if (self._current_widget and
-            self._show_plus_tab and
-            isinstance(self._current_widget.parent(), QWidget) and
-                self.tab_widget.tabText(self.tab_widget.currentIndex()) == "+"):
+        """Get the currently active widget, or None when the add tab is current."""
+        if self.is_add_tab(self.tab_widget.currentIndex()):
             return None
         return self._current_widget
 
     def get_widget_at_index(self, index: int) -> Optional[QWidget]:
-        """Get the widget at the specified tab index."""
-        if 0 <= index < self.tab_widget.count():
-            widget = self.tab_widget.widget(index)
-            # Don't return plus tab widget
-            if self._show_plus_tab and self.tab_widget.tabText(index) == "+":
-                return None
-            return widget
-        return None
+        """Get the content widget at the specified tab index."""
+        if not (0 <= index < self.tab_widget.count()):
+            return None
+        if self.is_add_tab(index):
+            return None
+        return self.tab_widget.widget(index)
 
     def get_tab_count(self) -> int:
         """Get the number of real tabs (excluding plus tab)."""
         return self._get_real_tab_count()
 
     def set_current_tab(self, index: int) -> bool:
-        """Set the current tab by index."""
-        if 0 <= index < self.tab_widget.count():
-            # Don't allow selecting plus tab directly
-            if self._show_plus_tab and self.tab_widget.tabText(index) == "+":
-                return False
-            self.tab_widget.setCurrentIndex(index)
-            return True
-        return False
+        """Set the current tab by index. The add tab cannot be selected."""
+        if not (0 <= index < self.tab_widget.count()):
+            return False
+        if self.is_add_tab(index):
+            return False
+        self.tab_widget.setCurrentIndex(index)
+        return True
 
     def get_tab_name(self, index: int) -> Optional[str]:
-        """Get the name of the tab at the specified index."""
-        if 0 <= index < self.tab_widget.count():
-            name = self.tab_widget.tabText(index)
-            if self._show_plus_tab and name == "+":
-                return None
-            return name
-        return None
+        """Get the name of the content tab at the specified index."""
+        if not (0 <= index < self.tab_widget.count()):
+            return None
+        if self.is_add_tab(index):
+            return None
+        return self.tab_widget.tabText(index)
 
     def set_tab_name(self, index: int, name: str) -> bool:
         """Set the name of the tab at the specified index."""
@@ -437,10 +473,9 @@ class CloseableTabWidget(QWidget):
         """Get workspace data for saving."""
         tabs_data = []
         for i in range(self.tab_widget.count()):
-            tab_name = self.tab_widget.tabText(i)
-            # Skip plus tab
-            if self._show_plus_tab and tab_name == "+":
+            if self.is_add_tab(i):
                 continue
+            tab_name = self.tab_widget.tabText(i)
 
             widget = self.tab_widget.widget(i)
             tab_data: Dict[str, Any] = {
@@ -471,14 +506,14 @@ class CloseableTabWidget(QWidget):
             return False
 
         try:
-            # Clear existing tabs except plus tab
+            # Clear the content tabs. Keep the add tab.
             while self._get_real_tab_count() > 0:
                 for i in range(self.tab_widget.count()):
-                    if not (self._show_plus_tab and self.tab_widget.tabText(i) == "+"):
+                    if not self.is_add_tab(i):
                         widget = self.tab_widget.widget(i)
+                        self.tab_widget.removeTab(i)
                         if widget:
                             widget.deleteLater()
-                        self.tab_widget.removeTab(i)
                         break
 
             # Restore tab counter
