@@ -49,3 +49,42 @@ def test_the_package_states_its_version():
 def test_the_package_ships_a_py_typed_marker():
     marker = Path(opaque.__file__).parent / "py.typed"
     assert marker.is_file()
+
+
+def test_the_version_falls_back_when_the_metadata_is_missing():
+    """
+    A source checkout with no install has no distribution metadata. The
+    fallback has to keep the shape every other reader of `__version__`
+    expects, which is why it is a version string and not an empty one.
+
+    This runs in a child interpreter on purpose. Reloading `opaque` in
+    this process would rebind every exported class, and the service
+    locator and the Qt metaclasses in this suite hold references to the
+    originals.
+    """
+    import subprocess
+    import sys
+    import textwrap
+
+    code = textwrap.dedent(
+        """
+        import importlib.metadata as metadata
+
+        def _missing(_name):
+            raise metadata.PackageNotFoundError
+
+        metadata.version = _missing
+
+        import opaque
+
+        print(opaque.__version__)
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "0.0.0+unknown"
+    assert result.stdout.strip().count(".") >= 2

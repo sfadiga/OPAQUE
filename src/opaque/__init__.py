@@ -15,13 +15,19 @@ One feature is one MVP triple: a BaseModel, a BaseView, and a BasePresenter.
 
     from opaque import BaseApplication, BaseModel, BasePresenter, BaseView
 
-The import order below matters. `opaque.view.application` must be imported
-before `opaque.view.view`, because the presenter package reaches the view
-package through a TYPE_CHECKING import and the reverse order closes the
-cycle at run time.
+The imports below are grouped by layer. No order is required between them.
+The one real import cycle in this package is `view/view.py` to
+`view/widgets/__init__.py` to `toolbar.py` to `presenters/presenter.py`,
+which would then re-import `view.py`. It is already broken inside
+`presenters/presenter.py`, which keeps its `BaseView` and `BaseApplication`
+imports behind `TYPE_CHECKING`. That guard holds whatever order this file
+uses, so do not treat this list as fragile.
 """
 
-from importlib.metadata import PackageNotFoundError, version as _installed_version
+from importlib.metadata import (
+    PackageNotFoundError as _PackageNotFoundError,
+    version as _installed_version,
+)
 
 from opaque.models.annotations import (
     BoolField,
@@ -43,7 +49,7 @@ from opaque.presenters.presenter import BasePresenter
 
 try:
     __version__ = _installed_version("opaque-framework")
-except PackageNotFoundError:
+except _PackageNotFoundError:
     # Running from a source tree with no install. The metadata is the only
     # place a version lives, so say so instead of inventing a number.
     __version__ = "0.0.0+unknown"
