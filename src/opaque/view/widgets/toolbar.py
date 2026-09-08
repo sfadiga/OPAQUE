@@ -193,6 +193,7 @@ class OpaqueMainToolbar(QToolBar):
         cascade_button.setMinimumSize(70, 0)
         cascade_button.clicked.connect(self._cascade_windows)
         self.addWidget(cascade_button)
+        self.cascade_button = cascade_button
 
         tiled_button = QToolButton()
         tiled_button.setText(self.tr("Tiled"))
@@ -204,8 +205,20 @@ class OpaqueMainToolbar(QToolBar):
         tiled_button.setMinimumSize(70, 0)
         tiled_button.clicked.connect(self._tile_windows)
         self.addWidget(tiled_button)
+        self.tiled_button = tiled_button
 
         self.addSeparator()
+
+    def set_tabbed_mode_active(self, tabbed: bool) -> None:
+        """
+        Enable or disable Cascade and Tile for the current MDI view mode.
+
+        Both actions only make sense in the sub window view: cascading or
+        tiling a set of tabs has nothing to arrange, so the buttons would
+        silently do nothing once every window is a tab.
+        """
+        self.cascade_button.setEnabled(not tabbed)
+        self.tiled_button.setEnabled(not tabbed)
 
     def _cascade_windows(self) -> None:
         """Tell the MDI area to cascade the windows."""

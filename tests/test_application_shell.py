@@ -383,3 +383,13 @@ def test_the_tabbed_action_is_checkable_and_follows_the_area(app_window):
 
     action.setChecked(False)
     assert not app_window.mdi_area.is_tabbed()
+
+
+def test_toggling_tabbed_mode_disables_cascade_and_tile(app_window):
+    app_window.tabbed_action.setChecked(True)
+    assert not app_window.toolbar.cascade_button.isEnabled()
+    assert not app_window.toolbar.tiled_button.isEnabled()
+
+    app_window.tabbed_action.setChecked(False)
+    assert app_window.toolbar.cascade_button.isEnabled()
+    assert app_window.toolbar.tiled_button.isEnabled()

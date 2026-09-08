@@ -225,6 +225,7 @@ class BaseApplication(QMainWindow):
         self.tabbed_action.setToolTip(
             self.tr("Show the feature windows as tabs"))
         self.tabbed_action.toggled.connect(self.mdi_area.set_tabbed)
+        self.tabbed_action.toggled.connect(self.toolbar.set_tabbed_mode_active)
         self.view_menu.addAction(self.tabbed_action)
 
     def _setup_help_menu(self) -> None:
