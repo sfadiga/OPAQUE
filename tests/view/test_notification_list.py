@@ -3,6 +3,7 @@
 
 import pytest
 
+from opaque.services.notification_service import NotificationLevel
 from opaque.services.service import ServiceLocator
 from opaque.view.widgets.notification_widget import SimplifiedNotificationList
 
@@ -83,3 +84,53 @@ def test_accepting_the_confirmation_calls_the_service(
     widget._clear_all()
 
     assert fake_service.clear_calls == 1
+
+
+def test_a_new_list_shows_every_level(qtbot, light_palette_app, fake_service):
+    widget = SimplifiedNotificationList()
+    qtbot.addWidget(widget)
+    assert widget.level_filter() is None
+
+
+def test_filtering_hides_the_other_levels(
+        qtbot, light_palette_app, fake_service, make_notification):
+    widget = SimplifiedNotificationList()
+    qtbot.addWidget(widget)
+    widget.add_notification(make_notification(NotificationLevel.ERROR))
+    widget.add_notification(make_notification(NotificationLevel.DEBUG))
+
+    widget.set_level_filter(NotificationLevel.ERROR)
+
+    visible = [
+        item for item in widget.items.values() if item.isVisibleTo(widget)
+    ]
+    assert len(visible) == 1
+    assert visible[0].notification.level is NotificationLevel.ERROR
+
+
+def test_clearing_the_filter_shows_everything_again(
+        qtbot, light_palette_app, fake_service, make_notification):
+    widget = SimplifiedNotificationList()
+    qtbot.addWidget(widget)
+    widget.add_notification(make_notification(NotificationLevel.ERROR))
+    widget.add_notification(make_notification(NotificationLevel.DEBUG))
+
+    widget.set_level_filter(NotificationLevel.ERROR)
+    widget.set_level_filter(None)
+
+    visible = [
+        item for item in widget.items.values() if item.isVisibleTo(widget)
+    ]
+    assert len(visible) == 2
+
+
+def test_a_notification_added_while_filtering_obeys_the_filter(
+        qtbot, light_palette_app, fake_service, make_notification):
+    widget = SimplifiedNotificationList()
+    qtbot.addWidget(widget)
+    widget.set_level_filter(NotificationLevel.ERROR)
+
+    widget.add_notification(make_notification(NotificationLevel.DEBUG))
+
+    item = list(widget.items.values())[0]
+    assert not item.isVisibleTo(widget)

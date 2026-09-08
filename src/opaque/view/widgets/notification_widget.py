@@ -13,7 +13,7 @@ from typing import Optional, List, Dict
 from datetime import datetime
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,
     QLabel, QFrame, QScrollArea, QGraphicsOpacityEffect, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
@@ -313,6 +313,17 @@ class SimplifiedNotificationList(QWidget):
         header.addWidget(self.title_label)
         header.addStretch()
 
+        self.level_box = QComboBox()
+        self.level_box.setAccessibleName(self.tr("Filter by level"))
+        self.level_box.setToolTip(self.tr("Show only one notification level"))
+        # The first entry carries None, which means show every level.
+        self.level_box.addItem(self.tr("All levels"), None)
+        for level in NotificationLevel:
+            self.level_box.addItem(level.value.upper(), level)
+        self.level_box.currentIndexChanged.connect(
+            lambda _index: self._apply_level_filter())
+        header.addWidget(self.level_box)
+
         self.clear_button = QPushButton(self.tr("Clear All"))
         self.clear_button.setToolTip(self.tr("Remove every notification"))
         self.clear_button.setEnabled(False)
@@ -341,6 +352,7 @@ class SimplifiedNotificationList(QWidget):
         self.container_layout.insertWidget(0, item)
         self.items[notification.id] = item
         self._update_clear_button()
+        self._apply_level_filter()
 
     def remove_notification(self, notification_id: str) -> None:
         """Remove one notification row."""
@@ -361,6 +373,28 @@ class SimplifiedNotificationList(QWidget):
     def _update_clear_button(self) -> None:
         """Enable Clear All only when there is something to clear."""
         self.clear_button.setEnabled(bool(self.items))
+
+    def level_filter(self) -> Optional[NotificationLevel]:
+        """Return the level the list is filtered to, or None for every level."""
+        return self.level_box.currentData()
+
+    def set_level_filter(self, level: Optional[NotificationLevel]) -> None:
+        """
+        Show only one level, or every level when level is None.
+
+        Args:
+            level: The level to show, or None.
+        """
+        index = self.level_box.findData(level)
+        if index >= 0:
+            self.level_box.setCurrentIndex(index)
+        self._apply_level_filter()
+
+    def _apply_level_filter(self) -> None:
+        """Hide every row that does not match the chosen level."""
+        wanted = self.level_filter()
+        for item in self.items.values():
+            item.setVisible(wanted is None or item.notification.level is wanted)
 
     def _remove_item(self, notification_id: str):
         # Notify service to remove
