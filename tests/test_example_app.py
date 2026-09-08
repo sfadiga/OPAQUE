@@ -24,11 +24,29 @@ EXAMPLE_DIR = Path(__file__).resolve().parent.parent / "examples" / "basic_examp
 
 @pytest.fixture
 def isolated_locator():
-    """Give the test an empty service locator and restore the old one."""
+    """
+    Give the test an empty service locator and restore the old one.
+
+    This reaches into the private `_services` dict on purpose. The locator
+    has no public reset API, and adding one belongs to the plan that makes
+    service access typed. Do not replace this with an ad hoc public method.
+
+    The teardown calls `cleanup_services()` before it restores, and the
+    order is load bearing. Before the restore, `_services` holds only what
+    this test registered, so `cleanup()` runs on those and nothing else.
+    After the restore it would hold the session wide services that
+    tests/test_application_shell.py still depends on, and cleaning those up
+    would close a log handler that a live BaseApplication still expects to
+    work.
+
+    Without this, a failure part way through building the application would
+    drop half-registered services with no `cleanup()`, and on Windows that
+    can leave an open file handle behind.
+    """
     saved = dict(ServiceLocator._services)
     ServiceLocator._services.clear()
     yield
-    ServiceLocator._services.clear()
+    ServiceLocator.cleanup_services()
     ServiceLocator._services.update(saved)
 
 
