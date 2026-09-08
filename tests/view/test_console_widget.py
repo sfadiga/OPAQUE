@@ -3,6 +3,9 @@
 
 from datetime import datetime
 
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent, QKeySequence
+
 from opaque.models.console_model import ConsoleOutputItem
 from opaque.view.widgets.console_widget import ConsoleWidget
 from opaque.view.theme import StatusRole, TypeScale, contrast_ratio, surface
@@ -162,3 +165,57 @@ def test_navigation_buttons_are_disabled_without_matches(
     widget.set_search_results([])
     assert not widget.next_button.isEnabled()
     assert not widget.prev_button.isEnabled()
+
+
+def test_the_search_action_uses_the_standard_find_shortcut(
+        qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    expected = QKeySequence(QKeySequence.StandardKey.Find)
+    assert widget.search_action.shortcut() == expected
+
+
+def test_the_clear_and_export_actions_have_shortcuts(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert not widget.clear_action.shortcut().isEmpty()
+    assert not widget.export_action.shortcut().isEmpty()
+
+
+def test_the_next_and_previous_shortcuts_are_set(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert widget.next_shortcut.key() == QKeySequence(
+        QKeySequence.StandardKey.FindNext)
+    assert widget.prev_shortcut.key() == QKeySequence(
+        QKeySequence.StandardKey.FindPrevious)
+
+
+def test_escape_closes_the_search_panel(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    widget.show_search()
+    assert widget.search_panel.isVisibleTo(widget)
+
+    widget.keyPressEvent(QKeyEvent(
+        QEvent.Type.KeyPress,
+        Qt.Key.Key_Escape,
+        Qt.KeyboardModifier.NoModifier,
+    ))
+
+    assert not widget.search_panel.isVisibleTo(widget)
+
+
+def test_the_search_close_button_is_large_enough(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert widget.close_search_button.width() >= 24
+    assert widget.close_search_button.height() >= 24
+
+
+def test_the_search_input_and_display_have_accessible_names(
+        qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert widget.search_input.accessibleName() != ""
+    assert widget.console_display.accessibleName() != ""

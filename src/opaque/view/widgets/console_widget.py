@@ -11,7 +11,10 @@ from PySide6.QtWidgets import (
     QLabel, QCheckBox, QPushButton, QFileDialog, QMessageBox, QSplitter
 )
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QTextCursor, QColor, QTextCharFormat, QIcon, QAction
+from PySide6.QtGui import (
+    QTextCursor, QColor, QTextCharFormat, QIcon, QAction, QKeySequence,
+    QShortcut,
+)
 
 from opaque.view.view import BaseView
 from opaque.models.console_model import ConsoleOutputItem
@@ -68,6 +71,7 @@ class ConsoleWidget(QWidget):
         self.console_display.setReadOnly(True)
         self.console_display.setLineWrapMode(
             QTextEdit.LineWrapMode.WidgetWidth)
+        self.console_display.setAccessibleName(self.tr("Console output"))
         self.apply_theme()
 
         splitter.addWidget(self.console_display)
@@ -85,6 +89,20 @@ class ConsoleWidget(QWidget):
         # Status bar
         self.status_bar = self._create_status_bar()
         layout.addWidget(self.status_bar)
+
+        # F3 and Shift+F3 on most platforms. QKeySequence picks the right key
+        # for the platform, so do not write the key names by hand.
+        self.next_shortcut = QShortcut(
+            QKeySequence.StandardKey.FindNext, self)
+        self.next_shortcut.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.next_shortcut.activated.connect(self._search_next)
+
+        self.prev_shortcut = QShortcut(
+            QKeySequence.StandardKey.FindPrevious, self)
+        self.prev_shortcut.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.prev_shortcut.activated.connect(self._search_previous)
 
     def apply_theme(self) -> None:
         """
@@ -114,11 +132,15 @@ class ConsoleWidget(QWidget):
         toolbar = QToolBar()
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
-        # Clear button
-        clear_action = QAction(QIcon.fromTheme("edit-clear"), "Clear", self)
-        clear_action.setToolTip("Clear console output")
-        clear_action.triggered.connect(self.clear_requested.emit)
-        toolbar.addAction(clear_action)
+        self.clear_action = QAction(
+            QIcon.fromTheme("edit-clear"), self.tr("Clear"), self)
+        self.clear_action.setShortcut(QKeySequence("Ctrl+L"))
+        self.clear_action.setShortcutContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.clear_action.setToolTip(self.tr("Clear console output (Ctrl+L)"))
+        self.clear_action.triggered.connect(self.clear_requested.emit)
+        self.addAction(self.clear_action)
+        toolbar.addAction(self.clear_action)
 
         toolbar.addSeparator()
 
@@ -159,21 +181,29 @@ class ConsoleWidget(QWidget):
 
         toolbar.addSeparator()
 
-        # Search button
-        search_action = QAction(QIcon.fromTheme("edit-find"), "Search", self)
-        search_action.setToolTip("Search console output")
-        search_action.triggered.connect(self._toggle_search)
-        toolbar.addAction(search_action)
+        self.search_action = QAction(
+            QIcon.fromTheme("edit-find"), self.tr("Search"), self)
+        self.search_action.setShortcut(QKeySequence.StandardKey.Find)
+        self.search_action.setShortcutContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.search_action.setToolTip(self.tr("Search console output (Ctrl+F)"))
+        self.search_action.triggered.connect(self._toggle_search)
+        self.addAction(self.search_action)
+        toolbar.addAction(self.search_action)
 
-        # Export button
         export_icon = QIcon.fromTheme("document-save")
         if export_icon.isNull():
             # Create a simple fallback icon using Unicode
             export_icon = QIcon()
-        export_action = QAction(export_icon, "Export", self)
-        export_action.setToolTip("Export console output to file")
-        export_action.triggered.connect(self._export_output)
-        toolbar.addAction(export_action)
+        self.export_action = QAction(export_icon, self.tr("Export"), self)
+        self.export_action.setShortcut(QKeySequence("Ctrl+E"))
+        self.export_action.setShortcutContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.export_action.setToolTip(
+            self.tr("Export console output to file (Ctrl+E)"))
+        self.export_action.triggered.connect(self._export_output)
+        self.addAction(self.export_action)
+        toolbar.addAction(self.export_action)
 
         return toolbar
 
@@ -185,7 +215,8 @@ class ConsoleWidget(QWidget):
         layout.addWidget(QLabel("Search:"))
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter search text...")
+        self.search_input.setPlaceholderText(self.tr("Enter search text..."))
+        self.search_input.setAccessibleName(self.tr("Search console output"))
         self.search_input.returnPressed.connect(self.search_requested.emit)
         layout.addWidget(self.search_input)
 
@@ -204,12 +235,12 @@ class ConsoleWidget(QWidget):
         self.case_sensitive_checkbox = QCheckBox("Case sensitive")
         layout.addWidget(self.case_sensitive_checkbox)
 
-        # Close search button
-        close_button = QPushButton("×")
-        close_button.setMaximumWidth(30)
-        close_button.clicked.connect(
-            lambda: self.search_panel.setVisible(False))
-        layout.addWidget(close_button)
+        self.close_search_button = QPushButton("×")
+        self.close_search_button.setFixedSize(28, 28)
+        self.close_search_button.setAccessibleName(self.tr("Close search"))
+        self.close_search_button.setToolTip(self.tr("Close search (Escape)"))
+        self.close_search_button.clicked.connect(self.hide_search)
+        layout.addWidget(self.close_search_button)
 
         return panel
 
@@ -237,12 +268,33 @@ class ConsoleWidget(QWidget):
         else:
             self.console_display.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
 
-    def _toggle_search(self):
-        """Toggle the search panel visibility."""
-        visible = not self.search_panel.isVisible()
-        self.search_panel.setVisible(visible)
-        if visible:
-            self.search_input.setFocus()
+    def show_search(self) -> None:
+        """Open the search panel and put the caret in the search box."""
+        self.search_panel.setVisible(True)
+        self.search_input.setFocus()
+
+    def hide_search(self) -> None:
+        """Close the search panel and give the focus back to the output."""
+        self.search_panel.setVisible(False)
+        self.console_display.setFocus()
+
+    def _toggle_search(self) -> None:
+        """Open the search panel, or close it if it is already open."""
+        # isVisibleTo() answers for this widget alone. isVisible() would answer
+        # False whenever the console window itself is not on the screen.
+        if self.search_panel.isVisibleTo(self):
+            self.hide_search()
+        else:
+            self.show_search()
+
+    def keyPressEvent(self, event) -> None:
+        """Escape closes the search panel and returns to the output."""
+        if (event.key() == Qt.Key.Key_Escape
+                and self.search_panel.isVisibleTo(self)):
+            self.hide_search()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def _search_previous(self) -> None:
         """Go to the previous match. Wrap to the last match at the start."""
