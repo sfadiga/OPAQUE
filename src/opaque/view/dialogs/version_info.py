@@ -12,7 +12,14 @@ from PySide6.QtWidgets import (
     QTextEdit, QTabWidget, QWidget, QGridLayout,
     QScrollArea, QGroupBox, QApplication
 )
-from PySide6.QtGui import QFont, QIcon, QMouseEvent
+from PySide6.QtGui import QIcon, QMouseEvent
+
+from opaque.view.theme import (
+    TypeScale,
+    muted_on_surface,
+    outline,
+    surface_variant,
+)
 
 
 class VersionInfoDialog(QDialog):
@@ -27,6 +34,7 @@ class VersionInfoDialog(QDialog):
         """Initialize the user interface."""
         self.setWindowTitle("Version Information")
         self.setModal(True)
+        self.setMinimumSize(480, 360)
         self.resize(500, 400)
 
         # Main layout
@@ -186,7 +194,11 @@ class VersionInfoDialog(QDialog):
 
         text_widget = QTextEdit()
         text_widget.setReadOnly(True)
-        text_widget.setFont(QFont("Courier", 9))
+        # The platform fixed width font, at the size the user chose. A named
+        # family is not installed everywhere and a fixed point size ignores
+        # the operating system font scale.
+        text_widget.setFont(TypeScale.mono())
+        self.system_text = text_widget
 
         # Gather system information
         import platform as plt
@@ -302,16 +314,18 @@ class VersionStatusWidget(QLabel):
         self._update_display()
 
         # Make it clickable
-        self.setStyleSheet("""
-            QLabel {
+        # The hover colours come from the palette. A black overlay is
+        # invisible on a dark theme.
+        self.setStyleSheet(f"""
+            QLabel {{
                 padding: 2px 8px;
                 border: 1px solid transparent;
                 border-radius: 3px;
-            }
-            QLabel:hover {
-                background-color: rgba(0, 0, 0, 0.1);
-                border-color: rgba(0, 0, 0, 0.2);
-            }
+            }}
+            QLabel:hover {{
+                background-color: {surface_variant()};
+                border-color: {outline()};
+            }}
         """)
 
     def _update_display(self):
@@ -367,7 +381,10 @@ class AboutDialog(QDialog):
         """Initialize the user interface."""
         self.setWindowTitle("About")
         self.setModal(True)
-        self.setFixedSize(400, 300)
+        # A minimum, not a fixed size. A translated string is often 30 to 40
+        # per cent longer than the English source, and the operating system
+        # font size can be set to Large. A fixed size cuts both off.
+        self.setMinimumSize(400, 300)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
@@ -428,7 +445,8 @@ class AboutDialog(QDialog):
         framework_font.setPointSize(framework_font.pointSize() - 1)
         framework_label.setFont(framework_font)
         framework_label.setAlignment(Qt.AlignCenter)
-        framework_label.setStyleSheet("color: #666666;")
+        self.framework_label_colour = muted_on_surface()
+        framework_label.setStyleSheet(f"color: {self.framework_label_colour};")
         layout.addWidget(framework_label)
 
         layout.addStretch()
