@@ -184,61 +184,81 @@ class CloseableTabWidget(QWidget):
         self.tab_widget.setCurrentIndex(index)
         self._current_widget = widget
 
+        self._update_close_buttons()
+
         # Emit signal
         self.tabAdded.emit(index, name)
 
         return index
 
-    def remove_tab(self, index: int) -> bool:
+    def can_close_tab(self, index: int) -> bool:
+        """Return True when the tab at index may be closed right now."""
+        if not (0 <= index < self.tab_widget.count()):
+            return False
+        if self.is_add_tab(index):
+            return False
+        return self._get_real_tab_count() > self._minimum_tabs
+
+    def _confirm_close_tab(self, name: str) -> bool:
+        """
+        Ask before a tab and everything in it are destroyed.
+
+        A test replaces this method, so the question box never opens in a test
+        run. Keep the question in this method and nothing else.
+        """
+        answer = QMessageBox.question(
+            self,
+            self.tr("Close this tab?"),
+            self.tr("The tab and everything in it will be removed."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def remove_tab(self, index: int, confirm: bool = True) -> bool:
         """
         Remove a tab at the specified index.
 
         Args:
             index: Index of the tab to remove
+            confirm: Ask the user first. Pass False from code that has already
+                asked, for example a workspace reload.
 
         Returns:
             True if tab was removed, False otherwise
         """
-        # Don't allow removing the plus tab
-        if self.is_add_tab(index):
+        if not self.can_close_tab(index):
+            # The close button is already hidden in this case, so reaching
+            # here means a call from code. Answer False and say nothing. A
+            # warning box would be a dead end for the user.
             return False
 
-        # Count real tabs (excluding plus tab)
-        real_tab_count = self._get_real_tab_count()
-
-        if real_tab_count <= self._minimum_tabs:
-            QMessageBox.warning(
-                self,
-                "Cannot Remove Tab",
-                f"At least {self._minimum_tabs} tab(s) must remain open."
-            )
+        if confirm and not self._confirm_close_tab(
+                self.tab_widget.tabText(index)):
             return False
 
-        # Set flag to prevent dialog during tab removal
         self._removing_tab = True
 
         try:
-            # Get tab name before removal
             tab_name = self.tab_widget.tabText(index)
-
-            # Get the widget and clean up
             widget = self.tab_widget.widget(index)
+
+            # Take the page out of the tab widget first. deleteLater() on a
+            # widget that is still a page schedules the destruction of a live
+            # child of the tab widget.
+            self.tab_widget.removeTab(index)
             if widget:
+                widget.setParent(None)
                 widget.deleteLater()
 
-            # Remove the tab
-            self.tab_widget.removeTab(index)
-
-            # Update current widget reference
             self._update_current_widget()
+            self._update_close_buttons()
 
-            # Emit signal
             self.tabRemoved.emit(index, tab_name)
 
             return True
 
         finally:
-            # Clear the flag
             self._removing_tab = False
 
     def rename_tab(self, index: int, new_name: str) -> bool:
@@ -313,6 +333,23 @@ class CloseableTabWidget(QWidget):
         self.tab_widget.tabBar().setTabData(plus_index, self.ADD_TAB_ROLE)
         self.tab_widget.tabBar().setTabButton(
             plus_index, QTabBar.ButtonPosition.RightSide, None)
+
+    def _update_close_buttons(self) -> None:
+        """
+        Show a close button only on the tabs that may actually be closed.
+
+        A control that cannot do its job must not be offered. The old code
+        offered the close button always and answered with a warning box.
+        """
+        can_close = self._get_real_tab_count() > self._minimum_tabs
+        tab_bar = self.tab_widget.tabBar()
+        for i in range(self.tab_widget.count()):
+            if self.is_add_tab(i):
+                continue
+            button = tab_bar.tabButton(i, QTabBar.ButtonPosition.RightSide)
+            if button is not None:
+                button.setVisible(can_close)
+                button.setEnabled(can_close)
 
     def _update_current_widget(self):
         """Update the current widget reference after tab changes."""

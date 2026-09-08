@@ -1,7 +1,7 @@
 # This Python file uses the following encoding: utf-8
 """Tests for the closeable tab widget."""
 
-from PySide6.QtWidgets import QInputDialog, QWidget
+from PySide6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
 from opaque.view.widgets.closeable_tab_widget import CloseableTabWidget
 
@@ -94,3 +94,49 @@ def test_no_dialog_is_opened_from_a_selection_change(
     monkeypatch.setattr(QInputDialog, "getText", _explode)
     widget.tab_widget.setCurrentIndex(widget.add_tab_index())
     assert widget.get_tab_count() == 2
+
+
+def test_the_last_tab_cannot_be_closed(qtbot, light_palette_app):
+    widget = _tabs(qtbot, minimum_tabs=1)
+    assert not widget.can_close_tab(0)
+
+
+def test_a_tab_can_be_closed_when_more_than_the_minimum_exist(
+        qtbot, light_palette_app):
+    widget = _tabs(qtbot, minimum_tabs=1)
+    widget.add_tab("Second")
+    assert widget.can_close_tab(0)
+
+
+def test_closing_asks_for_confirmation_first(qtbot, light_palette_app):
+    widget = _tabs(qtbot, minimum_tabs=1)
+    widget.add_tab("Second")
+    asked = []
+    widget._confirm_close_tab = lambda name: asked.append(name) or True
+
+    assert widget.remove_tab(0)
+
+    assert len(asked) == 1
+    assert widget.get_tab_count() == 1
+
+
+def test_declining_the_confirmation_keeps_the_tab(qtbot, light_palette_app):
+    widget = _tabs(qtbot, minimum_tabs=1)
+    widget.add_tab("Second")
+    widget._confirm_close_tab = lambda name: False
+
+    assert not widget.remove_tab(0)
+
+    assert widget.get_tab_count() == 2
+
+
+def test_the_minimum_rule_opens_no_message_box(
+        qtbot, light_palette_app, monkeypatch):
+    widget = _tabs(qtbot, minimum_tabs=1)
+
+    def _explode(*args, **kwargs):
+        raise AssertionError("a warning box was opened for the minimum rule")
+
+    monkeypatch.setattr(QMessageBox, "warning", _explode)
+    assert not widget.remove_tab(0)
+    assert widget.get_tab_count() == 1
