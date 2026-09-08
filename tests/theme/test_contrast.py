@@ -4,10 +4,12 @@
 import pytest
 
 from opaque.view.theme.contrast import (
+    TEXT_CONTRAST_MINIMUM,
     contrast_ratio,
     readable_foreground,
     relative_luminance,
 )
+from opaque.view.theme.tokens import StatusRole, status_colors
 
 
 def test_black_has_zero_luminance():
@@ -41,10 +43,6 @@ def test_readable_foreground_picks_black_on_a_light_background():
 
 def test_readable_foreground_picks_white_on_a_dark_background():
     assert readable_foreground("#0b6ba8") == "#ffffff"
-
-
-from opaque.view.theme.contrast import TEXT_CONTRAST_MINIMUM
-from opaque.view.theme.tokens import StatusRole, status_colors
 
 
 @pytest.mark.parametrize("role", list(StatusRole))
