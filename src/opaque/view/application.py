@@ -26,6 +26,7 @@ from opaque.view.dialogs.settings import SettingsDialog
 from opaque.view.dialogs.keyboard_map import KeyboardMapDialog
 from opaque.presenters.presenter import BasePresenter
 from opaque.services.service import ServiceLocator
+from opaque.localisation import apply_layout_direction, install_translator
 from opaque.models.configuration import DefaultApplicationConfiguration
 
 from opaque.services.single_instance_service import SingleInstanceService
@@ -67,6 +68,10 @@ class BaseApplication(QMainWindow):
         app = QApplication.instance()
         if app:
             app.main_window = self  # type: ignore
+            # The translator must be installed before any widget is built.
+            # A widget reads its strings once, when it is created.
+            install_translator(app)
+            apply_layout_direction(app)
 
         # Application internal configuration, not its settings
         self._configuration = configuration
@@ -405,7 +410,7 @@ class BaseApplication(QMainWindow):
         """Show a message box informing the user that another instance is already running."""
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setWindowTitle("Application Already Running")
+        msg.setWindowTitle(self.tr("Application Already Running"))
         msg.setText(
             f"Another instance of {self._configuration.get_application_name()} is already running.")
         msg.setInformativeText(

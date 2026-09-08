@@ -70,7 +70,7 @@ include = ["opaque*"]
 exclude = ["tests*", "examples*", "docs*"]
 
 [tool.setuptools.package-data]
-opaque = ["py.typed", "core/py.typed"]
+opaque = ["py.typed", "core/py.typed", "translations/*.qm", "translations/*.ts"]
 
 [tool.pylint.MASTER]
 extension-pkg-whitelist = ["PySide6"]

@@ -145,15 +145,15 @@ class ConsoleWidget(QWidget):
         toolbar.addSeparator()
 
         # Auto-scroll checkbox
-        self.auto_scroll_checkbox = QCheckBox("Auto-scroll")
+        self.auto_scroll_checkbox = QCheckBox(self.tr("Auto-scroll"))
         self.auto_scroll_checkbox.setToolTip(
-            "Automatically scroll to bottom when new output arrives")
+            self.tr("Automatically scroll to bottom when new output arrives"))
         self.auto_scroll_checkbox.setChecked(True)
         toolbar.addWidget(self.auto_scroll_checkbox)
 
         # Word wrap checkbox
-        self.word_wrap_checkbox = QCheckBox("Word wrap")
-        self.word_wrap_checkbox.setToolTip("Enable word wrapping")
+        self.word_wrap_checkbox = QCheckBox(self.tr("Word wrap"))
+        self.word_wrap_checkbox.setToolTip(self.tr("Enable word wrapping"))
         self.word_wrap_checkbox.setChecked(True)
         self.word_wrap_checkbox.toggled.connect(self._toggle_word_wrap)
         toolbar.addWidget(self.word_wrap_checkbox)
@@ -161,21 +161,21 @@ class ConsoleWidget(QWidget):
         toolbar.addSeparator()
 
         # Timestamps checkbox
-        self.show_timestamps_checkbox = QCheckBox("Timestamps")
+        self.show_timestamps_checkbox = QCheckBox(self.tr("Timestamps"))
         self.show_timestamps_checkbox.setToolTip(
-            "Show timestamps for each output line")
+            self.tr("Show timestamps for each output line"))
         self.show_timestamps_checkbox.setChecked(True)
         toolbar.addWidget(self.show_timestamps_checkbox)
 
         # Show stdout checkbox
-        self.show_stdout_checkbox = QCheckBox("stdout")
-        self.show_stdout_checkbox.setToolTip("Show standard output")
+        self.show_stdout_checkbox = QCheckBox(self.tr("stdout"))
+        self.show_stdout_checkbox.setToolTip(self.tr("Show standard output"))
         self.show_stdout_checkbox.setChecked(True)
         toolbar.addWidget(self.show_stdout_checkbox)
 
         # Show stderr checkbox
-        self.show_stderr_checkbox = QCheckBox("stderr")
-        self.show_stderr_checkbox.setToolTip("Show standard error output")
+        self.show_stderr_checkbox = QCheckBox(self.tr("stderr"))
+        self.show_stderr_checkbox.setToolTip(self.tr("Show standard error output"))
         self.show_stderr_checkbox.setChecked(True)
         toolbar.addWidget(self.show_stderr_checkbox)
 
@@ -212,7 +212,7 @@ class ConsoleWidget(QWidget):
         panel = QWidget()
         layout = QHBoxLayout(panel)
 
-        layout.addWidget(QLabel("Search:"))
+        layout.addWidget(QLabel(self.tr("Search:")))
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(self.tr("Enter search text..."))
@@ -221,18 +221,18 @@ class ConsoleWidget(QWidget):
         layout.addWidget(self.search_input)
 
         # Search navigation buttons
-        self.prev_button = QPushButton("Previous")
+        self.prev_button = QPushButton(self.tr("Previous"))
         self.prev_button.clicked.connect(self._search_previous)
         self.prev_button.setEnabled(False)
         layout.addWidget(self.prev_button)
 
-        self.next_button = QPushButton("Next")
+        self.next_button = QPushButton(self.tr("Next"))
         self.next_button.clicked.connect(self._search_next)
         self.next_button.setEnabled(False)
         layout.addWidget(self.next_button)
 
         # Case sensitive checkbox
-        self.case_sensitive_checkbox = QCheckBox("Case sensitive")
+        self.case_sensitive_checkbox = QCheckBox(self.tr("Case sensitive"))
         layout.addWidget(self.case_sensitive_checkbox)
 
         self.close_search_button = QPushButton("×")
@@ -250,12 +250,12 @@ class ConsoleWidget(QWidget):
         layout = QHBoxLayout(status_widget)
         layout.setContentsMargins(5, 2, 5, 2)
 
-        self.status_label = QLabel("Ready")
+        self.status_label = QLabel(self.tr("Ready"))
         layout.addWidget(self.status_label)
 
         layout.addStretch()
 
-        self.stats_label = QLabel("0 lines")
+        self.stats_label = QLabel(self.tr("0 lines"))
         layout.addWidget(self.stats_label)
 
         return status_widget
@@ -475,7 +475,7 @@ class ConsoleView(BaseView):
 
     def __init__(self, app, parent: Optional[QWidget] = None):
         super().__init__(app, parent)
-        self.setWindowTitle("Console")
+        self.setWindowTitle(self.tr("Console"))
 
         # Create console widget as the main content
         self.console_widget = ConsoleWidget(self)

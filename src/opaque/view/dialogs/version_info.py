@@ -33,7 +33,7 @@ class VersionInfoDialog(QDialog):
 
     def _init_ui(self):
         """Initialize the user interface."""
-        self.setWindowTitle("Version Information")
+        self.setWindowTitle(self.tr("Version Information"))
         self.setModal(True)
         self.setMinimumSize(480, 360)
         self.resize(500, 400)
@@ -63,11 +63,11 @@ class VersionInfoDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        copy_button = QPushButton("Copy to Clipboard")
+        copy_button = QPushButton(self.tr("Copy to Clipboard"))
         copy_button.clicked.connect(self._copy_to_clipboard)
         button_layout.addWidget(copy_button)
 
-        close_button = QPushButton("Close")
+        close_button = QPushButton(self.tr("Close"))
         close_button.clicked.connect(self.accept)
         close_button.setDefault(True)
         button_layout.addWidget(close_button)
@@ -81,12 +81,12 @@ class VersionInfoDialog(QDialog):
         layout.setSpacing(15)
 
         # Main version info
-        main_group = QGroupBox("Application Version")
+        main_group = QGroupBox(self.tr("Application Version"))
         main_layout = QGridLayout(main_group)
 
         # Version
         version = self.version_info.get("version", "Unknown")
-        main_layout.addWidget(QLabel("Version:"), 0, 0)
+        main_layout.addWidget(QLabel(self.tr("Version:")), 0, 0)
         version_label = QLabel(version)
         version_font = version_label.font()
         version_font.setPointSize(version_font.pointSize() + 2)
@@ -97,19 +97,19 @@ class VersionInfoDialog(QDialog):
         # Product name
         product_name = self.version_info.get(
             "product_name", "OPAQUE Framework Application")
-        main_layout.addWidget(QLabel("Product:"), 1, 0)
+        main_layout.addWidget(QLabel(self.tr("Product:")), 1, 0)
         main_layout.addWidget(QLabel(product_name), 1, 1)
 
         # Company
         company = self.version_info.get("company", "")
         if company:
-            main_layout.addWidget(QLabel("Company:"), 2, 0)
+            main_layout.addWidget(QLabel(self.tr("Company:")), 2, 0)
             main_layout.addWidget(QLabel(company), 2, 1)
 
         # Description
         description = self.version_info.get("description", "")
         if description:
-            main_layout.addWidget(QLabel("Description:"), 3, 0)
+            main_layout.addWidget(QLabel(self.tr("Description:")), 3, 0)
             desc_label = QLabel(description)
             desc_label.setWordWrap(True)
             main_layout.addWidget(desc_label, 3, 1)
@@ -117,7 +117,7 @@ class VersionInfoDialog(QDialog):
         # Copyright
         copyright_info = self.version_info.get("copyright", "")
         if copyright_info:
-            main_layout.addWidget(QLabel("Copyright:"), 4, 0)
+            main_layout.addWidget(QLabel(self.tr("Copyright:")), 4, 0)
             main_layout.addWidget(QLabel(copyright_info), 4, 1)
 
         layout.addWidget(main_group)
@@ -132,7 +132,7 @@ class VersionInfoDialog(QDialog):
         layout.setSpacing(15)
 
         # Build details
-        build_group = QGroupBox("Build Details")
+        build_group = QGroupBox(self.tr("Build Details"))
         build_layout = QGridLayout(build_group)
 
         row = 0
@@ -140,21 +140,21 @@ class VersionInfoDialog(QDialog):
         # Build date
         build_date = self.version_info.get("build_date", "")
         if build_date:
-            build_layout.addWidget(QLabel("Build Date:"), row, 0)
+            build_layout.addWidget(QLabel(self.tr("Build Date:")), row, 0)
             build_layout.addWidget(QLabel(build_date), row, 1)
             row += 1
 
         # Build number
         build_number = self.version_info.get("build_number", "")
         if build_number:
-            build_layout.addWidget(QLabel("Build Number:"), row, 0)
+            build_layout.addWidget(QLabel(self.tr("Build Number:")), row, 0)
             build_layout.addWidget(QLabel(build_number), row, 1)
             row += 1
 
         # Commit hash
         commit_hash = self.version_info.get("commit_hash", "")
         if commit_hash:
-            build_layout.addWidget(QLabel("Commit Hash:"), row, 0)
+            build_layout.addWidget(QLabel(self.tr("Commit Hash:")), row, 0)
             commit_label = QLabel(
                 commit_hash[:16] + "..." if len(commit_hash) > 16 else commit_hash)
             commit_label.setToolTip(commit_hash)
@@ -164,20 +164,20 @@ class VersionInfoDialog(QDialog):
         # Build tools
         build_tool = self.version_info.get("build_tool", "")
         if build_tool:
-            build_layout.addWidget(QLabel("Build Tool:"), row, 0)
+            build_layout.addWidget(QLabel(self.tr("Build Tool:")), row, 0)
             build_layout.addWidget(QLabel(build_tool), row, 1)
             row += 1
 
         # Framework version
         framework_version = self._get_framework_version()
         if framework_version:
-            build_layout.addWidget(QLabel("OPAQUE Framework:"), row, 0)
+            build_layout.addWidget(QLabel(self.tr("OPAQUE Framework:")), row, 0)
             build_layout.addWidget(QLabel(framework_version), row, 1)
             row += 1
 
         if row == 0:
             build_layout.addWidget(
-                QLabel("No build information available"), 0, 0, 1, 2)
+                QLabel(self.tr("No build information available")), 0, 0, 1, 2)
 
         layout.addWidget(build_group)
         layout.addStretch()
@@ -396,7 +396,7 @@ class AboutDialog(QDialog):
 
     def _init_ui(self):
         """Initialize the user interface."""
-        self.setWindowTitle("About")
+        self.setWindowTitle(self.tr("About"))
         self.setModal(True)
         # A minimum, not a fixed size. A translated string is often 30 to 40
         # per cent longer than the English source, and the operating system
@@ -457,7 +457,7 @@ class AboutDialog(QDialog):
             layout.addWidget(copyright_label)
 
         # Built with OPAQUE Framework
-        framework_label = QLabel("Built with OPAQUE Framework")
+        framework_label = QLabel(self.tr("Built with OPAQUE Framework"))
         framework_font = framework_label.font()
         framework_font.setPointSize(framework_font.pointSize() - 1)
         framework_label.setFont(framework_font)
@@ -471,13 +471,13 @@ class AboutDialog(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
 
-        version_info_button = QPushButton("Version Info...")
+        version_info_button = QPushButton(self.tr("Version Info..."))
         version_info_button.clicked.connect(self._show_version_info)
         button_layout.addWidget(version_info_button)
 
         button_layout.addStretch()
 
-        close_button = QPushButton("Close")
+        close_button = QPushButton(self.tr("Close"))
         close_button.clicked.connect(self.accept)
         close_button.setDefault(True)
         button_layout.addWidget(close_button)

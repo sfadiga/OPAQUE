@@ -50,8 +50,11 @@ class OpaqueMainToolbar(QToolBar):
         """
         feature_name = presenter.model.feature_name()
         button = QToolButton()
-        button.setText(self.tr(feature_name))
-        button.setToolTip(self.tr(presenter.model.feature_description()))
+        # These two strings belong to the feature, not to the toolbar. Only
+        # the code that writes the literal can call tr() on it, because
+        # lupdate reads the source text and not the value at run time.
+        button.setText(feature_name)
+        button.setToolTip(presenter.model.feature_description())
         button.setIcon(presenter.model.feature_icon())
         button.setIconSize(QSize(24, 24))
         button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)

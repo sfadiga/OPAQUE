@@ -326,7 +326,9 @@ class SettingsDialog(QDialog):
                 continue
 
             current_value = getattr(target_model, name)
-            label_text = self.tr(field.description) or name
+            # The description comes from a model field at run time. The model
+            # that declares the field must call tr() on its own literal.
+            label_text = field.description or name
             label_widget = QLabel(label_text)
             self._current_form_widgets[label_text.lower()] = label_widget
 
