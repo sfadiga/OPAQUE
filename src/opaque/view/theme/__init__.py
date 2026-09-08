@@ -21,9 +21,27 @@ from opaque.view.theme.contrast import (
     readable_foreground,
     relative_luminance,
 )
+from opaque.view.theme.tokens import (
+    interactive,
+    is_dark_theme,
+    on_interactive,
+    on_surface,
+    on_surface_variant,
+    outline,
+    surface,
+    surface_variant,
+)
 
 __all__ = [
     "contrast_ratio",
     "readable_foreground",
     "relative_luminance",
+    "interactive",
+    "is_dark_theme",
+    "on_interactive",
+    "on_surface",
+    "on_surface_variant",
+    "outline",
+    "surface",
+    "surface_variant",
 ]
