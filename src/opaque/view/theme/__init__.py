@@ -24,6 +24,7 @@ from opaque.view.theme.contrast import (
 from opaque.view.theme.tokens import (
     interactive,
     is_dark_theme,
+    muted_on_surface,
     on_interactive,
     on_surface,
     on_surface_variant,
@@ -38,6 +39,7 @@ __all__ = [
     "relative_luminance",
     "interactive",
     "is_dark_theme",
+    "muted_on_surface",
     "on_interactive",
     "on_surface",
     "on_surface_variant",

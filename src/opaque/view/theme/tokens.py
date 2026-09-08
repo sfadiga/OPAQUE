@@ -16,10 +16,14 @@ the active QPalette, so a theme change from qdarkstyle, qt-material or
 qt-themes is picked up with no extra work.
 """
 
-from PySide6.QtGui import QPalette
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
-from opaque.view.theme.contrast import relative_luminance
+from opaque.view.theme.contrast import (
+    TEXT_CONTRAST_MINIMUM,
+    contrast_ratio,
+    relative_luminance,
+)
 
 # A window luminance below this value counts as a dark theme.
 _DARK_THEME_LUMINANCE_LIMIT: float = 0.18
@@ -77,3 +81,29 @@ def interactive() -> str:
 def on_interactive() -> str:
     """The text colour on top of interactive()."""
     return _role(QPalette.ColorRole.HighlightedText)
+
+
+def muted_on_surface() -> str:
+    """
+    A dimmer text colour for secondary information, for example a timestamp.
+
+    The colour is the primary text colour blended toward the surface. The blend
+    stops at the last step that still meets the WCAG text contrast minimum, so
+    the result is always readable, in a light theme and in a dark theme.
+    """
+    background = surface()
+    text = QColor(on_surface())
+    back = QColor(background)
+
+    best = text.name()
+    for step in range(1, 10):
+        factor = step / 10.0
+        blended = QColor(
+            round(text.red() + (back.red() - text.red()) * factor),
+            round(text.green() + (back.green() - text.green()) * factor),
+            round(text.blue() + (back.blue() - text.blue()) * factor),
+        )
+        if contrast_ratio(blended.name(), background) < TEXT_CONTRAST_MINIMUM:
+            break
+        best = blended.name()
+    return best
