@@ -11,10 +11,23 @@ from PySide6.QtWidgets import (
     QLabel, QCheckBox, QPushButton, QFileDialog, QMessageBox, QSplitter
 )
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QFont, QTextCursor, QColor, QTextCharFormat, QIcon, QAction
+from PySide6.QtGui import (
+    QTextCursor, QColor, QTextCharFormat, QIcon, QAction, QKeySequence,
+    QShortcut,
+)
 
 from opaque.view.view import BaseView
 from opaque.models.console_model import ConsoleOutputItem
+from opaque.view.theme import (
+    StatusRole,
+    TypeScale,
+    interactive,
+    on_interactive,
+    on_surface,
+    outline,
+    status_colors,
+    surface,
+)
 
 
 class ConsoleWidget(QWidget):
@@ -23,9 +36,14 @@ class ConsoleWidget(QWidget):
     # Signals
     clear_requested = Signal()
     export_requested = Signal(str)  # file path
+    search_requested = Signal()
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        # The block number where each displayed item starts. The model returns
+        # a match as an index into this list, and a QTextEdit can only find a
+        # line by its block number, so this list joins the two.
+        self._item_block_numbers: List[int] = []
         self.setup_ui()
         self._last_search_matches: List[int] = []
         self._current_search_index = 0
@@ -49,22 +67,12 @@ class ConsoleWidget(QWidget):
         # Create main content area with splitter
         splitter = QSplitter(Qt.Orientation.Vertical)
 
-        # Console display area
         self.console_display = QTextEdit()
         self.console_display.setReadOnly(True)
-        self.console_display.setFont(QFont("Consolas", 9))
         self.console_display.setLineWrapMode(
             QTextEdit.LineWrapMode.WidgetWidth)
-
-        # Set colors for better contrast
-        self.console_display.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: 1px solid #3c3c3c;
-                selection-background-color: #264f78;
-            }
-        """)
+        self.console_display.setAccessibleName(self.tr("Console output"))
+        self.apply_theme()
 
         splitter.addWidget(self.console_display)
 
@@ -82,16 +90,57 @@ class ConsoleWidget(QWidget):
         self.status_bar = self._create_status_bar()
         layout.addWidget(self.status_bar)
 
+        # F3 and Shift+F3 on most platforms. QKeySequence picks the right key
+        # for the platform, so do not write the key names by hand.
+        self.next_shortcut = QShortcut(
+            QKeySequence.StandardKey.FindNext, self)
+        self.next_shortcut.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.next_shortcut.activated.connect(self._search_next)
+
+        self.prev_shortcut = QShortcut(
+            QKeySequence.StandardKey.FindPrevious, self)
+        self.prev_shortcut.setContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.prev_shortcut.activated.connect(self._search_previous)
+
+    def apply_theme(self) -> None:
+        """
+        Take every console colour and the console font from the active theme.
+
+        The console used to paint one editor palette into a style sheet, so it
+        stayed dark inside a light theme and its text failed the contrast
+        minimum. Call this method again after the theme changes.
+        """
+        self.background_colour = surface()
+        self.stdout_colour = on_surface()
+        self.stderr_colour = status_colors(StatusRole.ERROR).background
+
+        self.console_display.setFont(TypeScale.mono())
+        self.console_display.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {self.background_colour};
+                color: {self.stdout_colour};
+                border: 1px solid {outline()};
+                selection-background-color: {interactive()};
+                selection-color: {on_interactive()};
+            }}
+        """)
+
     def _create_toolbar(self) -> QToolBar:
         """Create the console toolbar."""
         toolbar = QToolBar()
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
-        # Clear button
-        clear_action = QAction(QIcon.fromTheme("edit-clear"), "Clear", self)
-        clear_action.setToolTip("Clear console output")
-        clear_action.triggered.connect(self.clear_requested.emit)
-        toolbar.addAction(clear_action)
+        self.clear_action = QAction(
+            QIcon.fromTheme("edit-clear"), self.tr("Clear"), self)
+        self.clear_action.setShortcut(QKeySequence("Ctrl+L"))
+        self.clear_action.setShortcutContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.clear_action.setToolTip(self.tr("Clear console output (Ctrl+L)"))
+        self.clear_action.triggered.connect(self.clear_requested.emit)
+        self.addAction(self.clear_action)
+        toolbar.addAction(self.clear_action)
 
         toolbar.addSeparator()
 
@@ -132,21 +181,29 @@ class ConsoleWidget(QWidget):
 
         toolbar.addSeparator()
 
-        # Search button
-        search_action = QAction(QIcon.fromTheme("edit-find"), "Search", self)
-        search_action.setToolTip("Search console output")
-        search_action.triggered.connect(self._toggle_search)
-        toolbar.addAction(search_action)
+        self.search_action = QAction(
+            QIcon.fromTheme("edit-find"), self.tr("Search"), self)
+        self.search_action.setShortcut(QKeySequence.StandardKey.Find)
+        self.search_action.setShortcutContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.search_action.setToolTip(self.tr("Search console output (Ctrl+F)"))
+        self.search_action.triggered.connect(self._toggle_search)
+        self.addAction(self.search_action)
+        toolbar.addAction(self.search_action)
 
-        # Export button
         export_icon = QIcon.fromTheme("document-save")
         if export_icon.isNull():
             # Create a simple fallback icon using Unicode
             export_icon = QIcon()
-        export_action = QAction(export_icon, "Export", self)
-        export_action.setToolTip("Export console output to file")
-        export_action.triggered.connect(self._export_output)
-        toolbar.addAction(export_action)
+        self.export_action = QAction(export_icon, self.tr("Export"), self)
+        self.export_action.setShortcut(QKeySequence("Ctrl+E"))
+        self.export_action.setShortcutContext(
+            Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.export_action.setToolTip(
+            self.tr("Export console output to file (Ctrl+E)"))
+        self.export_action.triggered.connect(self._export_output)
+        self.addAction(self.export_action)
+        toolbar.addAction(self.export_action)
 
         return toolbar
 
@@ -158,8 +215,9 @@ class ConsoleWidget(QWidget):
         layout.addWidget(QLabel("Search:"))
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter search text...")
-        self.search_input.returnPressed.connect(self._perform_search)
+        self.search_input.setPlaceholderText(self.tr("Enter search text..."))
+        self.search_input.setAccessibleName(self.tr("Search console output"))
+        self.search_input.returnPressed.connect(self.search_requested.emit)
         layout.addWidget(self.search_input)
 
         # Search navigation buttons
@@ -177,12 +235,12 @@ class ConsoleWidget(QWidget):
         self.case_sensitive_checkbox = QCheckBox("Case sensitive")
         layout.addWidget(self.case_sensitive_checkbox)
 
-        # Close search button
-        close_button = QPushButton("×")
-        close_button.setMaximumWidth(30)
-        close_button.clicked.connect(
-            lambda: self.search_panel.setVisible(False))
-        layout.addWidget(close_button)
+        self.close_search_button = QPushButton("×")
+        self.close_search_button.setFixedSize(28, 28)
+        self.close_search_button.setAccessibleName(self.tr("Close search"))
+        self.close_search_button.setToolTip(self.tr("Close search (Escape)"))
+        self.close_search_button.clicked.connect(self.hide_search)
+        layout.addWidget(self.close_search_button)
 
         return panel
 
@@ -210,40 +268,80 @@ class ConsoleWidget(QWidget):
         else:
             self.console_display.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
 
-    def _toggle_search(self):
-        """Toggle the search panel visibility."""
-        visible = not self.search_panel.isVisible()
-        self.search_panel.setVisible(visible)
-        if visible:
-            self.search_input.setFocus()
+    def show_search(self) -> None:
+        """Open the search panel and put the caret in the search box."""
+        self.search_panel.setVisible(True)
+        self.search_input.setFocus()
 
-    def _perform_search(self):
-        """Perform search in console output."""
-        # This will be connected to the presenter to perform actual search
-        pass
+    def hide_search(self) -> None:
+        """Close the search panel and give the focus back to the output."""
+        self.search_panel.setVisible(False)
+        self.console_display.setFocus()
 
-    def _search_previous(self):
-        """Navigate to previous search result."""
-        if self._last_search_matches and self._current_search_index > 0:
-            self._current_search_index -= 1
-            self._highlight_search_result()
+    def _toggle_search(self) -> None:
+        """Open the search panel, or close it if it is already open."""
+        # isVisibleTo() answers for this widget alone. isVisible() would answer
+        # False whenever the console window itself is not on the screen.
+        if self.search_panel.isVisibleTo(self):
+            self.hide_search()
+        else:
+            self.show_search()
 
-    def _search_next(self):
-        """Navigate to next search result."""
-        if self._last_search_matches and self._current_search_index < len(self._last_search_matches) - 1:
-            self._current_search_index += 1
-            self._highlight_search_result()
+    def keyPressEvent(self, event) -> None:
+        """Escape closes the search panel and returns to the output."""
+        if (event.key() == Qt.Key.Key_Escape
+                and self.search_panel.isVisibleTo(self)):
+            self.hide_search()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
-    def _highlight_search_result(self):
-        """Highlight the current search result."""
+    def _search_previous(self) -> None:
+        """Go to the previous match. Wrap to the last match at the start."""
+        if not self._last_search_matches:
+            return
+        self._current_search_index = (
+            self._current_search_index - 1) % len(self._last_search_matches)
+        self._highlight_search_result()
+
+    def _search_next(self) -> None:
+        """Go to the next match. Wrap to the first match at the end."""
+        if not self._last_search_matches:
+            return
+        self._current_search_index = (
+            self._current_search_index + 1) % len(self._last_search_matches)
+        self._highlight_search_result()
+
+    def _highlight_search_result(self) -> None:
+        """Select the line of the current match and scroll it into view."""
         if not self._last_search_matches:
             return
 
-        # Move cursor to the current match
-        cursor = self.console_display.textCursor()
-        # This is a simplified implementation - would need actual line-to-position mapping
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        item_index = self._last_search_matches[self._current_search_index]
+        if item_index < 0 or item_index >= len(self._item_block_numbers):
+            return
+
+        block = self.console_display.document().findBlockByNumber(
+            self._item_block_numbers[item_index])
+        if not block.isValid():
+            return
+
+        cursor = QTextCursor(block)
+        cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock,
+                            QTextCursor.MoveMode.KeepAnchor)
         self.console_display.setTextCursor(cursor)
+        self.console_display.ensureCursorVisible()
+        self._update_search_status()
+
+    def _update_search_status(self) -> None:
+        """Say which match of how many the user is looking at."""
+        total = len(self._last_search_matches)
+        if total == 0:
+            self.status_label.setText(self.tr("No matches found"))
+            return
+        position = self._current_search_index + 1
+        self.status_label.setText(
+            self.tr("Match {0} of {1}").format(position, total))
 
     def _export_output(self):
         """Export console output to file."""
@@ -271,14 +369,17 @@ class ConsoleWidget(QWidget):
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.console_display.setTextCursor(cursor)
 
-        # Set text color based on output type
+        # Remember where this item starts, before any text is inserted.
+        self._item_block_numbers.append(cursor.blockNumber())
+
+        # The colour says which stream the line came from. The [ERROR] prefix
+        # added by _format_output_item says the same thing in text, so the
+        # colour is never the only cue.
         char_format = QTextCharFormat()
         if item.output_type == 'stderr':
-            char_format.setForeground(
-                QColor("#f48771"))  # Light red for errors
+            char_format.setForeground(QColor(self.stderr_colour))
         else:
-            # Light gray for normal output
-            char_format.setForeground(QColor("#d4d4d4"))
+            char_format.setForeground(QColor(self.stdout_colour))
 
         cursor.insertText(formatted_text, char_format)
 
@@ -318,9 +419,20 @@ class ConsoleWidget(QWidget):
         scrollbar.setValue(scrollbar.maximum())
 
     def clear_display(self):
-        """Clear the console display."""
+        """Clear the console display and forget every recorded block."""
         self.console_display.clear()
-        self.status_label.setText("Console cleared")
+        self._item_block_numbers.clear()
+        self._last_search_matches = []
+        self._current_search_index = 0
+        self.status_label.setText(self.tr("Console cleared"))
+
+    def displayed_item_count(self) -> int:
+        """Return how many output items the display currently holds."""
+        return len(self._item_block_numbers)
+
+    def block_number_for_items(self) -> List[int]:
+        """Return the starting block number of every displayed item, in order."""
+        return list(self._item_block_numbers)
 
     def update_stats(self, stats: dict):
         """
@@ -353,10 +465,9 @@ class ConsoleWidget(QWidget):
         self.next_button.setEnabled(len(matches) > 1)
 
         if matches:
-            self.status_label.setText(f"Found {len(matches)} matches")
             self._highlight_search_result()
         else:
-            self.status_label.setText("No matches found")
+            self._update_search_status()
 
 
 class ConsoleView(BaseView):
