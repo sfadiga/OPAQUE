@@ -126,3 +126,40 @@ def test_accept_commits_before_closing(dialog):
     dialog.accept()
 
     assert dialog._presenter.model.count == 7
+
+
+from PySide6.QtWidgets import QDialogButtonBox
+
+
+def test_the_dialog_offers_restore_defaults(dialog):
+    button = dialog.button_box.button(
+        QDialogButtonBox.StandardButton.RestoreDefaults)
+    assert button is not None
+
+
+def test_restore_defaults_queues_the_field_defaults(dialog):
+    spin_box = _widget_of_type(dialog, QSpinBox)
+    spin_box.setValue(7)
+
+    dialog._restore_defaults()
+
+    assert dialog.pending_value("demo", "count") == 2
+    assert dialog.pending_value("demo", "label") == "hello"
+
+
+def test_restore_defaults_does_not_touch_the_model_until_apply(dialog):
+    spin_box = _widget_of_type(dialog, QSpinBox)
+    spin_box.setValue(7)
+
+    dialog._restore_defaults()
+
+    assert dialog._presenter.model.count == 2
+
+    dialog._apply_settings()
+
+    assert dialog._presenter.model.count == 2
+
+
+def test_restore_defaults_only_touches_settings_fields(dialog):
+    dialog._restore_defaults()
+    assert dialog.pending_value("demo", "hidden") is None

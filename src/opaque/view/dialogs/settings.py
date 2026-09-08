@@ -84,12 +84,16 @@ class SettingsDialog(QDialog):
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel |
-            QDialogButtonBox.StandardButton.Apply
+            QDialogButtonBox.StandardButton.Apply |
+            QDialogButtonBox.StandardButton.RestoreDefaults
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         self.button_box.button(QDialogButtonBox.StandardButton.Apply).clicked.connect(
             self._apply_settings)
+        self.button_box.button(
+            QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(
+                self._restore_defaults)
         layout.addWidget(self.button_box)
 
         # Set initial splitter sizes
@@ -158,6 +162,23 @@ class SettingsDialog(QDialog):
                 self.tr("These settings hold a value that is not allowed: ")
                 + ", ".join(rejected),
             )
+
+    def _restore_defaults(self) -> None:
+        """
+        Queue the declared default of every settings field.
+
+        The values are queued, not written, so the user can still press Cancel
+        after pressing Restore Defaults.
+        """
+        for feature_id, presenter in self.features.items():
+            fields = type(presenter.model).get_fields()
+            for name, field in fields.items():
+                if not getattr(field, 'is_setting', False):
+                    continue
+                self._record_pending(feature_id, name, field.default)
+
+        # Redraw the visible form so the widgets show the queued defaults.
+        self._on_group_selected()
 
     def _build_settings_cache(self) -> None:
         """Build a cache of all settings field labels for searching."""
