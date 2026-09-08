@@ -143,9 +143,15 @@ class AbstractModel(ABC, metaclass=ModelMeta):
     # ========== State Management ==========
 
     def mark_dirty(self) -> None:
-        """Mark model as having unsaved changes."""
+        """
+        Mark the model as having unsaved changes.
+
+        This sets a flag and nothing more. It used to notify every observer
+        with the literal field name "dirty", so one field write called every
+        presenter twice. Nothing in the framework or in the examples ever
+        read that notification. Ask is_dirty when you need the flag.
+        """
         self._dirty = True
-        self.notify("dirty", True)
 
     @property
     def is_dirty(self) -> bool:

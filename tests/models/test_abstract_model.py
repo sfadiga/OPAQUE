@@ -120,3 +120,54 @@ def test_a_write_before_super_init_still_notifies_nobody_and_does_not_raise():
     model = _Early()
     assert model.value == 4
     model.cleanup()
+
+
+def test_one_field_write_gives_exactly_one_notification(counter):
+    recorder = _Recorder()
+    counter.attach(recorder)
+
+    counter.count = 2
+
+    assert len(recorder.calls) == 1
+    assert recorder.calls[0][0] == "count"
+
+
+def test_no_notification_carries_the_literal_dirty(counter):
+    recorder = _Recorder()
+    counter.attach(recorder)
+
+    counter.count = 2
+    counter.label = "hello"
+
+    assert [call[0] for call in recorder.calls] == ["count", "label"]
+
+
+def test_a_field_write_still_marks_the_model_dirty(counter):
+    assert counter.is_dirty is False
+    counter.count = 2
+    assert counter.is_dirty is True
+
+
+def test_clear_dirty_clears_the_flag(counter):
+    counter.count = 2
+    counter.clear_dirty()
+    assert counter.is_dirty is False
+
+
+def test_writing_the_same_value_notifies_nobody(counter):
+    recorder = _Recorder()
+    counter.attach(recorder)
+
+    counter.count = 0
+
+    assert recorder.calls == []
+    assert counter.is_dirty is False
+
+
+def test_notify_still_reaches_observers_for_state_no_field_holds(counter):
+    recorder = _Recorder()
+    counter.attach(recorder)
+
+    counter.notify("error", "the file is gone")
+
+    assert recorder.calls == [("error", "the file is gone", None, counter)]
