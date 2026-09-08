@@ -11,6 +11,7 @@
 """
 
 
+import logging
 from typing import Optional, Dict
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
@@ -37,6 +38,8 @@ from opaque.presenters.app_presenter import ApplicationPresenter
 from opaque.presenters.notification_presenter import NotificationPresenter
 from opaque.models.app_model import ApplicationModel
 from opaque.view.app_view import ApplicationView
+
+logger = logging.getLogger(__name__)
 
 
 class BaseApplication(QMainWindow):
@@ -262,10 +265,14 @@ class BaseApplication(QMainWindow):
             if file_path:
                 name = self.workspace_service.save_workspace(file_path)
                 self.update_application_title(name)
-        except Exception as e:
-            print(e)
-            QMessageBox.critical(self, self.tr("Error Saving Workspace"), self.tr(
-                f"An error happened while saving workspace file. Details {e}"))
+        except Exception:
+            logger.exception("Failed to save the workspace file")
+            QMessageBox.critical(
+                self,
+                self.tr("Error Saving Workspace"),
+                self.tr("The workspace file could not be saved. "
+                        "See the log for details."),
+            )
 
     def load_workspace(self, file_path: Optional[str] = None) -> None:
         try:
@@ -279,10 +286,14 @@ class BaseApplication(QMainWindow):
             if file_path:
                 name = self.workspace_service.load_workspace(file_path)
                 self.update_application_title(name)
-        except Exception as e:
-            print(e)
-            QMessageBox.critical(self, self.tr("Error Loading Workspace"), self.tr(
-                f"An error happened while loading workspace file. Details {e}"))
+        except Exception:
+            logger.exception("Failed to load the workspace file")
+            QMessageBox.critical(
+                self,
+                self.tr("Error Loading Workspace"),
+                self.tr("The workspace file could not be loaded. "
+                        "See the log for details."),
+            )
 
     def show_settings_dialog(self) -> None:
         """
@@ -338,8 +349,8 @@ class BaseApplication(QMainWindow):
                     if file_path.lower().endswith('.lab'):
                         event.acceptProposedAction()
                         return
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("Failed to process the drag enter event")
         event.ignore()
 
     def dropEvent(self, event: QDropEvent):
@@ -358,6 +369,6 @@ class BaseApplication(QMainWindow):
                             self.update_application_title(name)
                         event.acceptProposedAction()
                         return
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("Failed to process the drop event")
         event.ignore()

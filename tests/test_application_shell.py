@@ -11,6 +11,9 @@ The import order below matters. Importing opaque.view.view before
 opaque.view.application raises a circular import error.
 """
 
+import logging
+from pathlib import Path
+
 import pytest
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QLabel, QWidget
@@ -178,3 +181,31 @@ def test_the_file_menu_actions_have_shortcuts(app_window):
     ]
     assert "" not in shortcuts
     assert len(shortcuts) == 4
+
+
+_UI_MODULES = [
+    "src/opaque/view/application.py",
+    "src/opaque/presenters/presenter.py",
+    "src/opaque/presenters/notification_presenter.py",
+    "src/opaque/presenters/console_presenter.py",
+    "src/opaque/view/widgets/closeable_tab_widget.py",
+]
+
+
+def test_the_shell_modules_have_a_logger():
+    import opaque.presenters.notification_presenter as notification_module
+    import opaque.view.application as application_module
+
+    assert isinstance(application_module.logger, logging.Logger)
+    assert isinstance(notification_module.logger, logging.Logger)
+
+
+def test_no_ui_module_reports_an_error_with_print():
+    root = Path(__file__).resolve().parents[1]
+    offenders = []
+    for relative in _UI_MODULES:
+        source = (root / relative).read_text(encoding="utf-8")
+        for number, line in enumerate(source.splitlines(), 1):
+            if line.strip().startswith("print("):
+                offenders.append(f"{relative}:{number}")
+    assert offenders == []

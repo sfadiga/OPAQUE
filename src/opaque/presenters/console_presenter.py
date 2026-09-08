@@ -5,6 +5,7 @@ Console presenter for coordinating console service, model, and view.
 Licensed under MIT License
 """
 
+import logging
 from typing import Dict, Any, TYPE_CHECKING
 from PySide6.QtWidgets import QMessageBox
 
@@ -16,6 +17,8 @@ from opaque.services.console_service import ConsoleService
 
 if TYPE_CHECKING:
     from opaque.view.application import BaseApplication
+
+logger = logging.getLogger(__name__)
 
 
 class ConsolePresenter(BasePresenter):
@@ -112,8 +115,8 @@ class ConsolePresenter(BasePresenter):
             # Add output to model (model will emit signal to update view)
             self.model.add_output_from_dict(output_dict)
             self._update_stats()
-        except Exception as e:
-            print(f"Error processing console output: {e}")
+        except Exception:
+            logger.exception("Failed to process console output")
 
     def _on_output_added(self, output_item: ConsoleOutputItem):
         """Handle when output is added to the model."""
@@ -178,8 +181,8 @@ class ConsolePresenter(BasePresenter):
             matches = self.model.search_output(search_text, case_sensitive)
 
             self.view.set_search_results(matches)
-        except Exception as e:
-            print(f"Error performing search: {e}")
+        except Exception:
+            logger.exception("Failed to perform the console search")
 
     def _update_filters(self):
         """Update output filters and refresh display."""
@@ -197,8 +200,8 @@ class ConsolePresenter(BasePresenter):
             # Refresh the display
             self._refresh_display()
             self._update_stats()
-        except Exception as e:
-            print(f"Error updating filters: {e}")
+        except Exception:
+            logger.exception("Failed to update the console filters")
 
     def _update_display(self):
         """Update display settings and refresh."""
@@ -211,8 +214,8 @@ class ConsolePresenter(BasePresenter):
 
             # Refresh display
             self._refresh_display()
-        except Exception as e:
-            print(f"Error updating display: {e}")
+        except Exception:
+            logger.exception("Failed to update the console display")
 
     def _refresh_display(self):
         """Refresh the console display with current filters."""
@@ -231,16 +234,16 @@ class ConsolePresenter(BasePresenter):
             # The match indices belong to the list that was just rebuilt.
             self._perform_search()
 
-        except Exception as e:
-            print(f"Error refreshing display: {e}")
+        except Exception:
+            logger.exception("Failed to refresh the console display")
 
     def _update_stats(self):
         """Update console statistics display."""
         try:
             stats = self.model.get_buffer_stats()
             self.view.update_stats(stats)
-        except Exception as e:
-            print(f"Error updating stats: {e}")
+        except Exception:
+            logger.exception("Failed to update the console statistics")
 
     def toggle_console_capture(self, enabled: bool):
         """
