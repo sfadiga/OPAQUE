@@ -14,13 +14,35 @@ from datetime import datetime
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QFrame, QScrollArea, QApplication, QGraphicsOpacityEffect
+    QLabel, QFrame, QScrollArea, QGraphicsOpacityEffect, QMessageBox
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation, QPoint, QSize, QRect
-from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QBrush, QPen
+from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
 
 from opaque.services.service import ServiceLocator
 from opaque.services.notification_service import NotificationService, Notification, NotificationLevel
+from opaque.view.theme import (
+    StatusColors,
+    StatusRole,
+    TypeScale,
+    muted_on_surface,
+    status_colors,
+)
+
+
+# A notification level says how bad the news is. A status role says how the
+# interface must show it. Two levels can share one role.
+_STATUS_BY_LEVEL = {
+    NotificationLevel.DEBUG: StatusRole.NEUTRAL,
+    NotificationLevel.INFO: StatusRole.INFO,
+    NotificationLevel.WARNING: StatusRole.WARNING,
+    NotificationLevel.ERROR: StatusRole.ERROR,
+    NotificationLevel.CRITICAL: StatusRole.ERROR,
+}
+
+
+def status_role_for_level(level: NotificationLevel) -> StatusRole:
+    """Return the status role that shows this notification level."""
+    return _STATUS_BY_LEVEL.get(level, StatusRole.NEUTRAL)
 
 
 class ToastWidget(QWidget):
@@ -29,9 +51,28 @@ class ToastWidget(QWidget):
     """
     closed = Signal(str)  # notification_id
 
+    # 24 pixels is the smallest close target that a pointer can hit reliably.
+    CLOSE_BUTTON_SIZE = 24
+
+    # How long each level stays on the screen, in milliseconds. A worse level
+    # needs more reading time. None means the toast never closes on its own.
+    DURATION_BY_LEVEL = {
+        NotificationLevel.DEBUG: 4000,
+        NotificationLevel.INFO: 4000,
+        NotificationLevel.WARNING: 7000,
+        NotificationLevel.ERROR: 10000,
+        NotificationLevel.CRITICAL: None,
+    }
+
+    @staticmethod
+    def duration_for_level(level: NotificationLevel) -> Optional[int]:
+        """Return the auto close delay in milliseconds, or None to never close."""
+        return ToastWidget.DURATION_BY_LEVEL.get(level, 4000)
+
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
+        self._closing = False
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint |
                             Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -39,10 +80,18 @@ class ToastWidget(QWidget):
 
         self._setup_ui()
         self._setup_animation()
-        
-        # Timer to auto-close
-        if not notification.persistent:
-            QTimer.singleShot(4000, self.close_toast)
+
+        # A persistent notification waits for the user. Every other level
+        # closes itself after a delay that matches how bad the news is.
+        self.duration = (
+            None if notification.persistent
+            else self.duration_for_level(notification.level)
+        )
+        self.close_timer = QTimer(self)
+        self.close_timer.setSingleShot(True)
+        self.close_timer.timeout.connect(self.close_toast)
+        if self.duration is not None:
+            self.close_timer.start(self.duration)
 
     def _setup_ui(self):
         layout = QHBoxLayout(self)
@@ -54,134 +103,188 @@ class ToastWidget(QWidget):
         
         container_layout = QVBoxLayout(self.container)
         
-        # Title row
-        title_layout = QHBoxLayout()
-        level_label = QLabel(self.notification.level.value.upper())
-        level_label.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        # Set level color
         colors = self._get_level_colors()
-        level_label.setStyleSheet(f"color: {colors['text']};")
-        
-        title_label = QLabel(self.notification.title)
-        title_label.setFont(QFont("Arial", 9, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {colors['text']};")
-        
-        title_layout.addWidget(level_label)
-        title_layout.addWidget(title_label)
+
+        title_layout = QHBoxLayout()
+
+        self.level_label = QLabel(self.notification.level.value.upper())
+        self.level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+        self.level_label.setStyleSheet(f"color: {colors.foreground};")
+
+        self.title_label = QLabel(self.notification.title)
+        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+        self.title_label.setStyleSheet(f"color: {colors.foreground};")
+
+        title_layout.addWidget(self.level_label)
+        title_layout.addWidget(self.title_label)
         title_layout.addStretch()
-        
-        close_btn = QPushButton("×")
-        close_btn.setFixedSize(20, 20)
-        close_btn.setFlat(True)
-        close_btn.setStyleSheet(f"color: {colors['text']}; font-weight: bold;")
-        close_btn.clicked.connect(self.close_toast)
-        title_layout.addWidget(close_btn)
-        
+
+        self.close_button = QPushButton("×")
+        self.close_button.setFixedSize(
+            self.CLOSE_BUTTON_SIZE, self.CLOSE_BUTTON_SIZE)
+        self.close_button.setFlat(True)
+        self.close_button.setAccessibleName(self.tr("Close notification"))
+        self.close_button.setToolTip(self.tr("Close this notification"))
+        self.close_button.setStyleSheet(
+            f"color: {colors.foreground}; font-weight: bold;")
+        self.close_button.clicked.connect(self.close_toast)
+        title_layout.addWidget(self.close_button)
+
         container_layout.addLayout(title_layout)
-        
-        # Message
-        msg_label = QLabel(self.notification.message)
-        msg_label.setWordWrap(True)
-        msg_label.setStyleSheet(f"color: {colors['text']};")
-        container_layout.addWidget(msg_label)
+
+        self.message_label = QLabel(self.notification.message)
+        self.message_label.setWordWrap(True)
+        self.message_label.setFont(TypeScale.body())
+        self.message_label.setStyleSheet(f"color: {colors.foreground};")
+        container_layout.addWidget(self.message_label)
         
         layout.addWidget(self.container)
 
-    def _get_level_colors(self):
-        level = self.notification.level
-        if level == NotificationLevel.ERROR or level == NotificationLevel.CRITICAL:
-            return {"bg": "#dc3545", "text": "white", "border": "#bd2130"}
-        elif level == NotificationLevel.WARNING:
-            return {"bg": "#ffc107", "text": "black", "border": "#d39e00"}
-        elif level == NotificationLevel.INFO:
-            return {"bg": "#0dcaf0", "text": "black", "border": "#0aa2c0"}
-        else: # DEBUG
-            return {"bg": "#6c757d", "text": "white", "border": "#545b62"}
+    def _get_level_colors(self) -> StatusColors:
+        """Return the status colour triple for this notification level."""
+        return status_colors(status_role_for_level(self.notification.level))
 
-    def _get_stylesheet(self):
+    def _get_stylesheet(self) -> str:
+        """Return the container style sheet for this notification level."""
         colors = self._get_level_colors()
         return f"""
             QFrame#ToastContainer {{
-                background-color: {colors['bg']};
-                border: 1px solid {colors['border']};
+                background-color: {colors.background};
+                border: 1px solid {colors.border};
                 border-radius: 4px;
             }}
         """
 
-    def _setup_animation(self):
+    def _setup_animation(self) -> None:
+        """Build the fade animation. It runs forward to open, backward to close."""
         self.opacity_effect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(self.opacity_effect)
-        
+
         self.anim = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.anim.setDuration(300)
         self.anim.setStartValue(0.0)
         self.anim.setEndValue(1.0)
+        # Connect once, in the constructor. A connection made inside
+        # close_toast would be added again on every call.
+        self.anim.finished.connect(self._on_fade_finished)
         self.anim.start()
 
-    def close_toast(self):
+    def close_toast(self) -> None:
+        """
+        Start the fade out. The closed signal comes when the fade has finished.
+
+        The old code reported the close at once, so the presenter deleted the
+        widget while the animation was still running and the fade out never
+        appeared on the screen.
+        """
+        if self._closing:
+            return
+        self._closing = True
+        self.close_timer.stop()
+        # Stop before restarting. Reversing a running animation without
+        # stopping it first can crash on a widget destroyed right after.
+        self.anim.stop()
         self.anim.setDirection(QPropertyAnimation.Direction.Backward)
-        self.anim.finished.connect(self.close)
         self.anim.start()
+
+    def _on_fade_finished(self) -> None:
+        """Report the close after the fade out. Do nothing after the fade in."""
+        if not self._closing:
+            return
+        self.close()
         self.closed.emit(self.notification.id)
+
+    def keyPressEvent(self, event) -> None:
+        """Escape closes the toast when the toast holds the keyboard focus."""
+        if event.key() == Qt.Key.Key_Escape:
+            self.close_toast()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def pause_auto_close(self) -> None:
+        """Stop the auto close delay. The user is reading the toast."""
+        self.close_timer.stop()
+
+    def resume_auto_close(self) -> None:
+        """Start the auto close delay again, from the beginning."""
+        if self.duration is not None and not self._closing:
+            self.close_timer.start(self.duration)
+
+    def enterEvent(self, event) -> None:
+        """The pointer is over the toast, so hold it on the screen."""
+        self.pause_auto_close()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        """The pointer has left the toast, so let it close again."""
+        self.resume_auto_close()
+        super().leaveEvent(event)
 
 
 class NotificationListItem(QFrame):
-    """Simplified item for the notification list."""
-    
+    """One notification row inside the notification dock."""
+
     removed = Signal(str)
 
-    def __init__(self, notification: Notification, parent=None):
+    # 24 pixels is the smallest close target that a pointer can hit reliably.
+    CLOSE_BUTTON_SIZE = 24
+
+    def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
+        self.status = status_colors(status_role_for_level(notification.level))
+        self.timestamp_colour = muted_on_surface()
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         self.setFrameStyle(QFrame.Shape.StyledPanel)
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
         layout.setContentsMargins(8, 8, 8, 8)
-        
-        # Header
+
         header = QHBoxLayout()
-        
-        # Color indicator based on level
-        self.indicator = QFrame()
-        self.indicator.setFixedSize(8, 8)
-        self.indicator.setStyleSheet(f"background-color: {self._get_color()}; border-radius: 4px;")
-        header.addWidget(self.indicator)
-        
-        title = QLabel(self.notification.title)
-        font = QFont()
-        font.setBold(True)
-        title.setFont(font)
-        header.addWidget(title)
-        
+
+        # The level is written as text, not only painted as a colour. Colour
+        # alone is not readable for a user with a colour vision deficiency.
+        self.level_label = QLabel(self.notification.level.value.upper())
+        self.level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+        self.level_label.setStyleSheet(
+            f"color: {self.status.foreground};"
+            f"background-color: {self.status.background};"
+            f"border-radius: 3px; padding: 1px 5px;"
+        )
+        header.addWidget(self.level_label)
+
+        self.title_label = QLabel(self.notification.title)
+        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+        header.addWidget(self.title_label)
+
         header.addStretch()
-        
-        time_label = QLabel(self.notification.timestamp.strftime("%H:%M:%S"))
-        time_label.setStyleSheet("color: gray; font-size: 10px;")
-        header.addWidget(time_label)
-        
-        close_btn = QPushButton("×")
-        close_btn.setFixedSize(16, 16)
-        close_btn.setFlat(True)
-        close_btn.setStyleSheet("QPushButton { border: none; font-weight: bold; color: gray; } QPushButton:hover { color: red; }")
-        close_btn.clicked.connect(lambda: self.removed.emit(self.notification.id))
-        header.addWidget(close_btn)
-        
+
+        self.time_label = QLabel(
+            self.notification.timestamp.strftime("%H:%M:%S"))
+        self.time_label.setFont(TypeScale.caption())
+        self.time_label.setStyleSheet(f"color: {self.timestamp_colour};")
+        header.addWidget(self.time_label)
+
+        self.close_button = QPushButton("×")
+        self.close_button.setFixedSize(
+            self.CLOSE_BUTTON_SIZE, self.CLOSE_BUTTON_SIZE)
+        self.close_button.setFlat(True)
+        self.close_button.setAccessibleName(self.tr("Dismiss notification"))
+        self.close_button.setToolTip(self.tr("Dismiss this notification"))
+        self.close_button.clicked.connect(
+            lambda: self.removed.emit(self.notification.id))
+        header.addWidget(self.close_button)
+
         layout.addLayout(header)
-        
-        # Message
-        msg = QLabel(self.notification.message)
-        msg.setWordWrap(True)
-        # Use a slightly smaller font for message
-        f = msg.font()
-        f.setPointSize(f.pointSize() - 1)
-        msg.setFont(f)
-        layout.addWidget(msg)
-        
-        # Style
-        # Use theme-aware border and transparent background to respect app theme
+
+        self.message_label = QLabel(self.notification.message)
+        self.message_label.setWordWrap(True)
+        self.message_label.setFont(TypeScale.body())
+        layout.addWidget(self.message_label)
+
         self.setStyleSheet("""
             NotificationListItem {
                 background-color: transparent;
@@ -189,38 +292,32 @@ class NotificationListItem(QFrame):
             }
         """)
 
-    def _get_color(self):
-        level = self.notification.level
-        if level in (NotificationLevel.ERROR, NotificationLevel.CRITICAL): return "#dc3545"
-        if level == NotificationLevel.WARNING: return "#ffc107"
-        if level == NotificationLevel.INFO: return "#0dcaf0"
-        return "#6c757d"
-
 
 class SimplifiedNotificationList(QWidget):
     """
     A simpler list widget for notifications.
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
+        self.items: Dict[str, NotificationListItem] = {}
         self._setup_ui()
-        self.items = {}
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Header with Clear All
         header = QHBoxLayout()
-        title = QLabel("Notifications")
-        title.setStyleSheet("font-weight: bold; padding: 4px;")
-        header.addWidget(title)
+        self.title_label = QLabel(self.tr("Notifications"))
+        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+        header.addWidget(self.title_label)
         header.addStretch()
-        
-        clear_btn = QPushButton("Clear All")
-        clear_btn.clicked.connect(self._clear_all)
-        header.addWidget(clear_btn)
+
+        self.clear_button = QPushButton(self.tr("Clear All"))
+        self.clear_button.setToolTip(self.tr("Remove every notification"))
+        self.clear_button.setEnabled(False)
+        self.clear_button.clicked.connect(self._clear_all)
+        header.addWidget(self.clear_button)
         layout.addLayout(header)
         
         # Scroll Area
@@ -237,23 +334,33 @@ class SimplifiedNotificationList(QWidget):
         self.scroll_area.setWidget(self.container)
         layout.addWidget(self.scroll_area)
 
-    def add_notification(self, notification: Notification):
+    def add_notification(self, notification: Notification) -> None:
+        """Add one notification row at the top of the list."""
         item = NotificationListItem(notification)
         item.removed.connect(self._remove_item)
         self.container_layout.insertWidget(0, item)
         self.items[notification.id] = item
+        self._update_clear_button()
 
-    def remove_notification(self, notification_id: str):
+    def remove_notification(self, notification_id: str) -> None:
+        """Remove one notification row."""
         if notification_id in self.items:
             item = self.items.pop(notification_id)
             item.setParent(None)
             item.deleteLater()
+            self._update_clear_button()
 
-    def clear(self):
+    def clear(self) -> None:
+        """Remove every notification row."""
         for item in self.items.values():
             item.setParent(None)
             item.deleteLater()
         self.items.clear()
+        self._update_clear_button()
+
+    def _update_clear_button(self) -> None:
+        """Enable Clear All only when there is something to clear."""
+        self.clear_button.setEnabled(bool(self.items))
 
     def _remove_item(self, notification_id: str):
         # Notify service to remove
@@ -261,7 +368,28 @@ class SimplifiedNotificationList(QWidget):
         if service:
             service.remove_notification(notification_id)
 
-    def _clear_all(self):
+    def _confirm_clear_all(self) -> bool:
+        """
+        Ask the user before the whole notification history is destroyed.
+
+        A test replaces this method, so the question box never opens in a test
+        run. Keep the question in this method and nothing else.
+        """
+        answer = QMessageBox.question(
+            self,
+            self.tr("Clear all notifications?"),
+            self.tr("All notifications will be removed. This cannot be undone."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _clear_all(self) -> None:
+        """Clear every notification, after the user confirms it."""
+        if not self.items:
+            return
+        if not self._confirm_clear_all():
+            return
         service = ServiceLocator.get_service("notification")
         if service:
             service.clear_notifications()
