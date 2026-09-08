@@ -62,6 +62,7 @@ def test_the_version_falls_back_when_the_metadata_is_missing():
     locator and the Qt metaclasses in this suite hold references to the
     originals.
     """
+    import os
     import subprocess
     import sys
     import textwrap
@@ -80,11 +81,19 @@ def test_the_version_falls_back_when_the_metadata_is_missing():
         print(opaque.__version__)
         """
     )
+    # The child does not inherit `pythonpath` from pyproject.toml, and on a
+    # fresh clone with no install there is no path file to put `src` on its
+    # path either. Hand the parent's path to the child, so this test does
+    # not quietly require an editable install.
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = os.pathsep.join(path for path in sys.path if path)
+
     result = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True,
         text=True,
         check=True,
+        env=environment,
     )
     assert result.stdout.strip() == "0.0.0+unknown"
     assert result.stdout.strip().count(".") >= 2
