@@ -149,6 +149,7 @@ class BaseApplication(QMainWindow):
         self._init_application_settings()
 
         self._setup_file_menu()
+        self._setup_view_menu()
         self._setup_help_menu()
 
     def _wire_shell_signals(self) -> None:
@@ -213,6 +214,18 @@ class BaseApplication(QMainWindow):
         exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.triggered.connect(self.close)
         self.file_menu.addAction(exit_action)
+
+    def _setup_view_menu(self) -> None:
+        """Build the View menu. It carries the MDI view mode."""
+        self.view_menu = self.menuBar().addMenu(self.tr("&View"))
+
+        self.tabbed_action = QAction(self.tr("Tabbed Windows"), self)
+        self.tabbed_action.setCheckable(True)
+        self.tabbed_action.setChecked(False)
+        self.tabbed_action.setToolTip(
+            self.tr("Show the feature windows as tabs"))
+        self.tabbed_action.toggled.connect(self.mdi_area.set_tabbed)
+        self.view_menu.addAction(self.tabbed_action)
 
     def _setup_help_menu(self) -> None:
         """Build the Help menu. F1 opens the keyboard map."""

@@ -31,6 +31,24 @@ class OpaqueMdiArea(QMdiArea):
 
     subWindowActivated = Signal(QMdiSubWindow)
 
+    def is_tabbed(self) -> bool:
+        """Return True when the windows are shown as tabs."""
+        return self.viewMode() == QMdiArea.ViewMode.TabbedView
+
+    def set_tabbed(self, tabbed: bool) -> None:
+        """
+        Show the windows as tabs, or as floating sub windows.
+
+        Tabs suit a small screen, where a floating window wastes space and
+        hides the window behind it. The choice belongs to the user.
+        """
+        if tabbed:
+            self.setViewMode(QMdiArea.ViewMode.TabbedView)
+            self.setTabsClosable(False)
+            self.setTabsMovable(True)
+        else:
+            self.setViewMode(QMdiArea.ViewMode.SubWindowView)
+
 
 class OpaqueMdiSubWindow(QMdiSubWindow):
     """ A MDI sub window, that hide/show on close and load subwidget geometry"""

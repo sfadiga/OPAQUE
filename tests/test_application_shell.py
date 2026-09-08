@@ -344,3 +344,37 @@ def test_the_keyboard_map_lists_the_file_menu_keys(app_window, qtbot):
     ]
     assert "Save Workspace" in labels
     assert "Keyboard Shortcuts" in labels
+
+
+def test_the_mdi_area_starts_in_the_sub_window_mode(app_window):
+    assert not app_window.mdi_area.is_tabbed()
+
+
+def test_the_mdi_area_can_switch_to_tabs(app_window):
+    app_window.mdi_area.set_tabbed(True)
+    assert app_window.mdi_area.is_tabbed()
+    app_window.mdi_area.set_tabbed(False)
+    assert not app_window.mdi_area.is_tabbed()
+
+
+def test_the_view_menu_offers_the_tabbed_mode(app_window):
+    labels = [
+        action.text().replace("&", "")
+        for action in app_window.view_menu.actions()
+        if not action.isSeparator()
+    ]
+    assert "Tabbed Windows" in labels
+
+
+def test_the_tabbed_action_is_checkable_and_follows_the_area(app_window):
+    action = next(
+        action for action in app_window.view_menu.actions()
+        if action.text().replace("&", "") == "Tabbed Windows"
+    )
+    assert action.isCheckable()
+
+    action.setChecked(True)
+    assert app_window.mdi_area.is_tabbed()
+
+    action.setChecked(False)
+    assert not app_window.mdi_area.is_tabbed()
