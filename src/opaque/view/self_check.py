@@ -26,6 +26,12 @@ logger = logging.getLogger(__name__)
 # The smallest square a pointer can hit reliably.
 MINIMUM_TARGET = 24
 
+# Qt builds these buttons itself, inside QTableWidget and QToolBar, the same
+# way it builds a tab close button. The application never constructs them and
+# cannot reach them to give them a name, so they are excluded on the same
+# ground as a tab close button.
+_PLATFORM_INTERNAL_BUTTON_CLASSES = ("QTableCornerButton", "QToolBarExtension")
+
 
 def _describe(widget: QWidget) -> str:
     """Return a name a developer can find in the source."""
@@ -43,6 +49,11 @@ def _has_a_readable_label(button: QAbstractButton) -> bool:
     return bool(button.accessibleName().strip())
 
 
+def _is_a_platform_internal_button(button: QAbstractButton) -> bool:
+    """A button Qt builds for its own bookkeeping, not one the framework owns."""
+    return button.metaObject().className() in _PLATFORM_INTERNAL_BUTTON_CLASSES
+
+
 def check_interface(root: QWidget) -> List[str]:
     """
     Walk a widget tree and report every accessibility problem found.
@@ -57,7 +68,11 @@ def check_interface(root: QWidget) -> List[str]:
     problems: List[str] = []
 
     for button in root.findChildren(QAbstractButton):
+        # A tab close button is sized by the platform style, not by
+        # application code.
         if isinstance(button.parent(), QTabBar):
+            continue
+        if _is_a_platform_internal_button(button):
             continue
 
         cap = button.maximumSize()

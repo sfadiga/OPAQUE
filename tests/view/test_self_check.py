@@ -1,7 +1,13 @@
 # This Python file uses the following encoding: utf-8
 """Tests for the debug build interface self check."""
 
-from PySide6.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from opaque.view.self_check import MINIMUM_TARGET, check_interface
 
@@ -55,3 +61,9 @@ def test_every_problem_names_the_widget_class(qtbot, light_palette_app):
     host = _host(qtbot)
     host.layout().addWidget(QLineEdit(host))
     assert "QLineEdit" in check_interface(host)[0]
+
+
+def test_a_platform_internal_button_is_not_reported(qtbot, light_palette_app):
+    host = _host(qtbot)
+    host.layout().addWidget(QTableWidget(2, 2, host))
+    assert check_interface(host) == []

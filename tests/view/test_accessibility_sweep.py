@@ -15,6 +15,11 @@ from opaque.view.dialogs.version_info import (
     VersionInfoDialog,
     VersionStatusWidget,
 )
+from opaque.view.self_check import (
+    MINIMUM_TARGET,
+    _has_a_readable_label,
+    _is_a_platform_internal_button,
+)
 from opaque.view.widgets.closeable_tab_widget import CloseableTabWidget
 from opaque.view.widgets.color_picker import ColorPicker
 from opaque.view.widgets.console_widget import ConsoleWidget
@@ -23,9 +28,6 @@ from opaque.view.widgets.notification_widget import (
     SimplifiedNotificationList,
     ToastWidget,
 )
-
-# The smallest square a pointer can hit reliably.
-MINIMUM_TARGET = 24
 
 
 def _every_widget(qtbot, make_notification):
@@ -69,32 +71,6 @@ def _every_widget(qtbot, make_notification):
 def _is_a_tab_bar_button(button) -> bool:
     """A tab close button is sized by the platform style, not by this code."""
     return isinstance(button.parent(), QTabBar)
-
-
-# Qt builds these buttons itself, inside QTableWidget and QToolBar, the same
-# way it builds a tab close button. The application never constructs them and
-# cannot reach them to give them a name, so they are excluded on the same
-# ground as a tab close button.
-_PLATFORM_INTERNAL_BUTTON_CLASSES = ("QTableCornerButton", "QToolBarExtension")
-
-
-def _is_a_platform_internal_button(button) -> bool:
-    """A button Qt builds for its own bookkeeping, not one the framework owns."""
-    return button.metaObject().className() in _PLATFORM_INTERNAL_BUTTON_CLASSES
-
-
-def _has_a_readable_label(button) -> bool:
-    """
-    Return True when a screen reader can announce this button.
-
-    A label of two or more characters with at least one letter or digit is
-    enough. A symbol such as "x" or "..." is not, so those buttons must carry
-    an accessible name.
-    """
-    text = button.text().replace("&", "").strip()
-    if len(text) >= 2 and any(character.isalnum() for character in text):
-        return True
-    return bool(button.accessibleName().strip())
 
 
 def test_no_button_is_capped_below_the_minimum_target(
