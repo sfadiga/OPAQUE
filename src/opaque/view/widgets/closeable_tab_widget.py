@@ -92,6 +92,7 @@ class CloseableTabWidget(QWidget):
         self._tab_counter = 0
         self._current_widget = None
         self._removing_tab = False  # Flag to prevent dialog during tab removal
+        self._adding_tab = False    # Flag to stop add_tab calling itself
 
         # Validate factory/type parameters
         if not widget_factory and not widget_type:
@@ -332,7 +333,7 @@ class CloseableTabWidget(QWidget):
     def _on_tab_changed(self, index: int):
         """Handle tab change events."""
         if self.is_add_tab(index) and not self._removing_tab:
-            self._show_add_tab_dialog()
+            self._request_new_tab()
             return
 
         self._update_current_widget()
@@ -362,40 +363,31 @@ class CloseableTabWidget(QWidget):
             if self.rename_tab(index, name):
                 break
 
-    def _show_add_tab_dialog(self):
-        """Show dialog to add a new tab with custom name."""
-        name, ok = QInputDialog.getText(
-            self,
-            'Add New Tab',
-            'Enter tab name:',
-            text=f"{self._default_tab_name} {self._tab_counter + 1}"
-        )
+    def _request_new_tab(self) -> None:
+        """
+        Add a tab because the user chose the add tab.
 
-        if not ok:
-            # Switch back to previous tab
-            self._update_current_widget()
+        No dialog opens here. A modal dialog started from currentChanged runs
+        a nested event loop inside a signal handler, and the tab bar is left
+        half changed behind it. The tab is created at once with a free name.
+        Double click the tab to rename it.
+        """
+        if self._adding_tab:
             return
+        self._adding_tab = True
+        try:
+            self.add_tab(self._next_free_tab_name())
+        finally:
+            self._adding_tab = False
 
-        name = name.strip()
-        if not name:
-            QMessageBox.warning(
-                self,
-                "Invalid Name",
-                "Tab name cannot be empty."
-            )
-            self._update_current_widget()
-            return
-
-        if not self._is_tab_name_unique(name):
-            QMessageBox.warning(
-                self,
-                "Duplicate Name",
-                f"A tab with the name '{name}' already exists. Please choose a different name."
-            )
-            self._update_current_widget()
-            return
-
-        self.add_tab(name)
+    def _next_free_tab_name(self) -> str:
+        """Return a default tab name that no other tab is using."""
+        number = self._tab_counter + 1
+        name = f"{self._default_tab_name} {number}"
+        while not self._is_tab_name_unique(name):
+            number += 1
+            name = f"{self._default_tab_name} {number}"
+        return name
 
     # Public API methods
 
