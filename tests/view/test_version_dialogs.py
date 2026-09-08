@@ -3,7 +3,14 @@
 
 from pathlib import Path
 
-from opaque.view.dialogs.version_info import AboutDialog, VersionInfoDialog
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QAbstractButton
+
+from opaque.view.dialogs.version_info import (
+    AboutDialog,
+    VersionInfoDialog,
+    VersionStatusWidget,
+)
 from opaque.view.theme import TypeScale, contrast_ratio, surface
 from opaque.view.theme.contrast import TEXT_CONTRAST_MINIMUM
 
@@ -42,3 +49,30 @@ def test_no_dialog_hardcodes_a_grey_or_a_font_family():
     assert "#666666" not in source
     assert "rgba(0, 0, 0" not in source
     assert 'QFont("Courier"' not in source
+
+
+def test_the_version_status_widget_is_a_button(qtbot, light_palette_app):
+    widget = VersionStatusWidget({"version": "1.0"})
+    qtbot.addWidget(widget)
+    assert isinstance(widget, QAbstractButton)
+
+
+def test_the_version_status_widget_can_take_the_keyboard_focus(
+        qtbot, light_palette_app):
+    widget = VersionStatusWidget({"version": "1.0"})
+    qtbot.addWidget(widget)
+    assert widget.focusPolicy() != Qt.FocusPolicy.NoFocus
+
+
+def test_the_version_status_widget_is_tall_enough(qtbot, light_palette_app):
+    widget = VersionStatusWidget({"version": "1.0"})
+    qtbot.addWidget(widget)
+    assert widget.minimumHeight() >= 24
+
+
+def test_the_version_status_widget_has_an_accessible_name(
+        qtbot, light_palette_app):
+    widget = VersionStatusWidget({"version": "1.0"})
+    qtbot.addWidget(widget)
+    assert widget.accessibleName() != ""
+    assert "1.0" in widget.text()

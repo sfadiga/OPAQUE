@@ -23,6 +23,7 @@ from PySide6.QtCore import Qt
 from opaque.view.widgets.mdi_window import OpaqueMdiArea
 from opaque.view.widgets.toolbar import OpaqueMainToolbar
 from opaque.view.dialogs.settings import SettingsDialog
+from opaque.view.dialogs.keyboard_map import KeyboardMapDialog
 from opaque.presenters.presenter import BasePresenter
 from opaque.services.service import ServiceLocator
 from opaque.models.configuration import DefaultApplicationConfiguration
@@ -143,6 +144,7 @@ class BaseApplication(QMainWindow):
         self._init_application_settings()
 
         self._setup_file_menu()
+        self._setup_help_menu()
 
     def _wire_shell_signals(self) -> None:
         """
@@ -206,6 +208,23 @@ class BaseApplication(QMainWindow):
         exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.triggered.connect(self.close)
         self.file_menu.addAction(exit_action)
+
+    def _setup_help_menu(self) -> None:
+        """Build the Help menu. F1 opens the keyboard map."""
+        self.help_menu = self.menuBar().addMenu(self.tr("&Help"))
+
+        keyboard_map_action = QAction(self.tr("Keyboard Shortcuts"), self)
+        keyboard_map_action.setShortcut(QKeySequence.StandardKey.HelpContents)
+        keyboard_map_action.triggered.connect(self.show_keyboard_map)
+        self.help_menu.addAction(keyboard_map_action)
+
+    def build_keyboard_map_dialog(self) -> KeyboardMapDialog:
+        """Build the keyboard map dialog for this window."""
+        return KeyboardMapDialog(self, parent=self)
+
+    def show_keyboard_map(self) -> None:
+        """Show every keyboard shortcut this application answers to."""
+        self.build_keyboard_map_dialog().exec()
 
     @staticmethod
     def build_window_title(

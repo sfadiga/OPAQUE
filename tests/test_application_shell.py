@@ -316,3 +316,31 @@ def test_the_notification_count_reaches_the_toolbar(app_window, monkeypatch):
     model.notification_count_changed.emit(7)
 
     assert seen == [7]
+
+
+def test_the_help_menu_has_a_keyboard_map_action(app_window):
+    labels = [
+        action.text().replace("&", "")
+        for action in app_window.help_menu.actions()
+        if not action.isSeparator()
+    ]
+    assert "Keyboard Shortcuts" in labels
+
+
+def test_the_keyboard_map_uses_the_help_key(app_window):
+    action = next(
+        action for action in app_window.help_menu.actions()
+        if action.text().replace("&", "") == "Keyboard Shortcuts"
+    )
+    assert action.shortcut().toString() == "F1"
+
+
+def test_the_keyboard_map_lists_the_file_menu_keys(app_window, qtbot):
+    dialog = app_window.build_keyboard_map_dialog()
+    qtbot.addWidget(dialog)
+    labels = [
+        dialog.table.item(row, 0).text()
+        for row in range(dialog.table.rowCount())
+    ]
+    assert "Save Workspace" in labels
+    assert "Keyboard Shortcuts" in labels
