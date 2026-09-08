@@ -92,3 +92,41 @@ def test_console_text_passes_contrast_on_a_dark_theme(qtbot, dark_palette_app):
         widget.stdout_colour, widget.background_colour) >= TEXT_CONTRAST_MINIMUM
     assert contrast_ratio(
         widget.stderr_colour, widget.background_colour) >= TEXT_CONTRAST_MINIMUM
+
+
+def test_search_is_requested_when_the_user_presses_return(
+        qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    with qtbot.waitSignal(widget.search_requested, timeout=1000):
+        widget.search_input.returnPressed.emit()
+
+
+def test_highlighting_selects_the_matching_line(qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha", "beta", "gamma"])
+    widget.set_search_results([1])
+    assert widget.console_display.textCursor().selectedText() == "beta"
+
+
+def test_highlighting_a_later_match_moves_the_cursor_down(
+        qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha", "beta", "gamma"])
+    widget.set_search_results([0, 2])
+    first = widget.console_display.textCursor().blockNumber()
+    widget._search_next()
+    second = widget.console_display.textCursor().blockNumber()
+    assert second > first
+
+
+def test_no_matches_leaves_the_cursor_alone(qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha", "beta"])
+    before = widget.console_display.textCursor().position()
+    widget.set_search_results([])
+    assert widget.console_display.textCursor().position() == before
+    assert widget.status_label.text() == "No matches found"
+
+
+def test_the_status_shows_the_match_position(qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha", "beta", "gamma"])
+    widget.set_search_results([0, 1, 2])
+    assert widget.status_label.text() == "Match 1 of 3"

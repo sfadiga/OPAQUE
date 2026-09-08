@@ -33,6 +33,7 @@ class ConsoleWidget(QWidget):
     # Signals
     clear_requested = Signal()
     export_requested = Signal(str)  # file path
+    search_requested = Signal()
 
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -185,7 +186,7 @@ class ConsoleWidget(QWidget):
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Enter search text...")
-        self.search_input.returnPressed.connect(self._perform_search)
+        self.search_input.returnPressed.connect(self.search_requested.emit)
         layout.addWidget(self.search_input)
 
         # Search navigation buttons
@@ -243,11 +244,6 @@ class ConsoleWidget(QWidget):
         if visible:
             self.search_input.setFocus()
 
-    def _perform_search(self):
-        """Perform search in console output."""
-        # This will be connected to the presenter to perform actual search
-        pass
-
     def _search_previous(self):
         """Navigate to previous search result."""
         if self._last_search_matches and self._current_search_index > 0:
@@ -260,16 +256,36 @@ class ConsoleWidget(QWidget):
             self._current_search_index += 1
             self._highlight_search_result()
 
-    def _highlight_search_result(self):
-        """Highlight the current search result."""
+    def _highlight_search_result(self) -> None:
+        """Select the line of the current match and scroll it into view."""
         if not self._last_search_matches:
             return
 
-        # Move cursor to the current match
-        cursor = self.console_display.textCursor()
-        # This is a simplified implementation - would need actual line-to-position mapping
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        item_index = self._last_search_matches[self._current_search_index]
+        if item_index < 0 or item_index >= len(self._item_block_numbers):
+            return
+
+        block = self.console_display.document().findBlockByNumber(
+            self._item_block_numbers[item_index])
+        if not block.isValid():
+            return
+
+        cursor = QTextCursor(block)
+        cursor.movePosition(QTextCursor.MoveOperation.EndOfBlock,
+                            QTextCursor.MoveMode.KeepAnchor)
         self.console_display.setTextCursor(cursor)
+        self.console_display.ensureCursorVisible()
+        self._update_search_status()
+
+    def _update_search_status(self) -> None:
+        """Say which match of how many the user is looking at."""
+        total = len(self._last_search_matches)
+        if total == 0:
+            self.status_label.setText(self.tr("No matches found"))
+            return
+        position = self._current_search_index + 1
+        self.status_label.setText(
+            self.tr("Match {0} of {1}").format(position, total))
 
     def _export_output(self):
         """Export console output to file."""
@@ -393,10 +409,9 @@ class ConsoleWidget(QWidget):
         self.next_button.setEnabled(len(matches) > 1)
 
         if matches:
-            self.status_label.setText(f"Found {len(matches)} matches")
             self._highlight_search_result()
         else:
-            self.status_label.setText("No matches found")
+            self._update_search_status()
 
 
 class ConsoleView(BaseView):
