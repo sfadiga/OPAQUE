@@ -9,13 +9,18 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Any, Optional, TYPE_CHECKING
 
-from opaque.view.view import BaseView
 from opaque.models.model import BaseModel
 
 if TYPE_CHECKING:
+    # BaseView is only used as a type annotation in this file. Importing it
+    # at module level closes a cycle: view.py -> widgets -> toolbar.py ->
+    # presenter.py, which then re-imports view.py before BaseView exists.
+    from opaque.view.view import BaseView
     from opaque.view.application import BaseApplication
 
 
