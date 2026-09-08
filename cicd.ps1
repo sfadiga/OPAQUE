@@ -33,16 +33,32 @@ function Show-Usage {
     Write-Host ""
 }
 
+# PowerShell returns 0 from a script that never calls `exit`, whatever the
+# native commands inside it did. Every branch that runs a tool therefore
+# records its exit code, and the script ends by returning it.
+$exitCode = 0
+
 switch ($Task) {
-    "setup" { uv sync --all-extras }
-    "test"  { uv run python -m pytest tests -q }
-    "check" { uv run python -m mypy src/opaque; if ($LASTEXITCODE -eq 0) { uv run python -m pylint src/opaque } }
-    "run"   { uv run python $EntryPoint }
-    "dist"  { uv build }
+    "setup" { uv sync --all-extras; $exitCode = $LASTEXITCODE }
+    "test"  { uv run python -m pytest tests -q; $exitCode = $LASTEXITCODE }
+    "check" {
+        # Both tools run. A short circuit hid one tool's output.
+        uv run python -m mypy src/opaque
+        if ($LASTEXITCODE -ne 0) { $exitCode = 1 }
+        uv run python -m pylint src/opaque
+        if ($LASTEXITCODE -ne 0) { $exitCode = 1 }
+    }
+    "run"   { uv run python $EntryPoint; $exitCode = $LASTEXITCODE }
+    "dist"  { uv build; $exitCode = $LASTEXITCODE }
     "clean" {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build, dist
-        Get-ChildItem -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+        # Only the project's own bytecode. Not the environments'.
+        Get-ChildItem -Path "src", "tests", "examples" -Recurse -Directory `
+            -Filter "__pycache__" -ErrorAction SilentlyContinue |
+            Remove-Item -Recurse -Force
     }
-    "build-exe" { uv run opaque-build @Arguments }
+    "build-exe" { uv run opaque-build @Arguments; $exitCode = $LASTEXITCODE }
     default { Show-Usage }
 }
+
+exit $exitCode

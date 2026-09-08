@@ -35,14 +35,25 @@ USAGE
 case "${1-}" in
     setup)     uv sync --all-extras ;;
     test)      uv run python -m pytest tests -q ;;
-    check)     uv run python -m mypy src/opaque && uv run python -m pylint src/opaque ;;
+    check)
+        # Run both tools and report both, then fail if either failed.
+        # `mypy && pylint` hid pylint's output entirely while mypy was
+        # dirty, and mypy is not clean yet.
+        status=0
+        uv run python -m mypy src/opaque || status=1
+        uv run python -m pylint src/opaque || status=1
+        exit "$status"
+        ;;
     run)       uv run python "$ENTRYPOINT" ;;
     dist)      uv build ;;
     clean)
         rm -rf build dist ./*.egg-info
-        find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+        # Prune the environments and the git directory first. Walking them
+        # deletes the bytecode of every installed module for no benefit.
+        find . -type d \( -name venv -o -name .venv -o -name .git \) -prune \
+            -o -type d -name "__pycache__" -prune -exec rm -rf {} +
         ;;
     build-exe) shift; uv run opaque-build "$@" ;;
     -h|--help|"") usage ;;
-    *) echo "ERROR: unknown task '${1}'"; usage; exit 1 ;;
+    *) echo "ERROR: unknown task '${1}'" >&2; usage >&2; exit 1 ;;
 esac
