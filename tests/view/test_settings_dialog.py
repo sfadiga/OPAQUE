@@ -1,0 +1,128 @@
+# This Python file uses the following encoding: utf-8
+"""
+Tests for SettingsDialog.
+
+The dialog reads three members from a presenter, so these tests use a
+duck-typed double. The model is a real AbstractModel because the dialog calls
+type(model).get_fields().
+"""
+
+import pytest
+from PySide6.QtWidgets import QCheckBox, QLineEdit, QSpinBox
+
+from opaque.models.abstract_model import AbstractModel
+from opaque.models.annotations import BoolField, IntField, StringField
+from opaque.services.service import ServiceLocator
+from opaque.services.settings_service import SettingsService
+from opaque.view.dialogs.settings import SettingsDialog
+
+
+class DemoModel(AbstractModel):
+    enabled = BoolField(default=True, description="Enabled", settings=True)
+    count = IntField(default=2, min_value=0, max_value=10,
+                     description="Count", settings=True)
+    label = StringField(default="hello", description="Label", settings=True)
+    hidden = StringField(default="secret", description="Hidden")
+
+    def feature_name(self) -> str:
+        return "Demo"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+class DemoPresenter:
+    def __init__(self, model):
+        self.feature_id = "demo"
+        self.model = model
+        self.apply_settings_calls = 0
+
+    def apply_settings(self) -> None:
+        self.apply_settings_calls += 1
+
+
+@pytest.fixture
+def service(tmp_path):
+    ServiceLocator.cleanup_services()
+    settings = SettingsService(tmp_path / "settings.json")
+    settings.initialize()
+    ServiceLocator.register_service(settings)
+    yield settings
+    ServiceLocator.cleanup_services()
+
+
+@pytest.fixture
+def dialog(qtbot, service):
+    presenter = DemoPresenter(DemoModel())
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    widget._presenter = presenter
+    return widget
+
+
+def _widget_of_type(dialog, widget_type):
+    return dialog.scroll_area.widget().findChild(widget_type)
+
+
+def test_only_fields_marked_as_settings_appear(dialog):
+    labels = [label.lower() for label in dialog._current_form_widgets]
+    assert "enabled" in labels
+    assert "count" in labels
+    assert "label" in labels
+    assert "hidden" not in labels
+
+
+def test_editing_a_field_does_not_change_the_model(dialog):
+    """Defect W13. The old code wrote to the model on every keystroke."""
+    line_edit = _widget_of_type(dialog, QLineEdit)
+    line_edit.setText("changed")
+    assert dialog._presenter.model.label == "hello"
+
+
+def test_editing_a_field_records_a_pending_value(dialog):
+    line_edit = _widget_of_type(dialog, QLineEdit)
+    line_edit.setText("changed")
+    assert dialog.pending_value("demo", "label") == "changed"
+
+
+def test_apply_commits_the_pending_value_to_the_model(dialog):
+    line_edit = _widget_of_type(dialog, QLineEdit)
+    line_edit.setText("changed")
+
+    dialog._apply_settings()
+
+    assert dialog._presenter.model.label == "changed"
+
+
+def test_apply_calls_apply_settings_on_the_presenter(dialog):
+    dialog._apply_settings()
+    assert dialog._presenter.apply_settings_calls == 1
+
+
+def test_apply_clears_the_pending_edits(dialog):
+    line_edit = _widget_of_type(dialog, QLineEdit)
+    line_edit.setText("changed")
+    dialog._apply_settings()
+    assert dialog.has_pending_changes() is False
+
+
+def test_reject_leaves_the_model_untouched(dialog):
+    spin_box = _widget_of_type(dialog, QSpinBox)
+    spin_box.setValue(7)
+    check_box = _widget_of_type(dialog, QCheckBox)
+    check_box.setChecked(False)
+
+    dialog.reject()
+
+    assert dialog._presenter.model.count == 2
+    assert dialog._presenter.model.enabled is True
+
+
+def test_accept_commits_before_closing(dialog):
+    spin_box = _widget_of_type(dialog, QSpinBox)
+    spin_box.setValue(7)
+
+    dialog.accept()
+
+    assert dialog._presenter.model.count == 7
