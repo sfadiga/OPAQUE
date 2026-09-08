@@ -12,9 +12,9 @@
 
 from typing import Callable, List, Optional
 
-from PySide6.QtWidgets import QToolBar, QToolButton, QWidget, QApplication
+from PySide6.QtWidgets import QToolBar, QToolButton, QWidget
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QPalette
+from PySide6.QtGui import QIcon
 
 from opaque.presenters.presenter import BasePresenter
 
@@ -25,9 +25,6 @@ class OpaqueMainToolbar(QToolBar):
     Manages the interaction logic, including toggling windows and highlighting.
     Button highlighting adapts to the current theme's highlight color.
     """
-
-    # Default fallback color if theme doesn't provide one
-    DEFAULT_HIGHLIGHT_COLOR = "rgb(85, 170, 0)"
 
     def __init__(self, title: str, parent: Optional[QWidget] = None) -> None:
         super().__init__(title, parent)
@@ -131,10 +128,21 @@ class OpaqueMainToolbar(QToolBar):
 
     def update_theme(self) -> None:
         """
-        Public method to update the toolbar when theme changes.
-        Called by the main application when a new theme is applied.
+        Repaint the toolbar after the application theme changed.
+
+        The toolbar writes no colours of its own. A style sheet theme changes
+        the button appearance, but Qt does not always repolish a widget that
+        was created before the style sheet was installed, so ask for it here.
+
+        Connect this to ThemeService.theme_changed.
         """
-        self._update_highlight_style()
+        style = self.style()
+        for button in self._feature_buttons:
+            style.unpolish(button)
+            style.polish(button)
+        style.unpolish(self)
+        style.polish(self)
+        self.update()
 
     def _setup_default_buttons(self) -> None:
         """Adds the default Cascade and Tiled buttons."""
@@ -169,57 +177,6 @@ class OpaqueMainToolbar(QToolBar):
     def _tile_windows(self) -> None:
         """Tell the MDI area to tile the windows."""
         self.parent().mdi_area.tileSubWindows()
-
-    def _get_theme_highlight_color(self) -> str:
-        """
-        Extracts the highlight color from the current theme's palette.
-        Returns a CSS rgb string.
-        """
-        try:
-            # Get the current application palette
-            palette = QApplication.palette()
-
-            # Try to get the highlight color from the palette
-            highlight_color = palette.color(QPalette.ColorRole.Highlight)
-
-            # Check if we got a valid color (not black/default)
-            if highlight_color.isValid() and highlight_color.name() != "#000000":
-                # Return as rgb string for CSS
-                return f"rgb({highlight_color.red()}, {highlight_color.green()}, {highlight_color.blue()})"
-
-            # Try alternative palette colors
-            accent_color = palette.color(QPalette.ColorRole.Accent) if hasattr(
-                QPalette.ColorRole, 'Accent') else None
-            if accent_color and accent_color.isValid() and accent_color.name() != "#000000":
-                return f"rgb({accent_color.red()}, {accent_color.green()}, {accent_color.blue()})"
-
-        except Exception:
-            pass
-
-        # Return default color as fallback
-        return self.DEFAULT_HIGHLIGHT_COLOR
-
-    def _update_highlight_style(self) -> None:
-        """
-        Updates the highlight style sheet based on the current theme.
-        Should be called when the theme changes.
-        """
-        highlight_color = self._get_theme_highlight_color()
-        self._current_highlight_style = f"""
-            QToolButton {{
-                background-color: {highlight_color};
-                border: 1px solid {highlight_color};
-                border-radius: 3px;
-            }}
-            QToolButton:hover {{
-                background-color: {highlight_color};
-                opacity: 0.8;
-            }}
-        """
-
-        # Update the active button if there is one
-        if self._active_button:
-            self._active_button.setStyleSheet(self._current_highlight_style)
 
     def _set_active(self, button_to_activate: QToolButton) -> None:
         """

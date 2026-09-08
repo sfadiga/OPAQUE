@@ -130,3 +130,40 @@ def test_clicking_the_button_calls_open_close(qtbot):
     button.click()
 
     assert presenter.view.open_close_calls == 1
+
+
+def test_no_style_sheet_is_written_on_any_button(qtbot):
+    """
+    Defect C2. The old code injected a background colour with no text colour,
+    which fell below 4.5:1 against light text in a dark theme.
+    """
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    presenter = FakePresenter("Alpha")
+    button = toolbar.add_feature(presenter)
+
+    presenter.view.window_opened.emit()
+
+    assert button.styleSheet() == ""
+
+
+def test_the_toolbar_no_longer_exposes_a_hardcoded_colour():
+    assert not hasattr(OpaqueMainToolbar, "DEFAULT_HIGHLIGHT_COLOR")
+
+
+def test_update_theme_is_safe_to_call_with_no_features(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    toolbar.update_theme()
+
+
+def test_update_theme_keeps_the_checked_state(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    presenter = FakePresenter("Alpha")
+    button = toolbar.add_feature(presenter)
+    presenter.view.window_opened.emit()
+
+    toolbar.update_theme()
+
+    assert button.isChecked() is True
