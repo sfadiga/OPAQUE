@@ -12,6 +12,10 @@ import ast
 from pathlib import Path
 from typing import List, Tuple
 
+from PySide6.QtCore import QLocale
+
+from opaque.localisation import install_translator, translation_candidates
+
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "opaque"
 
 
@@ -157,3 +161,28 @@ def test_no_interface_file_shows_an_untranslated_string():
             relative = path.relative_to(SOURCE_ROOT.parents[1])
             offenders.append(f"{relative}:{line}")
     assert offenders == []
+
+
+def test_the_candidates_start_with_the_most_specific_name():
+    names = translation_candidates(QLocale("pt_BR"))
+    assert names[0] == "opaque_pt_BR"
+
+
+def test_the_candidates_end_with_the_language_only_name():
+    names = translation_candidates(QLocale("pt_BR"))
+    assert names[-1] == "opaque_pt"
+
+
+def test_the_candidates_have_no_duplicates():
+    names = translation_candidates(QLocale("en_US"))
+    assert len(names) == len(set(names))
+
+
+def test_no_translator_is_installed_when_nothing_matches(qapp, tmp_path):
+    installed = install_translator(
+        qapp, directory=str(tmp_path), locale=QLocale("zz_ZZ"))
+    assert installed is None
+
+
+def test_the_translations_directory_ships_with_the_package():
+    assert (SOURCE_ROOT / "translations").is_dir()
