@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     # presenter.py, which then re-imports view.py before BaseView exists.
     from opaque.view.view import BaseView
     from opaque.view.application import BaseApplication
+
+logger = logging.getLogger(__name__)
 
 
 class BasePresenter(ABC):
@@ -143,7 +146,7 @@ class BasePresenter(ABC):
         Called when the view is closed.
         Override this to perform cleanup or save state.
         """
-        print("presenter cleanup")
+        logger.warning("presenter cleanup")
         self.cleanup()
 
     def save_workspace(self, workspace_object: dict) -> None:

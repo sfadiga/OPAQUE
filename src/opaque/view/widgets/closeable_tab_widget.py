@@ -9,12 +9,15 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+import logging
 from typing import Optional, Dict, Any, Callable, Type
 from PySide6.QtWidgets import (
     QWidget, QTabWidget, QVBoxLayout,
     QInputDialog, QMessageBox, QLabel, QTabBar
 )
 from PySide6.QtCore import Signal
+
+logger = logging.getLogger(__name__)
 
 
 class CloseableTabWidget(QWidget):
@@ -489,8 +492,9 @@ class CloseableTabWidget(QWidget):
                     workspace_method = getattr(widget, 'get_workspace_data')
                     if callable(workspace_method):
                         tab_data['widget_data'] = workspace_method()
-                except Exception as e:
-                    print(f"Error getting workspace data from widget: {e}")
+                except Exception:
+                    logger.exception(
+                        "Failed to get workspace data from a tab widget")
 
             tabs_data.append(tab_data)
 
@@ -534,8 +538,9 @@ class CloseableTabWidget(QWidget):
                         load_method = getattr(widget, 'load_workspace_data')
                         if callable(load_method):
                             load_method(tab_data['widget_data'])
-                    except Exception as e:
-                        print(f"Error loading workspace data to widget: {e}")
+                    except Exception:
+                        logger.exception(
+                            "Failed to load workspace data into a tab widget")
 
                 # Add tab
                 self.add_tab(tab_name, widget)
@@ -548,8 +553,8 @@ class CloseableTabWidget(QWidget):
 
             return True
 
-        except Exception as e:
-            print(f"Error loading workspace data: {e}")
+        except Exception:
+            logger.exception("Failed to load workspace data")
             # Ensure at least minimum tabs exist
             while self._get_real_tab_count() < self._minimum_tabs:
                 self.add_tab()

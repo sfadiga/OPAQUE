@@ -11,10 +11,13 @@
 """
 
 
+import logging
 from typing import Optional, Dict
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
-from PySide6.QtGui import QAction, QIcon, QCloseEvent, QDragEnterEvent, QDropEvent
+from PySide6.QtGui import (
+    QAction, QIcon, QCloseEvent, QDragEnterEvent, QDropEvent, QKeySequence,
+)
 from PySide6.QtCore import Qt
 
 from opaque.view.widgets.mdi_window import OpaqueMdiArea
@@ -35,6 +38,8 @@ from opaque.presenters.app_presenter import ApplicationPresenter
 from opaque.presenters.notification_presenter import NotificationPresenter
 from opaque.models.app_model import ApplicationModel
 from opaque.view.app_view import ApplicationView
+
+logger = logging.getLogger(__name__)
 
 
 class BaseApplication(QMainWindow):
@@ -66,7 +71,7 @@ class BaseApplication(QMainWindow):
         self._configuration = configuration
 
         # Set up the main window
-        self.update_application_title("")
+        self.update_application_title(None)
 
         self.setWindowIcon(QIcon(configuration.get_application_icon()))
 
@@ -79,15 +84,11 @@ class BaseApplication(QMainWindow):
             self.tr("Features"), self)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar)
 
-        # Application minimum size
-        min_size = configuration.get_application_min_size()
-        if min_size and len(min_size) == 2:
-            self.setMinimumSize(min_size[0], min_size[1])
-
-        # Application maximum size
-        max_size = configuration.get_application_max_size()
-        if max_size and len(max_size) == 2:
-            self.setMinimumSize(max_size[0], max_size[1])
+        self.apply_size_limits(
+            self,
+            configuration.get_application_min_size(),
+            configuration.get_application_max_size(),
+        )
 
         # features to be loaded with application
         self._registered_features: Dict[str, BasePresenter] = {}
@@ -131,12 +132,39 @@ class BaseApplication(QMainWindow):
         self.notification_presenter.initialize()
         
         # Add notification toggle to toolbar
-        self.toolbar.add_notification_button(self.notification_presenter.toggle_notifications)
+        self.toolbar.add_notification_button(
+            self.notification_presenter.toggle_notifications)
+
+        # The wiring must come after the notification button exists, because
+        # set_notifications_visible and set_notification_count act on it.
+        self._wire_shell_signals()
 
         # Initialize application settings
         self._init_application_settings()
 
         self._setup_file_menu()
+
+    def _wire_shell_signals(self) -> None:
+        """
+        Connect the toolbar to the services that change what it must show.
+
+        Every connection below goes through a lambda on purpose. A signal
+        connected straight to a bound method keeps the object it saw at
+        connect time, which makes the connection impossible to replace in a
+        test and impossible to follow when the toolbar is rebuilt.
+        """
+        self.theme_service.theme_changed.connect(
+            lambda _name: self.toolbar.update_theme())
+
+        dock = self.notification_presenter.get_notification_widget()
+        if dock is not None:
+            dock.visibilityChanged.connect(
+                lambda visible: self.toolbar.set_notifications_visible(visible))
+
+        model = self.notification_presenter.get_notification_model()
+        if model is not None:
+            model.notification_count_changed.connect(
+                lambda count: self.toolbar.set_notification_count(count))
 
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
@@ -151,32 +179,79 @@ class BaseApplication(QMainWindow):
                 presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
+        """Build the File menu. Every action carries a keyboard shortcut."""
         menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu(self.tr("&File"))
+        self.file_menu = menu_bar.addMenu(self.tr("&File"))
 
         save_workspace_action = QAction(self.tr("Save Workspace"), self)
+        save_workspace_action.setShortcut(QKeySequence.StandardKey.Save)
         save_workspace_action.triggered.connect(self.save_workspace)
-        file_menu.addAction(save_workspace_action)
+        self.file_menu.addAction(save_workspace_action)
 
         load_workspace_action = QAction(self.tr("Load Workspace"), self)
+        load_workspace_action.setShortcut(QKeySequence.StandardKey.Open)
         load_workspace_action.triggered.connect(self.load_workspace)
-        file_menu.addAction(load_workspace_action)
+        self.file_menu.addAction(load_workspace_action)
 
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
 
         settings_action = QAction(self.tr("Settings..."), self)
+        settings_action.setShortcut(QKeySequence.StandardKey.Preferences)
         settings_action.triggered.connect(self.show_settings_dialog)
-        file_menu.addAction(settings_action)
+        self.file_menu.addAction(settings_action)
 
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
 
         exit_action = QAction(self.tr("Exit"), self)
+        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
+        self.file_menu.addAction(exit_action)
 
-    def update_application_title(self, workspace: Optional[str]):
-        self.setWindowTitle(
-            f"{self._configuration.get_application_title()} {self._configuration.get_application_version()} [{workspace}]")
+    @staticmethod
+    def build_window_title(
+        title: str,
+        version: str,
+        workspace: Optional[str],
+    ) -> str:
+        """
+        Build the text of the window title bar.
+
+        Args:
+            title: The application title.
+            version: The application version.
+            workspace: The open workspace name, or None when none is open.
+
+        Returns:
+            The title. An empty or missing workspace leaves no bracket pair
+            behind, because an empty pair of brackets tells the user nothing.
+        """
+        base = f"{title} {version}".strip()
+        if workspace:
+            return f"{base} [{workspace}]"
+        return base
+
+    @staticmethod
+    def apply_size_limits(window: QWidget, min_size, max_size) -> None:
+        """
+        Apply the configured size limits to a window.
+
+        Args:
+            window: The window to limit.
+            min_size: A width and height pair, or None.
+            max_size: A width and height pair, or None.
+        """
+        if min_size and len(min_size) == 2:
+            window.setMinimumSize(min_size[0], min_size[1])
+        if max_size and len(max_size) == 2:
+            window.setMaximumSize(max_size[0], max_size[1])
+
+    def update_application_title(self, workspace: Optional[str]) -> None:
+        """Put the application name, the version and the workspace in the title."""
+        self.setWindowTitle(self.build_window_title(
+            self._configuration.get_application_title(),
+            self._configuration.get_application_version(),
+            workspace,
+        ))
 
     def register_feature(self, presenter: BasePresenter) -> None:
         """
@@ -198,46 +273,86 @@ class BaseApplication(QMainWindow):
         # Add toolbar button for the feature
         self.toolbar.add_feature(presenter)
 
-        def on_view_closed():
-            if feature_name in self._registered_features:
-                del self._registered_features[feature_name]
-        presenter.view.window_closed.connect(on_view_closed)
+        # A feature window that closes is only hidden, so the feature is still
+        # there. Removing it from the registry here would take away its
+        # Settings page and would stop closeEvent from calling its cleanup().
+        # Features are released in closeEvent, never on a window close.
 
         self.mdi_area.addSubWindow(presenter.view)
         presenter.view.show()
 
-    def save_workspace(self) -> None:
+    def _ask_for_workspace_path(self, for_load: bool) -> str:
+        """
+        Ask the user for a workspace file path.
+
+        Args:
+            for_load: True to open an existing file, False to save a new one.
+
+        Returns:
+            The chosen path, or an empty string when the user cancelled.
+        """
+        description = self.tr("Application Workspace")
+        extension = self._configuration.get_workspace_file_extension()
+        file_filter = f"{description} (*{extension})"
+
+        if for_load:
+            path, _ = QFileDialog.getOpenFileName(
+                self, self.tr("Load Workspace"), "", file_filter)
+        else:
+            path, _ = QFileDialog.getSaveFileName(
+                self, self.tr("Save Workspace"), "", file_filter)
+        return path
+
+    def save_workspace(self, file_path: Optional[str] = None) -> None:
+        """
+        Save the workspace.
+
+        Args:
+            file_path: Where to save. When empty, the user is asked.
+        """
+        if not file_path:
+            file_path = self._ask_for_workspace_path(for_load=False)
+        if not file_path:
+            return
+
         try:
-            description = self.tr("Application Workspace")
-            extension = self._configuration.get_workspace_file_extension()
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, self.tr("Save Workspace"), "", self.tr(
-                    f"{description} (*{extension})")
+            name = self.workspace_service.save_workspace(file_path)
+            self.update_application_title(name)
+        except Exception:
+            logger.exception("Failed to save the workspace file")
+            QMessageBox.critical(
+                self,
+                self.tr("Error Saving Workspace"),
+                self.tr("The workspace file could not be saved. "
+                        "See the log for details."),
             )
-            if file_path:
-                name = self.workspace_service.save_workspace(file_path)
-                self.update_application_title(name)
-        except Exception as e:
-            print(e)
-            QMessageBox.critical(self, self.tr("Error Saving Workspace"), self.tr(
-                f"An error happened while saving workspace file. Details {e}"))
 
     def load_workspace(self, file_path: Optional[str] = None) -> None:
-        try:
-            description = self.tr("Application Workspace")
-            extension = self._configuration.get_workspace_file_extension()
+        """
+        Load a workspace.
 
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, self.tr("Load Workspace"), "", self.tr(
-                    f"{description} (*{extension})")
+        Args:
+            file_path: The workspace file to load. When empty, the user is
+                asked. The old code asked always and then wrote the answer
+                over this argument, so a drop or a command line argument
+                could never work.
+        """
+        if not file_path:
+            file_path = self._ask_for_workspace_path(for_load=True)
+        if not file_path:
+            return
+
+        try:
+            name = self.workspace_service.load_workspace(file_path)
+            self.update_application_title(name)
+        except Exception:
+            logger.exception("Failed to load the workspace file")
+            QMessageBox.critical(
+                self,
+                self.tr("Error Loading Workspace"),
+                self.tr("The workspace file could not be loaded. "
+                        "See the log for details."),
             )
-            if file_path:
-                name = self.workspace_service.load_workspace(file_path)
-                self.update_application_title(name)
-        except Exception as e:
-            print(e)
-            QMessageBox.critical(self, self.tr("Error Loading Workspace"), self.tr(
-                f"An error happened while loading workspace file. Details {e}"))
 
     def show_settings_dialog(self) -> None:
         """
@@ -281,38 +396,59 @@ class BaseApplication(QMainWindow):
                            Qt.WindowType.WindowStaysOnTopHint)
         msg.exec()
 
+    @staticmethod
+    def workspace_path_from_urls(urls, extension: str) -> Optional[str]:
+        """
+        Return the single dropped workspace file path, or None.
+
+        Args:
+            urls: The QUrl list carried by the drag or the drop event.
+            extension: The configured workspace extension, for example ".wks".
+
+        Returns:
+            The local file path, when exactly one file is offered and it has
+            the configured extension. None in every other case.
+        """
+        if len(urls) != 1:
+            return None
+
+        path = urls[0].toLocalFile()
+        if not path:
+            return None
+
+        if not path.lower().endswith(extension.lower()):
+            return None
+
+        return path
+
+    def _dropped_workspace_path(self, event) -> Optional[str]:
+        """Return the workspace file this event carries, or None."""
+        if not event.mimeData().hasUrls():
+            return None
+        return self.workspace_path_from_urls(
+            event.mimeData().urls(),
+            self._configuration.get_workspace_file_extension(),
+        )
+
     def dragEnterEvent(self, event: QDragEnterEvent):
         """
-        Handle drag enter events to accept .lab files.
+        Accept a drag that carries one workspace file.
+
+        The extension comes from the configuration. The old code compared
+        against a hardcoded extension that no configuration in this
+        framework ever uses.
         """
-        try:
-            if event.mimeData().hasUrls():
-                urls = event.mimeData().urls()
-                if len(urls) == 1:  # Only accept single file
-                    file_path = urls[0].toLocalFile()
-                    if file_path.lower().endswith('.lab'):
-                        event.acceptProposedAction()
-                        return
-        except Exception as e:
-            print(e)
+        if self._dropped_workspace_path(event):
+            event.acceptProposedAction()
+            return
         event.ignore()
 
     def dropEvent(self, event: QDropEvent):
-        """
-        Handle drop events to load .lab workspace files.
-        """
-        try:
-            if event.mimeData().hasUrls():
-                urls = event.mimeData().urls()
-                if len(urls) == 1:  # Only handle single file
-                    file_path = urls[0].toLocalFile()
-                    if file_path.lower().endswith('.lab'):
-                        if self.workspace_service:
-                            name = self.workspace_service.load_workspace(
-                                file_path)
-                            self.update_application_title(name)
-                        event.acceptProposedAction()
-                        return
-        except Exception as e:
-            print(e)
-        event.ignore()
+        """Load the workspace file this drop carries."""
+        file_path = self._dropped_workspace_path(event)
+        if not file_path:
+            event.ignore()
+            return
+
+        event.acceptProposedAction()
+        self.load_workspace(file_path)

@@ -9,6 +9,7 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+import logging
 from typing import Optional, Dict, Any, List
 
 from PySide6.QtCore import QObject, Qt, QPoint, QTimer
@@ -26,6 +27,8 @@ from opaque.view.layouts.toast_stack import (
     stacked_toast_positions,
     toast_anchor,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationPresenter(QObject):
@@ -82,8 +85,8 @@ class NotificationPresenter(QObject):
                  # settings_service.register_model("notification_settings", self._settings_model)
                  pass # Assuming registration happens elsewhere or manual loading
 
-        except Exception as e:
-            print(f"Failed to setup notification models: {e}")
+        except Exception:
+            logger.exception("Failed to set up the notification models")
 
     def _setup_views(self) -> None:
         """Initialize the views"""
@@ -108,8 +111,8 @@ class NotificationPresenter(QObject):
                 # panel must not take height from the MDI area at start up.
                 self._dock_widget.hide()
 
-        except Exception as e:
-            print(f"Failed to setup notification views: {e}")
+        except Exception:
+            logger.exception("Failed to set up the notification views")
 
     def _connect_signals(self) -> None:
         """Connect model and view signals"""
@@ -132,8 +135,8 @@ class NotificationPresenter(QObject):
                     self._on_logger_configuration_changed
                 )
 
-        except Exception as e:
-            print(f"Failed to connect notification signals: {e}")
+        except Exception:
+            logger.exception("Failed to connect the notification signals")
 
     def _on_service_notification_added(self, notification: Notification):
         # Add to list
@@ -404,8 +407,8 @@ class NotificationPresenter(QObject):
             if self._logger_model:
                 self._logger_model = None
 
-        except Exception as e:
-            print(f"Error during notification presenter cleanup: {e}")
+        except Exception:
+            logger.exception("Failed to clean up the notification presenter")
 
     def initialize(self) -> None:
         """
@@ -418,6 +421,6 @@ class NotificationPresenter(QObject):
         try:
             self.log_info("Notification system initialized",
                           "NotificationPresenter")
-        except Exception as e:
-            print(f"Failed to initialize notification system: {e}")
+        except Exception:
+            logger.exception("Failed to initialize the notification system")
             # Still continue - don't let this crash the application
