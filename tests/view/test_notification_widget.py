@@ -1,6 +1,9 @@
 # This Python file uses the following encoding: utf-8
 """Tests for the toast widget and the notification list item."""
 
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QKeyEvent
+
 from opaque.services.notification_service import NotificationLevel
 from opaque.view.theme import StatusRole, status_colors
 from opaque.view.theme import contrast_ratio, surface
@@ -106,3 +109,55 @@ def test_both_close_buttons_have_an_accessible_name(
     qtbot.addWidget(toast)
     assert item.close_button.accessibleName() != ""
     assert toast.close_button.accessibleName() != ""
+
+
+def test_closed_is_not_emitted_immediately_on_close(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification())
+    qtbot.addWidget(toast)
+    seen = []
+    toast.closed.connect(seen.append)
+
+    toast.close_toast()
+
+    assert seen == []
+
+
+def test_closed_is_emitted_after_the_fade_out_finishes(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification())
+    qtbot.addWidget(toast)
+
+    with qtbot.waitSignal(toast.closed, timeout=2000) as blocker:
+        toast.close_toast()
+
+    assert blocker.args == [toast.notification.id]
+
+
+def test_closing_twice_emits_closed_once(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification())
+    qtbot.addWidget(toast)
+    seen = []
+    toast.closed.connect(seen.append)
+
+    with qtbot.waitSignal(toast.closed, timeout=2000):
+        toast.close_toast()
+        toast.close_toast()
+    qtbot.wait(400)
+
+    assert seen == [toast.notification.id]
+
+
+def test_escape_closes_the_toast(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification())
+    qtbot.addWidget(toast)
+    escape = QKeyEvent(
+        QEvent.Type.KeyPress,
+        Qt.Key.Key_Escape,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+    with qtbot.waitSignal(toast.closed, timeout=2000):
+        toast.keyPressEvent(escape)

@@ -57,6 +57,7 @@ class ToastWidget(QWidget):
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
+        self._closing = False
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint |
                             Qt.WindowType.Tool | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -131,21 +132,51 @@ class ToastWidget(QWidget):
             }}
         """
 
-    def _setup_animation(self):
+    def _setup_animation(self) -> None:
+        """Build the fade animation. It runs forward to open, backward to close."""
         self.opacity_effect = QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(self.opacity_effect)
-        
+
         self.anim = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.anim.setDuration(300)
         self.anim.setStartValue(0.0)
         self.anim.setEndValue(1.0)
+        # Connect once, in the constructor. A connection made inside
+        # close_toast would be added again on every call.
+        self.anim.finished.connect(self._on_fade_finished)
         self.anim.start()
 
-    def close_toast(self):
+    def close_toast(self) -> None:
+        """
+        Start the fade out. The closed signal comes when the fade has finished.
+
+        The old code reported the close at once, so the presenter deleted the
+        widget while the animation was still running and the fade out never
+        appeared on the screen.
+        """
+        if self._closing:
+            return
+        self._closing = True
+        # Stop before restarting. Reversing a running animation without
+        # stopping it first can crash on a widget destroyed right after.
+        self.anim.stop()
         self.anim.setDirection(QPropertyAnimation.Direction.Backward)
-        self.anim.finished.connect(self.close)
         self.anim.start()
+
+    def _on_fade_finished(self) -> None:
+        """Report the close after the fade out. Do nothing after the fade in."""
+        if not self._closing:
+            return
+        self.close()
         self.closed.emit(self.notification.id)
+
+    def keyPressEvent(self, event) -> None:
+        """Escape closes the toast when the toast holds the keyboard focus."""
+        if event.key() == Qt.Key.Key_Escape:
+            self.close_toast()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
 
 class NotificationListItem(QFrame):
