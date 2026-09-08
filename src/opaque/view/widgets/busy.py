@@ -17,7 +17,7 @@ Every feature uses this one overlay, so busy always looks the same.
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
 from opaque.view.theme import TypeScale, on_surface, surface_variant
@@ -54,6 +54,7 @@ class BusyOverlay(QWidget):
         layout.addWidget(self.progress, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.hide()
+        parent.installEventFilter(self)
 
     def start(self, message: str) -> None:
         """
@@ -76,9 +77,15 @@ class BusyOverlay(QWidget):
         self.hide()
         self.setAccessibleDescription("")
 
-    def resizeEvent(self, event) -> None:
-        """Keep covering the whole parent when it changes size."""
-        super().resizeEvent(event)
-        parent = self.parentWidget()
-        if parent is not None and self.isVisible():
-            self.setGeometry(parent.rect())
+    def eventFilter(self, watched, event) -> bool:
+        """Keep covering the whole parent when it changes size.
+
+        A plain Qt-parented child widget is not notified when its parent
+        resizes - only the parent itself gets a resize event. Watching the
+        parent directly is the only way to track its size live.
+        """
+        if (watched is self.parentWidget()
+                and event.type() == QEvent.Type.Resize
+                and self.isVisible()):
+            self.setGeometry(self.parentWidget().rect())
+        return super().eventFilter(watched, event)

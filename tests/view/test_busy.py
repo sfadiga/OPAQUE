@@ -51,3 +51,17 @@ def test_the_overlay_covers_the_whole_host(qtbot, light_palette_app):
     overlay = BusyOverlay(host)
     overlay.start("Working")
     assert overlay.size() == host.size()
+
+
+def test_the_overlay_tracks_a_live_resize(qtbot, light_palette_app):
+    # A hidden widget never receives a resize event - Qt only delivers one
+    # once the widget has a real window handle. Show it and wait for
+    # exposure so the resize below is a live one, exercising the event
+    # filter installed on the parent.
+    host = _host(qtbot)
+    host.show()
+    qtbot.waitExposed(host)
+    overlay = BusyOverlay(host)
+    overlay.start("Working")
+    host.resize(640, 480)
+    assert overlay.size() == host.size()
