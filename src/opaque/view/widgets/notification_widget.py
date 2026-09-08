@@ -51,6 +51,9 @@ class ToastWidget(QWidget):
     """
     closed = Signal(str)  # notification_id
 
+    # 24 pixels is the smallest close target that a pointer can hit reliably.
+    CLOSE_BUTTON_SIZE = 24
+
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
@@ -93,8 +96,11 @@ class ToastWidget(QWidget):
         title_layout.addStretch()
 
         self.close_button = QPushButton("×")
-        self.close_button.setFixedSize(20, 20)
+        self.close_button.setFixedSize(
+            self.CLOSE_BUTTON_SIZE, self.CLOSE_BUTTON_SIZE)
         self.close_button.setFlat(True)
+        self.close_button.setAccessibleName(self.tr("Close notification"))
+        self.close_button.setToolTip(self.tr("Close this notification"))
         self.close_button.setStyleSheet(
             f"color: {colors.foreground}; font-weight: bold;")
         self.close_button.clicked.connect(self.close_toast)
@@ -147,10 +153,14 @@ class NotificationListItem(QFrame):
 
     removed = Signal(str)
 
+    # 24 pixels is the smallest close target that a pointer can hit reliably.
+    CLOSE_BUTTON_SIZE = 24
+
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
         self.status = status_colors(status_role_for_level(notification.level))
+        self.timestamp_colour = muted_on_surface()
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -180,12 +190,16 @@ class NotificationListItem(QFrame):
 
         self.time_label = QLabel(
             self.notification.timestamp.strftime("%H:%M:%S"))
-        self.time_label.setStyleSheet("color: gray; font-size: 10px;")
+        self.time_label.setFont(TypeScale.caption())
+        self.time_label.setStyleSheet(f"color: {self.timestamp_colour};")
         header.addWidget(self.time_label)
 
         self.close_button = QPushButton("×")
-        self.close_button.setFixedSize(16, 16)
+        self.close_button.setFixedSize(
+            self.CLOSE_BUTTON_SIZE, self.CLOSE_BUTTON_SIZE)
         self.close_button.setFlat(True)
+        self.close_button.setAccessibleName(self.tr("Dismiss notification"))
+        self.close_button.setToolTip(self.tr("Dismiss this notification"))
         self.close_button.clicked.connect(
             lambda: self.removed.emit(self.notification.id))
         header.addWidget(self.close_button)

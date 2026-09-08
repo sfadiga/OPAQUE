@@ -3,6 +3,8 @@
 
 from opaque.services.notification_service import NotificationLevel
 from opaque.view.theme import StatusRole, status_colors
+from opaque.view.theme import contrast_ratio, surface
+from opaque.view.theme.contrast import TEXT_CONTRAST_MINIMUM
 from opaque.view.widgets.notification_widget import (
     NotificationListItem,
     ToastWidget,
@@ -53,3 +55,54 @@ def test_the_list_item_level_text_follows_the_level(
         item = NotificationListItem(make_notification(level))
         qtbot.addWidget(item)
         assert item.level_label.text() == level.value.upper()
+
+
+def test_the_timestamp_is_not_a_grey_literal(
+        qtbot, light_palette_app, make_notification):
+    item = NotificationListItem(make_notification())
+    qtbot.addWidget(item)
+    sheet = item.time_label.styleSheet()
+    assert "gray" not in sheet
+    assert "font-size" not in sheet
+
+
+def test_the_timestamp_passes_contrast_on_a_light_surface(
+        qtbot, light_palette_app, make_notification):
+    item = NotificationListItem(make_notification())
+    qtbot.addWidget(item)
+    ratio = contrast_ratio(item.timestamp_colour, surface())
+    assert ratio >= TEXT_CONTRAST_MINIMUM
+
+
+def test_the_timestamp_passes_contrast_on_a_dark_surface(
+        qtbot, dark_palette_app, make_notification):
+    item = NotificationListItem(make_notification())
+    qtbot.addWidget(item)
+    ratio = contrast_ratio(item.timestamp_colour, surface())
+    assert ratio >= TEXT_CONTRAST_MINIMUM
+
+
+def test_the_list_item_close_button_is_large_enough(
+        qtbot, light_palette_app, make_notification):
+    item = NotificationListItem(make_notification())
+    qtbot.addWidget(item)
+    assert item.close_button.width() >= NotificationListItem.CLOSE_BUTTON_SIZE
+    assert NotificationListItem.CLOSE_BUTTON_SIZE >= 24
+
+
+def test_the_toast_close_button_is_large_enough(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification())
+    qtbot.addWidget(toast)
+    assert toast.close_button.width() >= 24
+    assert toast.close_button.height() >= 24
+
+
+def test_both_close_buttons_have_an_accessible_name(
+        qtbot, light_palette_app, make_notification):
+    item = NotificationListItem(make_notification())
+    qtbot.addWidget(item)
+    toast = ToastWidget(make_notification())
+    qtbot.addWidget(toast)
+    assert item.close_button.accessibleName() != ""
+    assert toast.close_button.accessibleName() != ""
