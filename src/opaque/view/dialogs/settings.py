@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QSplitter,
     QListWidget, QListWidgetItem, QScrollArea, QWidget, QDialogButtonBox, QFormLayout,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QMessageBox, QLabel
+    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QLabel
 )
 from PySide6.QtCore import Qt
 
@@ -94,6 +94,13 @@ class SettingsDialog(QDialog):
         self.button_box.button(
             QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(
                 self._restore_defaults)
+
+        # A quiet status line. Applying settings is a routine action, so it
+        # gets a line of text and not a modal box.
+        self.status_label: QLabel = QLabel("")
+        self.status_label.setWordWrap(True)
+        layout.addWidget(self.status_label)
+
         layout.addWidget(self.button_box)
 
         # Set initial splitter sizes
@@ -117,7 +124,7 @@ class SettingsDialog(QDialog):
 
     def accept(self) -> None:
         """Apply settings and accept the dialog."""
-        self._apply_settings(show_success_message=False)
+        self._apply_settings()
         super().accept()
 
     def reject(self) -> None:
@@ -129,7 +136,7 @@ class SettingsDialog(QDialog):
         self._pending_values.clear()
         super().reject()
 
-    def _apply_settings(self, show_success_message: bool = False) -> None:
+    def _apply_settings(self) -> None:
         """
         Write the pending edits into the models, then persist them.
 
@@ -156,12 +163,11 @@ class SettingsDialog(QDialog):
             presenter.apply_settings()
 
         if rejected:
-            QMessageBox.warning(
-                self,
-                self.tr("Some settings were not saved"),
-                self.tr("These settings hold a value that is not allowed: ")
-                + ", ".join(rejected),
-            )
+            self.status_label.setText(
+                self.tr("Not saved, value not allowed: ")
+                + ", ".join(rejected))
+        else:
+            self.status_label.setText(self.tr("Settings applied."))
 
     def _restore_defaults(self) -> None:
         """

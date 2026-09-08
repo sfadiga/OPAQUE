@@ -163,3 +163,23 @@ def test_restore_defaults_does_not_touch_the_model_until_apply(dialog):
 def test_restore_defaults_only_touches_settings_fields(dialog):
     dialog._restore_defaults()
     assert dialog.pending_value("demo", "hidden") is None
+
+
+import inspect
+
+from opaque.view.dialogs import settings as settings_module
+
+
+def test_apply_settings_takes_no_success_message_argument():
+    """Defect W14. The success box is gone, so the flag is gone too."""
+    signature = inspect.signature(SettingsDialog._apply_settings)
+    assert "show_success_message" not in signature.parameters
+
+
+def test_apply_reports_success_in_the_status_label(dialog):
+    dialog._apply_settings()
+    assert dialog.status_label.text() != ""
+
+
+def test_the_status_label_starts_empty(dialog):
+    assert dialog.status_label.text() == ""
