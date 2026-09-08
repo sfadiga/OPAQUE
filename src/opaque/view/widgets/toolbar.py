@@ -10,7 +10,7 @@
 """
 
 
-from typing import Optional, Callable
+from typing import Callable, List, Optional
 
 from PySide6.QtWidgets import QToolBar, QToolButton, QWidget, QApplication
 from PySide6.QtCore import QSize, Qt
@@ -35,11 +35,11 @@ class OpaqueMainToolbar(QToolBar):
         self.setMovable(True)
         self.setFloatable(True)
 
-        self._active_button: Optional[QToolButton] = None
-        self._current_highlight_style: str = ""
+        # Every feature button, in the order it was added. The checked state is
+        # exclusive across this list.
+        self._feature_buttons: List[QToolButton] = []
 
         self._setup_default_buttons()
-        self._update_highlight_style()
 
     def add_feature(self, presenter: BasePresenter) -> QToolButton:
         """
@@ -56,6 +56,11 @@ class OpaqueMainToolbar(QToolBar):
         button.setIconSize(QSize(24, 24))
         button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         button.setMinimumSize(70, 0)
+        # Qt draws the checked state itself, in every platform style and in
+        # every third-party theme. The visual includes a frame change as well
+        # as a colour change, so the state is not carried by colour alone.
+        button.setCheckable(True)
+        self._feature_buttons.append(button)
 
         self.addWidget(button)
         # --- Connect signals and slots ---
@@ -83,7 +88,7 @@ class OpaqueMainToolbar(QToolBar):
         activate_signal(lambda: self._set_active(button))
 
     def connect_signal_to_set_inactive(self, deactivate_signal: Callable, button: QToolButton):
-        deactivate_signal(lambda: self._set_active(button))
+        deactivate_signal(lambda: self._set_inactive(button))
 
     def add_notification_button(self, callback: Callable) -> QToolButton:
         """Adds a notification toggle button to the toolbar."""
@@ -218,21 +223,14 @@ class OpaqueMainToolbar(QToolBar):
 
     def _set_active(self, button_to_activate: QToolButton) -> None:
         """
-        Sets the given button as the single active/highlighted button.
-        Uses the current theme's highlight color.
+        Check one feature button and clear every other one.
+
+        The checked state is exclusive because only one MDI sub window can hold
+        the focus at a time.
         """
-        if self._active_button == button_to_activate:
-            return
-
-        # Deactivate the previously active button
-        if self._active_button is not None:
-            self._active_button.setStyleSheet("")
-
-        # Activate the new one with theme-aware style
-        button_to_activate.setStyleSheet(self._current_highlight_style)
-        self._active_button = button_to_activate
+        for button in self._feature_buttons:
+            button.setChecked(button is button_to_activate)
 
     def _set_inactive(self, button_to_deactivate: QToolButton) -> None:
-        if self._active_button and self._active_button == button_to_deactivate:
-            self._active_button.setStyleSheet("")
-            self._active_button = None
+        """Clear the checked state of one feature button."""
+        button_to_deactivate.setChecked(False)

@@ -57,3 +57,76 @@ def test_the_double_satisfies_add_feature(qtbot):
     button = toolbar.add_feature(FakePresenter("Alpha"))
     assert isinstance(button, QToolButton)
     assert button.text() == "Alpha"
+
+
+def test_a_new_feature_button_is_checkable_and_starts_unchecked(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    button = toolbar.add_feature(FakePresenter("Alpha"))
+    assert button.isCheckable() is True
+    assert button.isChecked() is False
+
+
+def test_opening_a_window_checks_its_button(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    presenter = FakePresenter("Alpha")
+    button = toolbar.add_feature(presenter)
+
+    presenter.view.window_opened.emit()
+
+    assert button.isChecked() is True
+
+
+def test_closing_a_window_unchecks_its_button(qtbot):
+    """This is defect C1. The old code called _set_active on the close signal."""
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    presenter = FakePresenter("Alpha")
+    button = toolbar.add_feature(presenter)
+
+    presenter.view.window_opened.emit()
+    presenter.view.window_closed.emit()
+
+    assert button.isChecked() is False
+
+
+def test_focusing_a_second_window_unchecks_the_first(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    first = FakePresenter("Alpha")
+    second = FakePresenter("Beta")
+    first_button = toolbar.add_feature(first)
+    second_button = toolbar.add_feature(second)
+
+    first.view.window_opened.emit()
+    second.view.window_focused.emit()
+
+    assert second_button.isChecked() is True
+    assert first_button.isChecked() is False
+
+
+def test_closing_one_window_leaves_another_checked(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    first = FakePresenter("Alpha")
+    second = FakePresenter("Beta")
+    first_button = toolbar.add_feature(first)
+    second_button = toolbar.add_feature(second)
+
+    second.view.window_opened.emit()
+    first.view.window_closed.emit()
+
+    assert second_button.isChecked() is True
+    assert first_button.isChecked() is False
+
+
+def test_clicking_the_button_calls_open_close(qtbot):
+    toolbar = OpaqueMainToolbar("Features")
+    qtbot.addWidget(toolbar)
+    presenter = FakePresenter("Alpha")
+    button = toolbar.add_feature(presenter)
+
+    button.click()
+
+    assert presenter.view.open_close_calls == 1
