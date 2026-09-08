@@ -74,6 +74,7 @@ class ConsolePresenter(BasePresenter):
         # Connect search functionality
         search_input = console_widget.search_input
         search_input.textChanged.connect(self._perform_search)
+        console_widget.search_requested.connect(self._perform_search)
         console_widget.case_sensitive_checkbox.toggled.connect(
             self._perform_search)
 
@@ -216,14 +217,19 @@ class ConsolePresenter(BasePresenter):
     def _refresh_display(self):
         """Refresh the console display with current filters."""
         try:
-            # Clear the current display
             console_widget = self.view.get_console_widget()
-            console_widget.console_display.clear()
+            # clear_display() also forgets the recorded block numbers.
+            # Do not call .clear() on the display widget directly: it would
+            # leave them pointing at text that no longer exists, and every
+            # later highlight would be wrong.
+            console_widget.clear_display()
 
-            # Re-add filtered output
             filtered_output = self.model.get_filtered_output()
             for output_item in filtered_output:
                 console_widget.add_output_item(output_item)
+
+            # The match indices belong to the list that was just rebuilt.
+            self._perform_search()
 
         except Exception as e:
             print(f"Error refreshing display: {e}")

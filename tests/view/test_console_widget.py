@@ -130,3 +130,35 @@ def test_the_status_shows_the_match_position(qtbot, light_palette_app):
     widget = _console_with_lines(qtbot, ["alpha", "beta", "gamma"])
     widget.set_search_results([0, 1, 2])
     assert widget.status_label.text() == "Match 1 of 3"
+
+
+def test_next_wraps_to_the_first_match(qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha", "beta", "gamma"])
+    widget.set_search_results([0, 1, 2])
+    widget._search_next()
+    widget._search_next()
+    widget._search_next()
+    assert widget.status_label.text() == "Match 1 of 3"
+
+
+def test_previous_wraps_to_the_last_match(qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha", "beta", "gamma"])
+    widget.set_search_results([0, 1, 2])
+    widget._search_previous()
+    assert widget.status_label.text() == "Match 3 of 3"
+
+
+def test_navigation_does_nothing_without_matches(qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha"])
+    widget.set_search_results([])
+    widget._search_next()
+    widget._search_previous()
+    assert widget.status_label.text() == "No matches found"
+
+
+def test_navigation_buttons_are_disabled_without_matches(
+        qtbot, light_palette_app):
+    widget = _console_with_lines(qtbot, ["alpha"])
+    widget.set_search_results([])
+    assert not widget.next_button.isEnabled()
+    assert not widget.prev_button.isEnabled()

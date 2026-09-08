@@ -244,17 +244,21 @@ class ConsoleWidget(QWidget):
         if visible:
             self.search_input.setFocus()
 
-    def _search_previous(self):
-        """Navigate to previous search result."""
-        if self._last_search_matches and self._current_search_index > 0:
-            self._current_search_index -= 1
-            self._highlight_search_result()
+    def _search_previous(self) -> None:
+        """Go to the previous match. Wrap to the last match at the start."""
+        if not self._last_search_matches:
+            return
+        self._current_search_index = (
+            self._current_search_index - 1) % len(self._last_search_matches)
+        self._highlight_search_result()
 
-    def _search_next(self):
-        """Navigate to next search result."""
-        if self._last_search_matches and self._current_search_index < len(self._last_search_matches) - 1:
-            self._current_search_index += 1
-            self._highlight_search_result()
+    def _search_next(self) -> None:
+        """Go to the next match. Wrap to the first match at the end."""
+        if not self._last_search_matches:
+            return
+        self._current_search_index = (
+            self._current_search_index + 1) % len(self._last_search_matches)
+        self._highlight_search_result()
 
     def _highlight_search_result(self) -> None:
         """Select the line of the current match and scroll it into view."""
