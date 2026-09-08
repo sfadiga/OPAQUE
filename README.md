@@ -170,17 +170,16 @@ Two traps that cost an hour each:
 
 ## 📚 Documentation
 
-*   [**Developer Guide**](docs/DEVELOPER_GUIDE.md): Detailed guide on bootstrapping, adding features, and using services like the Console.
+*   [**Quick Reference**](docs/QUICK_REFERENCE.md): The contract on one page. Every name is checked by the test suite.
+*   [**Developer Guide**](docs/DEVELOPER_GUIDE.md): Bootstrapping, features, and the built-in services.
 *   [**Build Guide**](docs/BUILD_GUIDE.md): How to create standalone executables.
-*   [**API Reference**](docs/API.md): Class and method reference.
 *   [**Version Management**](docs/VERSION_MANAGEMENT.md): Handling application versions.
+*   [**Engineering Review**](docs/ENGINEERING_REVIEW.md): The current known-defect list.
 
 ## 📂 Examples
 
-Check the `examples/` directory in the repository for complete working examples:
-*   `basic_example`: Full showcase of MVP, Logging, Console, and Tabs.
-*   `notification_example`: Demonstrates the notification system.
-*   `closeable_tab_example`: Using the advanced Tab widget.
+*   `examples/quickstart`: The smallest application that runs. The suite builds it on every run.
+*   `examples/basic_example`: Full showcase of MVP, logging, console, tabs, and notifications.
 
 ## 🤝 Contributing
 

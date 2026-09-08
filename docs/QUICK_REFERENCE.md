@@ -1,360 +1,130 @@
-# OPAQUE Framework - Quick Reference
+# OPAQUE Quick Reference
 
-This document provides a concise reference for common OPAQUE Framework tasks and commands.
+Every name on this page is checked by `tests/test_documentation.py`. If a name here stops existing, the suite fails.
 
-## Installation
+The one worked example is `examples/quickstart/main.py` (smallest) and `examples/basic_example/main.py` (full).
 
-```bash
-# Basic installation
-pip install opaque-framework
+## The contract
 
-# With build tools
-pip install "opaque-framework[build]"        # Both PyInstaller and Nuitka
-pip install "opaque-framework[pyinstaller]"  # PyInstaller only
-pip install "opaque-framework[nuitka]"       # Nuitka only
-
-# Development installation
-git clone https://github.com/sfadiga/OPAQUE.git
-cd OPAQUE
-pip install -e ".[dev]"
-```
-
-## Project Setup
-
-```bash
-# Using CI/CD scripts
-./cicd.sh setup          # Setup virtual environment
-./cicd.sh build          # Build framework
-./cicd.sh run            # Run example
-./cicd.sh clean          # Clean build artifacts
-
-# Windows
-.\cicd.ps1 setup
-.\cicd.ps1 run
-```
-
-## Building Executables
-
-### CLI Commands (Recommended)
-
-```bash
-# Quick builds
-opaque-build pyinstaller main.py                    # Fast development build
-opaque-build nuitka main.py                         # Optimized production build
-
-# With options
-opaque-build pyinstaller main.py --name MyApp       # Custom executable name
-opaque-build pyinstaller main.py --onefile          # Single file executable
-opaque-build pyinstaller main.py --windowed         # Hide console (GUI)
-opaque-build pyinstaller main.py --debug            # Debug mode
-opaque-build pyinstaller main.py --console          # Show console
-
-# Full example
-opaque-build pyinstaller main.py --name "My OPAQUE App" --onefile --windowed --icon assets/icon.ico
-```
-
-### CI/CD Scripts
-
-```bash
-# Linux/macOS
-./cicd.sh build-exe pyinstaller                     # Default entry point
-./cicd.sh build-exe nuitka examples/basic_example/main.py
-./cicd.sh build-exe pyinstaller main.py --name MyApp
-
-# Windows
-.\cicd.ps1 build-exe pyinstaller
-.\cicd.ps1 build-exe nuitka main.py
-```
-
-### Configuration Templates
-
-```bash
-# Copy templates to your project
-cp src/opaque/build_tools/templates/pyinstaller_config.py .
-cp src/opaque/build_tools/templates/nuitka_config.cfg .
-
-# Edit configuration files, then build
-pyinstaller pyinstaller_config.py
-nuitka @nuitka_config.cfg main.py
-```
-
-## Basic Application Structure
-
-### Minimal Application
+One feature is one MVP triple.
 
 ```python
-#!/usr/bin/env python3
-import sys
-from opaque.view.application import Application
-from opaque.models.app_model import AppModel
-from opaque.presenters.app_presenter import AppPresenter
-from opaque.view.app_view import AppView
-
-def main():
-    app = Application(sys.argv)
-    
-    # Setup MVP
-    model = AppModel()
-    view = AppView()
-    presenter = AppPresenter(model, view)
-    
-    # Configure and show
-    view.setWindowTitle("My OPAQUE App")
-    view.resize(800, 600)
-    view.show()
-    
-    return app.exec()
-
-if __name__ == "__main__":
-    sys.exit(main())
+from opaque import BaseApplication, BaseModel, BasePresenter, BaseView
 ```
 
-### MVP Pattern
+| Class | Module | Is a | You must write |
+|---|---|---|---|
+| `BaseApplication` | `opaque.view.application` | `QMainWindow` shell: service registry, feature registry, toolbar, MDI area | `__init__` that calls `super().__init__(configuration)` then registers features |
+| `BaseModel` | `opaque.models.model` | State plus feature identity | `feature_name()`, `feature_icon()`, `feature_description()` |
+| `BaseView` | `opaque.view.view` | One MDI sub-window | the widget tree |
+| `BasePresenter` | `opaque.presenters.presenter` | The wiring | `bind_events()`, `update()`, `on_view_show()`, `on_view_close()` |
+| `DefaultApplicationConfiguration` | `opaque.models.configuration` | Application metadata | five `get_application_*` accessors |
+
+## Registering a feature
+
+Order matters. A wrong order raises a bare `AttributeError`.
 
 ```python
-# Model
-from opaque.models.model import BaseModel
+model = MyModel(self)
+view = MyView(self)
+presenter = MyPresenter(model, view, self)
+self.register_feature(presenter)
+```
 
+## Model fields
+
+```python
+from opaque.models.annotations import BoolField, IntField, StringField, UIType
+```
+
+Declare fields as class attributes. `ModelMeta` turns each one into a validating property.
+
+```python
 class MyModel(BaseModel):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._data = []
-    
-    def add_item(self, item):
-        self._data.append(item)
-        self.dataChanged.emit()  # Emit signal
-
-# View
-from opaque.view.view import BaseView
-from PySide6.QtWidgets import QVBoxLayout, QPushButton, QListWidget
-
-class MyView(BaseView):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_ui()
-    
-    def setup_ui(self):
-        layout = QVBoxLayout()
-        self.list_widget = QListWidget()
-        self.add_button = QPushButton("Add Item")
-        layout.addWidget(self.list_widget)
-        layout.addWidget(self.add_button)
-        self.setLayout(layout)
-
-# Presenter
-from opaque.presenters.presenter import BasePresenter
-
-class MyPresenter(BasePresenter):
-    def __init__(self, model, view, parent=None):
-        super().__init__(model, view, parent)
-        self.setup_connections()
-    
-    def setup_connections(self):
-        self.view.add_button.clicked.connect(self.on_add_item)
-        self.model.dataChanged.connect(self.on_data_changed)
-    
-    def on_add_item(self):
-        self.model.add_item(f"Item {len(self.model._data) + 1}")
-    
-    def on_data_changed(self):
-        self.view.list_widget.clear()
-        self.view.list_widget.addItems(self.model._data)
+    title = StringField(default="Untitled", description="Window title", settings=True)
+    rows = IntField(default=10, min_value=1, max_value=100, settings=True)
+    verbose = BoolField(default=False, workspace=True)
 ```
 
-## Notifications & Logging
+| Argument | Effect |
+|---|---|
+| `settings=True` | The field appears in the Settings dialog and in `settings.json`. |
+| `workspace=True` | The field is written to and read from workspace files. |
+| `min_value`, `max_value`, `choices` | Checked on every assignment. A bad value raises `ValueError`. |
+| `ui_type` | Which widget the Settings dialog builds. See `UIType`. |
 
-```python
-# Get notification presenter
-notification_presenter = self.get_notification_presenter()
-
-# Add notifications
-notification_presenter.notify_info("Title", "Message")
-notification_presenter.notify_warning("Title", "Message") 
-notification_presenter.notify_error("Title", "Message")
-notification_presenter.notify_critical("Title", "Message")
-
-# Logging with automatic notifications
-notification_presenter.log_info("Info message", "ComponentName")
-notification_presenter.log_warning("Warning message", "ComponentName")
-notification_presenter.log_error("Error message", "ComponentName")
-
-# Configure logging
-notification_presenter.set_log_level("INFO")
-notification_presenter.set_file_logging(True)
-notification_presenter.set_console_logging(True)
-```
-
-## Configuration
-
-### Type-Safe Settings
-
-```python
-from opaque.models.annotations import StringField, IntField, BoolField
-from opaque.models.configuration import DefaultApplicationConfiguration
-
-class MyAppConfig(DefaultApplicationConfiguration):
-    app_name = StringField(default="MyApp")
-    window_width = IntField(default=1280, description="Window width")
-    enable_feature = BoolField(default=True, description="Enable feature")
-    
-    def get_application_name(self) -> str:
-        return self.app_name
-```
-
-### Theme Management
-
-```python
-from opaque.services.service import ServiceLocator
-
-# Get theme service
-theme_service = ServiceLocator.get_service("theme")
-
-# Set themes
-theme_service.set_theme("light")   # Light theme
-theme_service.set_theme("dark")    # Dark theme  
-theme_service.set_theme("auto")    # Follow system
-```
+A field write calls the presenter's `update()` method. Write model fields from the UI thread only.
 
 ## Services
 
-### Using ServiceLocator
+```python
+from opaque.services.service import BaseService, ServiceLocator
+```
+
+The locator is string-keyed and returns `Optional[BaseService]`, so a wrong name is a silent `None`. The registered names are:
+
+| Name | Class | Module |
+|---|---|---|
+| `"settings"` | `SettingsService` | `opaque.services.settings_service` |
+| `"workspace"` | `WorkspaceService` | `opaque.services.workspace_service` |
+| `"themes"` | `ThemeService` | `opaque.services.theme_service` |
+| `"notification"` | `NotificationService` | `opaque.services.notification_service` |
+| `"logger"` | `LoggerService` | `opaque.services.logger_service` |
+| `"single_instance"` | `SingleInstanceService` | `opaque.services.single_instance_service` |
+| `"console"` | `ConsoleService` | `opaque.services.console_service` (registered only once a console feature exists) |
+
+`"themes"` is plural. There is no `"theme"`.
+
+Your own service must be initialized before it is registered. `register_service` raises `ValueError` otherwise.
+
+```python
+class CalculationService(BaseService):
+    def __init__(self) -> None:
+        super().__init__("calculation")
+
+    def initialize(self) -> None:
+        super().initialize()
+
+    def cleanup(self) -> None:
+        super().cleanup()
+
+
+service = CalculationService()
+service.initialize()
+ServiceLocator.register_service(service)
+```
+
+## Themes
 
 ```python
 from opaque.services.service import ServiceLocator
 
-# Get services
-logger_service = ServiceLocator.get_service("logger")
-notification_service = ServiceLocator.get_service("notification")
-settings_service = ServiceLocator.get_service("settings")
-
-# Register custom service
-from opaque.services.service import BaseService
-
-class MyService(BaseService):
-    def __init__(self):
-        super().__init__("my_service")
-
-ServiceLocator.register_service(MyService())
-my_service = ServiceLocator.get_service("my_service")
+theme_service = ServiceLocator.get_service("themes")
+theme_service.get_available_themes()          # every name this machine can apply
+theme_service.apply_theme("Default")          # True when applied, False when unknown
+theme_service.theme_changed.connect(repaint)  # a widget that paints must repaint
 ```
 
-## Common File Locations
+Never write a colour or a point size in a widget. Ask the token layer:
 
-```
-your_project/
-├── main.py                          # Application entry point
-├── pyproject.toml                   # Project configuration and dependencies
-├── pyinstaller_config.py           # PyInstaller build config (optional)
-├── nuitka_config.cfg               # Nuitka build config (optional)
-├── assets/                         # Icons, images, etc.
-│   └── icon.ico
-├── config/                         # Configuration files
-├── dist/                           # Built executables
-└── features/                       # Your application features
-    ├── feature1/
-    │   ├── model.py
-    │   ├── view.py
-    │   └── presenter.py
-    └── feature2/
-        ├── model.py
-        ├── view.py
-        └── presenter.py
+```python
+from opaque.view.theme import tokens, type_scale
 ```
 
-## Build Options Reference
+## Strings the user can see
 
-### PyInstaller Options
+Every one of them is a literal inside `self.tr()`. `tests/test_localisation.py` scans the source and fails the build on a violation.
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--name` | Executable name | `--name MyApp` |
-| `--onefile` | Single file executable | `--onefile` |
-| `--windowed` | Hide console | `--windowed` |
-| `--console` | Show console | `--console` |
-| `--debug` | Debug mode | `--debug` |
-| `--icon` | Application icon | `--icon assets/icon.ico` |
-| `--add-data` | Include data files | `--add-data "config.json:."` |
-| `--hidden-import` | Include module | `--hidden-import mymodule` |
-| `--exclude-module` | Exclude module | `--exclude-module tkinter` |
-
-### Nuitka Options (via config file)
-
-```cfg
---standalone                        # Standalone executable
---onefile                          # Single file
---windows-disable-console          # Hide console (Windows)
---enable-plugin=pyside6            # Enable PySide6 support
---optimization-level=1             # Optimization (0-2)
---include-data-files=src=dst       # Include data files
---nofollow-import-to=module        # Exclude module
---windows-icon-from-ico=icon.ico   # Windows icon
+```python
+self.setWindowTitle(self.tr("Results"))     # correct
+self.setWindowTitle(self.tr(f"{n} rows"))   # rejected: lupdate cannot read it
 ```
 
-## Troubleshooting
-
-### Common Issues
-
-| Problem | Solution |
-|---------|----------|
-| Missing modules | Add `--hidden-import module_name` |
-| Missing files | Use `--add-data "source:dest"` |
-| Large executable | Exclude unused modules with `--exclude-module` |
-| Slow startup | Use Nuitka or `--onefile=False` |
-| Qt/PySide6 errors | Ensure `--enable-plugin=pyside6` (Nuitka) |
-
-### Debug Commands
+## Commands
 
 ```bash
-# Verbose PyInstaller output
-pyinstaller --log-level DEBUG pyinstaller_config.py
-
-# Nuitka debug output  
-nuitka --debug @nuitka_config.cfg main.py
-
-# Test built executable
-./dist/MyApp --help
+uv sync --all-extras
+uv run python -m pytest tests -q
+uv run python -m mypy src/opaque
+uv run python examples/quickstart/main.py
 ```
-
-## Example Workflows
-
-### Development Cycle
-
-```bash
-# 1. Setup
-./cicd.sh setup
-
-# 2. Code & test
-./cicd.sh run
-
-# 3. Quick build test  
-opaque-build pyinstaller main.py --debug
-
-# 4. Test executable
-./dist/main
-```
-
-### Production Release
-
-```bash
-# 1. Setup environment
-./cicd.sh setup
-
-# 2. Build optimized executable
-opaque-build nuitka main.py --name ProductionApp
-
-# 3. Test thoroughly
-./dist/ProductionApp
-
-# 4. Package for distribution
-```
-
-## Getting Help
-
-- **Full Documentation**: [BUILD_GUIDE.md](BUILD_GUIDE.md)
-- **Framework Documentation**: [README.md](README.md)
-- **Examples**: `examples/` directory
-- **Issues**: [GitHub Issues](https://github.com/sfadiga/OPAQUE/issues)
-
----
-
-This quick reference covers the most common OPAQUE Framework tasks. For detailed information, see the complete documentation.
