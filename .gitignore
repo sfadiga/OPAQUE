@@ -166,6 +166,9 @@ package-lock.json
 *~
 .~*
 
+# Single-instance runtime lock file the application writes on start up
+*.lock
+
 # Build artifacts
 src/*.egg-info/
 src/opaque_framework.egg-info/
