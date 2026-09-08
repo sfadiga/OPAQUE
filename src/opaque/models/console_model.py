@@ -5,6 +5,7 @@ Console model for managing console output data.
 Licensed under MIT License
 """
 
+import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from datetime import datetime
 from PySide6.QtCore import Signal, QObject
@@ -12,6 +13,8 @@ from PySide6.QtGui import QIcon
 
 if TYPE_CHECKING:
     from opaque.view.application import BaseApplication
+
+logger = logging.getLogger(__name__)
 
 
 class ConsoleOutputItem:
@@ -245,8 +248,8 @@ class ConsoleModel(QObject):
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(text_content)
             return True
-        except Exception as e:
-            print(f"Error exporting console to file: {e}")
+        except Exception:
+            logger.exception("Failed to export console output to a file")
             return False
 
     def search_output(self, search_text: str, case_sensitive: bool = False) -> List[int]:

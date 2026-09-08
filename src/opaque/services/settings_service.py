@@ -19,6 +19,8 @@ from PySide6.QtCore import QObject, Signal
 
 from opaque.services.service import BaseService
 
+logger = logging.getLogger(__name__)
+
 
 class SettingsService(BaseService):
     """Manages application settings persistence."""
@@ -131,8 +133,8 @@ class SettingsService(BaseService):
             try:
                 with open(self.settings_file, 'r', encoding='utf-8') as f:
                     self._settings = json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                print(f"Error loading settings: {e}")
+            except (json.JSONDecodeError, IOError):
+                logger.exception("Failed to load settings")
                 self._settings = {}
 
     def save_settings_file(self) -> None:
@@ -140,8 +142,8 @@ class SettingsService(BaseService):
         try:
             with open(self.settings_file, 'w', encoding='utf-8') as f:
                 json.dump(self._settings, f, indent=2)
-        except IOError as e:
-            print(f"Error saving settings: {e}")
+        except IOError:
+            logger.exception("Failed to save settings")
 
     def save_feature_settings(self, feature_id: str, model: Any) -> None:
         """
@@ -211,8 +213,8 @@ class SettingsService(BaseService):
             with open(export_file, 'w') as f:
                 json.dump(self._settings, f, indent=2)
             return True
-        except IOError as e:
-            print(f"Error exporting settings: {e}")
+        except IOError:
+            logger.exception("Failed to export settings")
             return False
 
     def import_settings(self, import_file: Path) -> bool:
@@ -245,6 +247,6 @@ class SettingsService(BaseService):
                     feature_id, self._settings.get(feature_id, {}))
 
             return True
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Error importing settings: {e}")
+        except (json.JSONDecodeError, IOError):
+            logger.exception("Failed to import settings")
             return False

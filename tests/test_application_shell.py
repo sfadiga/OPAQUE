@@ -190,6 +190,11 @@ _UI_MODULES = [
     "src/opaque/presenters/notification_presenter.py",
     "src/opaque/presenters/console_presenter.py",
     "src/opaque/view/widgets/closeable_tab_widget.py",
+    "src/opaque/services/settings_service.py",
+    "src/opaque/services/single_instance_service.py",
+    "src/opaque/services/theme_service.py",
+    "src/opaque/services/workspace_service.py",
+    "src/opaque/models/console_model.py",
 ]
 
 

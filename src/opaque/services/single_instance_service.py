@@ -9,6 +9,7 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+import logging
 import os
 import socket
 import atexit
@@ -17,6 +18,8 @@ import time
 from PySide6.QtCore import QObject, Signal
 
 from opaque.services.service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class SingleInstanceService(BaseService):
@@ -93,17 +96,17 @@ class SingleInstanceService(BaseService):
         if self.lock_file and os.path.exists(self.lock_file):
             try:
                 os.remove(self.lock_file)
-                print(f"Lock file removed: {self.lock_file}")
-            except IOError as e:
-                print(f"Failed to remove lock file: {e}")
+                logger.warning("Lock file removed: %s", self.lock_file)
+            except IOError:
+                logger.exception("Failed to remove lock file")
 
         # Close socket
         if self.socket:
             try:
                 self.socket.close()
-                print("Socket closed")
-            except socket.error as e:
-                print(f"Failed to close socket: {e}")
+                logger.warning("Socket closed")
+            except socket.error:
+                logger.exception("Failed to close socket")
 
         self.lock_acquired = False
         self.socket = None
