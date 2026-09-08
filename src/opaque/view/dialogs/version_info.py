@@ -16,6 +16,7 @@ from PySide6.QtGui import QIcon, QMouseEvent
 
 from opaque.view.theme import (
     TypeScale,
+    interactive,
     muted_on_surface,
     outline,
     surface_variant,
@@ -305,26 +306,45 @@ class VersionInfoDialog(QDialog):
         pass
 
 
-class VersionStatusWidget(QLabel):
-    """Status bar widget for displaying version information."""
+class VersionStatusWidget(QPushButton):
+    """
+    A status bar control that opens the version information dialog.
+
+    This was a QLabel with a mousePressEvent handler. A label cannot take the
+    keyboard focus, shows no focus ring, and a screen reader reports it as
+    static text. Anything the user can act on must be a real control.
+    """
+
+    # 24 pixels is the smallest target a pointer can hit reliably.
+    MINIMUM_HEIGHT = 24
 
     def __init__(self, version_info: Optional[Dict[str, Any]] = None, parent=None):
         super().__init__(parent)
         self.version_info = version_info or {}
+        self.setFlat(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(self.MINIMUM_HEIGHT)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setAccessibleName(self.tr("Version information"))
+        self.clicked.connect(self._show_version_info)
         self._update_display()
 
-        # Make it clickable
         # The hover colours come from the palette. A black overlay is
-        # invisible on a dark theme.
+        # invisible on a dark theme. The focus rule is the visible focus
+        # indicator a keyboard user needs.
         self.setStyleSheet(f"""
-            QLabel {{
+            QPushButton {{
                 padding: 2px 8px;
                 border: 1px solid transparent;
                 border-radius: 3px;
+                text-align: left;
             }}
-            QLabel:hover {{
+            QPushButton:hover {{
                 background-color: {surface_variant()};
                 border-color: {outline()};
+            }}
+            QPushButton:focus {{
+                border: 2px solid {interactive()};
             }}
         """)
 
@@ -354,12 +374,9 @@ class VersionStatusWidget(QLabel):
 
         self.setToolTip("\n".join(tooltip_lines))
 
-    def mousePressEvent(self, event) -> None:
-        """Handle mouse click to show detailed version info."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            dialog = VersionInfoDialog(self.version_info, self)
-            dialog.exec()
-        super().mousePressEvent(event)
+    def _show_version_info(self) -> None:
+        """Show the version information dialog."""
+        VersionInfoDialog(self.version_info, self).exec()
 
     def set_version_info(self, version_info: Dict[str, Any]):
         """Update the version information."""
