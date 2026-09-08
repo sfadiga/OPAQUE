@@ -1,0 +1,63 @@
+# OPAQUE Framework continuous integration.
+#
+# No CI is the root cause of the two release blockers the 2026-09-08 review
+# found: a module with a syntax error and a package of example services that
+# import a package that does not exist. Nothing ever imported them.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+
+    env:
+      # Qt needs a platform plugin. Every test in this suite is headless.
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Create the environment
+        # Not --all-extras. The `build` extra pulls PyInstaller and Nuitka,
+        # which are tens of megabytes on each of the four matrix legs, and no
+        # test in this suite runs a real build. `themes` is included because
+        # the theme service imports its packages.
+        run: >
+          uv sync --extra dev --extra themes
+          --python ${{ matrix.python-version }}
+
+      - name: Install the Linux Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3
+
+      - name: Import every module
+        run: uv run python -m pytest tests/test_imports.py -q
+
+      - name: Run the suite
+        run: uv run python -m pytest tests -q
+
+      # These two steps report but do not gate yet. Plan 10 Task 8 removes
+      # continue-on-error once the existing error count reaches zero.
+      - name: Type check
+        continue-on-error: true
+        run: uv run python -m mypy src/opaque
+
+      - name: Lint
+        continue-on-error: true
+        run: uv run python -m pylint src/opaque
