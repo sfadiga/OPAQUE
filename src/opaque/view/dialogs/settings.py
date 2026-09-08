@@ -224,6 +224,7 @@ class SettingsDialog(QDialog):
                 self.groups_list.item(i).setHidden(False)
             # Also clear any highlighting in the current form
             self._clear_search_highlighting()
+            self.status_label.setText("")
             return
 
         first_match_index = -1
@@ -264,32 +265,36 @@ class SettingsDialog(QDialog):
         # Highlight matching fields in the current form
         self._highlight_matching_fields(search_text)
 
+        # Say how many groups matched. Without a count the user sees a shorter
+        # list and cannot tell whether the search worked.
+        matched = sum(
+            0 if self.groups_list.item(i).isHidden() else 1
+            for i in range(self.groups_list.count())
+        )
+        self.status_label.setText(
+            self.tr("Matching groups: ") + str(matched))
+
     def _clear_search_highlighting(self) -> None:
-        """Clear any search result highlighting in the current form."""
+        """Remove the search emphasis from every field label."""
         for label_widget in self._current_form_widgets.values():
             if isinstance(label_widget, QLabel):
-                # Reset to normal font
                 font = label_widget.font()
                 font.setBold(False)
                 label_widget.setFont(font)
-                label_widget.setStyleSheet("")
 
     def _highlight_matching_fields(self, search_text: str) -> None:
-        """Highlight fields in the current form that match the search text."""
+        """
+        Emphasise the field labels that match the search text.
+
+        The emphasis is weight only. A colour would need a contrast check
+        against whatever background the active theme paints, and the weight
+        change already tells the user which row matched.
+        """
         for field_name, label_widget in self._current_form_widgets.items():
             if isinstance(label_widget, QLabel):
-                if search_text in field_name.lower():
-                    # Highlight matching labels
-                    font = label_widget.font()
-                    font.setBold(True)
-                    label_widget.setFont(font)
-                    label_widget.setStyleSheet("color: palette(highlight);")
-                else:
-                    # Reset non-matching labels
-                    font = label_widget.font()
-                    font.setBold(False)
-                    label_widget.setFont(font)
-                    label_widget.setStyleSheet("")
+                font = label_widget.font()
+                font.setBold(search_text in field_name.lower())
+                label_widget.setFont(font)
 
     def _on_group_selected(self) -> None:
         """Called when a group is selected in the list. Generates the form."""

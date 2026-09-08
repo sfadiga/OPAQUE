@@ -183,3 +183,51 @@ def test_apply_reports_success_in_the_status_label(dialog):
 
 def test_the_status_label_starts_empty(dialog):
     assert dialog.status_label.text() == ""
+
+
+def test_the_search_highlight_uses_no_style_sheet(dialog):
+    """
+    Defect W15. palette(highlight) is a background role. Used as a text colour
+    it can land anywhere on the contrast scale. The bold weight already
+    carries the state.
+    """
+    dialog.search_bar.setText("count")
+    for label in dialog._current_form_widgets.values():
+        assert label.styleSheet() == ""
+
+
+def test_a_matching_field_label_is_emphasised(dialog):
+    dialog.search_bar.setText("count")
+    label = dialog._current_form_widgets["count"]
+    assert label.font().bold() is True
+
+
+def test_a_non_matching_field_label_is_not_emphasised(dialog):
+    dialog.search_bar.setText("count")
+    label = dialog._current_form_widgets["label"]
+    assert label.font().bold() is False
+
+
+def test_clearing_the_search_removes_every_emphasis(dialog):
+    dialog.search_bar.setText("count")
+    dialog.search_bar.setText("")
+    for label in dialog._current_form_widgets.values():
+        assert label.font().bold() is False
+
+
+def test_the_search_reports_a_group_count(dialog):
+    """Defect W16."""
+    dialog.search_bar.setText("count")
+    assert "1" in dialog.status_label.text()
+
+
+def test_a_search_with_no_match_says_so(dialog):
+    dialog.search_bar.setText("zzzznomatch")
+    assert dialog.status_label.text() != ""
+    assert "0" in dialog.status_label.text()
+
+
+def test_clearing_the_search_clears_the_status(dialog):
+    dialog.search_bar.setText("count")
+    dialog.search_bar.setText("")
+    assert dialog.status_label.text() == ""
