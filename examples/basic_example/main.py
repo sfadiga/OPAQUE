@@ -14,6 +14,7 @@ from pathlib import Path
 from opaque.models.annotations import StringField, IntField
 from opaque.view.application import BaseApplication
 from opaque.models.configuration import DefaultApplicationConfiguration
+from opaque.services.service import ServiceLocator
 
 
 class MyApplicationConfiguration(DefaultApplicationConfiguration):
@@ -61,6 +62,7 @@ class MyExampleApplication(BaseApplication):
     def __init__(self):
         self._configuration = MyApplicationConfiguration()
         super().__init__(self._configuration)
+        self.register_services()
         self.register_features()
         
         # Welcome notification
@@ -69,6 +71,22 @@ class MyExampleApplication(BaseApplication):
             "Basic Example loaded with Console, Tabs, Logging, and more.", 
             "System"
         )
+
+    def register_services(self) -> None:
+        """
+        Register the example services.
+
+        A service must be initialized before it is registered; the locator
+        raises ValueError otherwise. The name a service passes to
+        BaseService.__init__ is the key the presenters look up.
+        """
+        from services.calculation_service import CalculationService
+        from services.data_service import DataService
+        from services.logging_service import LoggingService
+
+        for service in (CalculationService(), DataService(), LoggingService()):
+            service.initialize()
+            ServiceLocator.register_service(service)
 
     def register_features(self):
         """Register MVP features and services."""

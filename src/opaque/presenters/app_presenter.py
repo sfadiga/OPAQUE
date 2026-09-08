@@ -22,7 +22,7 @@ from opaque.view.app_view import ApplicationView
 
 
 if TYPE_CHECKING:
-    from opaque.core.application import BaseApplication
+    from opaque.view.application import BaseApplication
 
 
 class ApplicationPresenter(BasePresenter):

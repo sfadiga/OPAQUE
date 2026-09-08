@@ -2,14 +2,15 @@
 Example Data Service
 """
 from typing import Dict, Any, List
-from opaque.core.services import BaseService
+from opaque.services.service import BaseService
 
 
 class DataService(BaseService):
     """Service that provides data management functionality to features."""
-    
+
     def __init__(self):
-        super().__init__("DataService")
+        # The name is the locator key. The presenters look up "data".
+        super().__init__("data")
         self._data_store = {}
     
     def initialize(self, **kwargs):

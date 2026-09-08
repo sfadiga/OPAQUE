@@ -1,7 +1,7 @@
 """
 Example Logging Service
 """
-from opaque.core.services import BaseService
+from opaque.services.service import BaseService
 from datetime import datetime
 
 
@@ -9,7 +9,8 @@ class LoggingService(BaseService):
     """Service that provides logging functionality to features."""
 
     def __init__(self):
-        super().__init__("LoggingService")
+        # The name is the locator key. The presenters look up "logging".
+        super().__init__("logging")
         self._logs = []
 
     def initialize(self, **kwargs):
