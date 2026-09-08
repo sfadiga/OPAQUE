@@ -21,6 +21,7 @@ from opaque.view.theme.contrast import (
     readable_foreground,
     relative_luminance,
 )
+from opaque.view.theme.palettes import build_dark_palette, build_light_palette
 from opaque.view.theme.tokens import (
     interactive,
     is_dark_theme,
@@ -39,6 +40,8 @@ from opaque.view.theme.type_scale import TypeScale
 
 __all__ = [
     "contrast_ratio",
+    "build_dark_palette",
+    "build_light_palette",
     "interactive",
     "is_dark_theme",
     "muted_on_surface",
