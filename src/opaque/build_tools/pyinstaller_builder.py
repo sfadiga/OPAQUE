@@ -201,7 +201,14 @@ class PyInstallerBuilder(Builder):
         return spec_path
 
     def _generate_spec_content(self, entry_path: Path, **kwargs: Any) -> str:
-        """Generate PyInstaller spec file content."""
+        """
+        Generate PyInstaller spec file content.
+
+        Every variable part is built before the template. The template holds
+        no nested f-string, because nesting a same-quote f-string needs
+        PEP 701, which is Python 3.12 and above. This module must parse on
+        the declared floor, 3.11.
+        """
         name = kwargs.get("name", entry_path.stem)
         onefile = kwargs.get("onefile", False)
         console = kwargs.get("console", False)
@@ -210,6 +217,7 @@ class PyInstallerBuilder(Builder):
         data_files: List[str] = []
         for data in kwargs.get("add_data", []):
             data_files.append(f"('{data}', '.')")
+        data_files_str = ", ".join(data_files)
 
         # Build hidden imports list
         hidden_imports = self._get_pyside6_includes() + kwargs.get("hidden_imports", [])
@@ -218,6 +226,35 @@ class PyInstallerBuilder(Builder):
         # Build excludes list
         excludes = self._get_common_excludes() + kwargs.get("exclude_modules", [])
         excludes_str = ", ".join([f"'{exc}'" for exc in excludes])
+
+        # A onefile build hands the binaries, the zipfiles and the datas to
+        # EXE. A onedir build hands them to COLLECT instead, and EXE gets
+        # empty lists.
+        bundle_lines = "a.binaries," if onefile else "[],"
+        zip_lines = "a.zipfiles," if onefile else "[],"
+        data_lines = "a.datas," if onefile else "[],"
+
+        debug_flag = str(kwargs.get("debug", False)).lower()
+        upx_flag = str(kwargs.get("upx", False)).lower()
+        console_flag = str(console).lower()
+
+        icon = kwargs.get("icon", "")
+        icon_line = f"    icon='{icon}'," if icon else ""
+
+        collect_block = ""
+        if not onefile:
+            collect_block = (
+                "\n\ncoll = COLLECT(\n"
+                "    exe,\n"
+                "    a.binaries,\n"
+                "    a.zipfiles,\n"
+                "    a.datas,\n"
+                "    strip=False,\n"
+                f"    upx={upx_flag},\n"
+                "    upx_exclude=[],\n"
+                f"    name='{name}',\n"
+                ")\n"
+            )
 
         spec_template = f'''# -*- mode: python ; coding: utf-8 -*-
 # PyInstaller spec file for {name}
@@ -229,7 +266,7 @@ a = Analysis(
     ['{entry_path}'],
     pathex=[],
     binaries=[],
-    datas=[{', '.join(data_files)}],
+    datas=[{data_files_str}],
     hiddenimports=[{hidden_imports_str}],
     hookspath=[],
     hooksconfig={{}},
@@ -243,43 +280,28 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-{"exe = EXE(" if onefile else "exe = EXE("}
+exe = EXE(
     pyz,
     a.scripts,
-    {'a.binaries,' if onefile else '[],'}
-    {'a.zipfiles,' if onefile else '[],'}
-    {'a.datas,' if onefile else '[],'}
+    {bundle_lines}
+    {zip_lines}
+    {data_lines}
     name='{name}',
-    debug={str(kwargs.get("debug", False)).lower()},
+    debug={debug_flag},
     bootloader_ignore_signals=False,
     strip=False,
-    upx={str(kwargs.get("upx", False)).lower()},
+    upx={upx_flag},
     upx_exclude=[],
     runtime_tmpdir=None,
-    console={str(console).lower()},
+    console={console_flag},
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    {f"icon='{kwargs.get('icon', '')}'," if kwargs.get("icon") else ""}
+{icon_line}
 )
-
-{'' if onefile else f'''
-
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx={str(kwargs.get("upx", False)).lower()},
-    upx_exclude=[],
-    name='{name}',
-)
-'''}
-'''
+{collect_block}'''
         return spec_template
 
     def build_from_spec(self, spec_file: Union[str, Path]) -> Path:
