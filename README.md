@@ -32,67 +32,141 @@ pip install "opaque-framework[dev]"
 
 ## 🏁 Quick Start
 
-### 1. Bootstrap Your Application
+Create a `main.py`. This is `examples/quickstart/main.py`; the test suite builds it on every run, so it cannot go stale.
 
-Create a `main.py` file:
-
+<!-- quickstart:begin -->
 ```python
+# This Python file uses the following encoding: utf-8
+"""
+The smallest OPAQUE application that runs.
+
+This file is the README quick start. tests/test_quickstart.py proves the two
+are identical and builds this window headless, so the first thing a user
+copies cannot be broken.
+"""
 import sys
-from PySide6.QtWidgets import QApplication
-from opaque.view.application import BaseApplication
-from opaque.models.configuration import DefaultApplicationConfiguration
-from opaque.models.annotations import StringField
 
-# 1. Define Configuration
-class MyAppConfig(DefaultApplicationConfiguration):
-    app_name = StringField(default="MyApp")
-    app_title = StringField(default="My OPAQUE App")
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
-# 2. Define Application
-class MyApplication(BaseApplication):
-    def __init__(self):
-        super().__init__(MyAppConfig())
-        # Register features here (see documentation)
+from opaque import (
+    BaseApplication,
+    BaseModel,
+    BasePresenter,
+    BaseView,
+    DefaultApplicationConfiguration,
+)
 
-# 3. Run
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MyApplication()
-    if window.try_acquire_lock():
-        window.show()
-        sys.exit(app.exec())
-```
 
-### 2. Add a Feature (MVP)
+class QuickStartConfiguration(DefaultApplicationConfiguration):
+    """The five accessors below are abstract. Every application must write them."""
 
-Create a simple feature (e.g., `MyFeature`):
+    def get_application_name(self) -> str:
+        return "QuickStart"
 
-```python
-from opaque.models.model import BaseModel
-from opaque.view.view import BaseView
-from opaque.presenters.presenter import BasePresenter
-from PySide6.QtWidgets import QLabel, QVBoxLayout
+    def get_application_title(self) -> str:
+        return "OPAQUE Quick Start"
 
-# Model
-class MyModel(BaseModel):
-    def feature_name(self): return "My Feature"
-    def feature_icon(self): return None 
+    def get_application_description(self) -> str:
+        return "The smallest OPAQUE application."
 
-# View
-class MyView(BaseView):
-    def __init__(self, app, parent=None):
+    def get_application_organization(self) -> str:
+        return "My Company"
+
+    def get_application_icon(self) -> QIcon:
+        return QIcon()
+
+
+class GreetingModel(BaseModel):
+    """A feature model. feature_name() is the text the toolbar shows."""
+
+    def feature_name(self) -> str:
+        return "Greeting"
+
+    def feature_icon(self) -> QIcon:
+        return QIcon()
+
+    def feature_description(self) -> str:
+        return "Says hello."
+
+
+class GreetingView(BaseView):
+    """A feature view is one MDI sub-window. Build the UI before the presenter exists."""
+
+    def __init__(self, app, parent=None) -> None:
         super().__init__(app, parent)
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Hello OPAQUE!"))
-        self.setLayout(layout)
+        self.label = QLabel(self.tr("Hello OPAQUE"))
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.addWidget(self.label)
+        self.setWidget(content)
 
-# Presenter
-class MyPresenter(BasePresenter):
-    pass # Add logic here
 
-# In MyApplication.__init__:
-self.register_feature(MyPresenter(MyModel(self), MyView(self), self))
+class GreetingPresenter(BasePresenter):
+    """
+    All four methods below are abstract on BasePresenter. A subclass that
+    leaves one out cannot be instantiated.
+
+    on_view_close must call super(): the base method holds the real cleanup.
+    """
+
+    def bind_events(self) -> None:
+        pass
+
+    def update(self, field_name, new_value, old_value=None, model=None) -> None:
+        pass
+
+    def on_view_show(self) -> None:
+        pass
+
+    def on_view_close(self) -> None:
+        super().on_view_close()
+
+
+class QuickStartApplication(BaseApplication):
+    """
+    The registration order is fixed: model, then view, then presenter, then
+    register_feature. Each of the three takes the application object.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(QuickStartConfiguration())
+        model = GreetingModel(self)
+        view = GreetingView(self)
+        self.register_feature(GreetingPresenter(model, view, self))
+
+
+if __name__ == "__main__":
+    qt_application = QApplication(sys.argv)
+    window = QuickStartApplication()
+    if not window.try_acquire_lock():
+        window.show_already_running_message()
+        sys.exit(1)
+    window.show()
+    sys.exit(qt_application.exec())
 ```
+<!-- quickstart:end -->
+
+Run it:
+
+```bash
+uv run python examples/quickstart/main.py
+```
+
+### What the framework demands of you
+
+| You write | The framework needs |
+|---|---|
+| A configuration | The five `get_application_*` accessors. They are abstract; field declarations do not satisfy them. |
+| A model | `feature_name()`, `feature_icon()`, `feature_description()`. |
+| A view | A widget tree, built in `__init__`, handed to `setWidget()`. |
+| A presenter | `bind_events()`, `update()`, `on_view_show()`, `on_view_close()`. All four are abstract. |
+| Registration | Model, then view, then presenter, then `register_feature(presenter)`. In that order. |
+
+Two traps that cost an hour each:
+
+- `BasePresenter.__init__` calls `bind_events()` at its end. An attribute your subclass creates *after* `super().__init__(...)` does not exist yet inside `bind_events()`. Create it before the `super()` call, or guard for `None`.
+- `on_view_close()` carries the real cleanup in its body. An override must call `super().on_view_close()`.
 
 ## 📚 Documentation
 
