@@ -79,10 +79,19 @@ class KeyboardMapDialog(QDialog):
 
     def __init__(self, window: QWidget, parent: Optional[QWidget] = None):
         super().__init__(parent or window)
-        # Qt parents window without Python holding a reference to it. If the
-        # caller keeps none either, window is garbage collected at once and
-        # Qt deletes this dialog with it, since it is window's child.
-        self._window = window
+        # Do not keep a reference back to window here. window is this
+        # dialog's Qt parent, so Qt already deletes this dialog's C++ object
+        # when window's C++ object is deleted - that is the correct, one way
+        # ownership direction. Storing self._window = window used to seem
+        # like the safe move, to stop window from being garbage collected
+        # out from under the dialog, but it reverses that direction: this
+        # dialog's own Python teardown would then drop the last reference to
+        # window, whose destruction deletes this same dialog's C++ object
+        # through Qt's parent-child cascade while the dialog's own teardown
+        # is still running, a reentrant double delete that crashed the
+        # process instead of raising a catchable error. Every real call site
+        # passes the running application window, which nothing garbage
+        # collects mid-session, so window needs no help staying alive here.
         self.setWindowTitle(self.tr("Keyboard Shortcuts"))
         self.setMinimumSize(420, 320)
 

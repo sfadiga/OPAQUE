@@ -32,6 +32,14 @@ def _every_widget(qtbot, make_notification):
     """Build one of each widget the framework ships. Returns name and widget."""
     notification = make_notification()
 
+    # KeyboardMapDialog is Qt-parented to the window it reads shortcuts from,
+    # and no longer keeps that window alive itself (see keyboard_map.py for
+    # why). A throwaway QWidget() passed straight into the constructor would
+    # have no Python reference left the moment the constructor call returns,
+    # so it is named here and tracked in widgets below, the same way
+    # notification is kept alive by being stored on the widgets that need it.
+    keyboard_map_window = QWidget()
+
     widgets = [
         ("ConsoleWidget", ConsoleWidget()),
         ("ColorPicker", ColorPicker("#336699")),
@@ -42,7 +50,8 @@ def _every_widget(qtbot, make_notification):
         ("AboutDialog", AboutDialog()),
         ("VersionInfoDialog", VersionInfoDialog()),
         ("VersionStatusWidget", VersionStatusWidget({"version": "1.0"})),
-        ("KeyboardMapDialog", KeyboardMapDialog(QWidget())),
+        ("KeyboardMapDialog", KeyboardMapDialog(keyboard_map_window)),
+        ("_KeyboardMapDialogWindow", keyboard_map_window),
     ]
 
     for _name, widget in widgets:
