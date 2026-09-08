@@ -16,11 +16,33 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QFrame, QScrollArea, QApplication, QGraphicsOpacityEffect
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation, QPoint, QSize, QRect
-from PySide6.QtGui import QIcon, QFont, QColor, QPainter, QBrush, QPen
+from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
 
 from opaque.services.service import ServiceLocator
 from opaque.services.notification_service import NotificationService, Notification, NotificationLevel
+from opaque.view.theme import (
+    StatusColors,
+    StatusRole,
+    TypeScale,
+    muted_on_surface,
+    status_colors,
+)
+
+
+# A notification level says how bad the news is. A status role says how the
+# interface must show it. Two levels can share one role.
+_STATUS_BY_LEVEL = {
+    NotificationLevel.DEBUG: StatusRole.NEUTRAL,
+    NotificationLevel.INFO: StatusRole.INFO,
+    NotificationLevel.WARNING: StatusRole.WARNING,
+    NotificationLevel.ERROR: StatusRole.ERROR,
+    NotificationLevel.CRITICAL: StatusRole.ERROR,
+}
+
+
+def status_role_for_level(level: NotificationLevel) -> StatusRole:
+    """Return the status role that shows this notification level."""
+    return _STATUS_BY_LEVEL.get(level, StatusRole.NEUTRAL)
 
 
 class ToastWidget(QWidget):
@@ -54,56 +76,51 @@ class ToastWidget(QWidget):
         
         container_layout = QVBoxLayout(self.container)
         
-        # Title row
-        title_layout = QHBoxLayout()
-        level_label = QLabel(self.notification.level.value.upper())
-        level_label.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        # Set level color
         colors = self._get_level_colors()
-        level_label.setStyleSheet(f"color: {colors['text']};")
-        
-        title_label = QLabel(self.notification.title)
-        title_label.setFont(QFont("Arial", 9, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {colors['text']};")
-        
-        title_layout.addWidget(level_label)
-        title_layout.addWidget(title_label)
+
+        title_layout = QHBoxLayout()
+
+        self.level_label = QLabel(self.notification.level.value.upper())
+        self.level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+        self.level_label.setStyleSheet(f"color: {colors.foreground};")
+
+        self.title_label = QLabel(self.notification.title)
+        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+        self.title_label.setStyleSheet(f"color: {colors.foreground};")
+
+        title_layout.addWidget(self.level_label)
+        title_layout.addWidget(self.title_label)
         title_layout.addStretch()
-        
-        close_btn = QPushButton("×")
-        close_btn.setFixedSize(20, 20)
-        close_btn.setFlat(True)
-        close_btn.setStyleSheet(f"color: {colors['text']}; font-weight: bold;")
-        close_btn.clicked.connect(self.close_toast)
-        title_layout.addWidget(close_btn)
-        
+
+        self.close_button = QPushButton("×")
+        self.close_button.setFixedSize(20, 20)
+        self.close_button.setFlat(True)
+        self.close_button.setStyleSheet(
+            f"color: {colors.foreground}; font-weight: bold;")
+        self.close_button.clicked.connect(self.close_toast)
+        title_layout.addWidget(self.close_button)
+
         container_layout.addLayout(title_layout)
-        
-        # Message
-        msg_label = QLabel(self.notification.message)
-        msg_label.setWordWrap(True)
-        msg_label.setStyleSheet(f"color: {colors['text']};")
-        container_layout.addWidget(msg_label)
+
+        self.message_label = QLabel(self.notification.message)
+        self.message_label.setWordWrap(True)
+        self.message_label.setFont(TypeScale.body())
+        self.message_label.setStyleSheet(f"color: {colors.foreground};")
+        container_layout.addWidget(self.message_label)
         
         layout.addWidget(self.container)
 
-    def _get_level_colors(self):
-        level = self.notification.level
-        if level == NotificationLevel.ERROR or level == NotificationLevel.CRITICAL:
-            return {"bg": "#dc3545", "text": "white", "border": "#bd2130"}
-        elif level == NotificationLevel.WARNING:
-            return {"bg": "#ffc107", "text": "black", "border": "#d39e00"}
-        elif level == NotificationLevel.INFO:
-            return {"bg": "#0dcaf0", "text": "black", "border": "#0aa2c0"}
-        else: # DEBUG
-            return {"bg": "#6c757d", "text": "white", "border": "#545b62"}
+    def _get_level_colors(self) -> StatusColors:
+        """Return the status colour triple for this notification level."""
+        return status_colors(status_role_for_level(self.notification.level))
 
-    def _get_stylesheet(self):
+    def _get_stylesheet(self) -> str:
+        """Return the container style sheet for this notification level."""
         colors = self._get_level_colors()
         return f"""
             QFrame#ToastContainer {{
-                background-color: {colors['bg']};
-                border: 1px solid {colors['border']};
+                background-color: {colors.background};
+                border: 1px solid {colors.border};
                 border-radius: 4px;
             }}
         """
@@ -126,75 +143,66 @@ class ToastWidget(QWidget):
 
 
 class NotificationListItem(QFrame):
-    """Simplified item for the notification list."""
-    
+    """One notification row inside the notification dock."""
+
     removed = Signal(str)
 
-    def __init__(self, notification: Notification, parent=None):
+    def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
+        self.status = status_colors(status_role_for_level(notification.level))
         self._setup_ui()
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         self.setFrameStyle(QFrame.Shape.StyledPanel)
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
         layout.setContentsMargins(8, 8, 8, 8)
-        
-        # Header
+
         header = QHBoxLayout()
-        
-        # Color indicator based on level
-        self.indicator = QFrame()
-        self.indicator.setFixedSize(8, 8)
-        self.indicator.setStyleSheet(f"background-color: {self._get_color()}; border-radius: 4px;")
-        header.addWidget(self.indicator)
-        
-        title = QLabel(self.notification.title)
-        font = QFont()
-        font.setBold(True)
-        title.setFont(font)
-        header.addWidget(title)
-        
+
+        # The level is written as text, not only painted as a colour. Colour
+        # alone is not readable for a user with a colour vision deficiency.
+        self.level_label = QLabel(self.notification.level.value.upper())
+        self.level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+        self.level_label.setStyleSheet(
+            f"color: {self.status.foreground};"
+            f"background-color: {self.status.background};"
+            f"border-radius: 3px; padding: 1px 5px;"
+        )
+        header.addWidget(self.level_label)
+
+        self.title_label = QLabel(self.notification.title)
+        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+        header.addWidget(self.title_label)
+
         header.addStretch()
-        
-        time_label = QLabel(self.notification.timestamp.strftime("%H:%M:%S"))
-        time_label.setStyleSheet("color: gray; font-size: 10px;")
-        header.addWidget(time_label)
-        
-        close_btn = QPushButton("×")
-        close_btn.setFixedSize(16, 16)
-        close_btn.setFlat(True)
-        close_btn.setStyleSheet("QPushButton { border: none; font-weight: bold; color: gray; } QPushButton:hover { color: red; }")
-        close_btn.clicked.connect(lambda: self.removed.emit(self.notification.id))
-        header.addWidget(close_btn)
-        
+
+        self.time_label = QLabel(
+            self.notification.timestamp.strftime("%H:%M:%S"))
+        self.time_label.setStyleSheet("color: gray; font-size: 10px;")
+        header.addWidget(self.time_label)
+
+        self.close_button = QPushButton("×")
+        self.close_button.setFixedSize(16, 16)
+        self.close_button.setFlat(True)
+        self.close_button.clicked.connect(
+            lambda: self.removed.emit(self.notification.id))
+        header.addWidget(self.close_button)
+
         layout.addLayout(header)
-        
-        # Message
-        msg = QLabel(self.notification.message)
-        msg.setWordWrap(True)
-        # Use a slightly smaller font for message
-        f = msg.font()
-        f.setPointSize(f.pointSize() - 1)
-        msg.setFont(f)
-        layout.addWidget(msg)
-        
-        # Style
-        # Use theme-aware border and transparent background to respect app theme
+
+        self.message_label = QLabel(self.notification.message)
+        self.message_label.setWordWrap(True)
+        self.message_label.setFont(TypeScale.body())
+        layout.addWidget(self.message_label)
+
         self.setStyleSheet("""
             NotificationListItem {
                 background-color: transparent;
                 border-bottom: 1px solid palette(mid);
             }
         """)
-
-    def _get_color(self):
-        level = self.notification.level
-        if level in (NotificationLevel.ERROR, NotificationLevel.CRITICAL): return "#dc3545"
-        if level == NotificationLevel.WARNING: return "#ffc107"
-        if level == NotificationLevel.INFO: return "#0dcaf0"
-        return "#6c757d"
 
 
 class SimplifiedNotificationList(QWidget):
