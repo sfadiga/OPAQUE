@@ -1,0 +1,136 @@
+# This Python file uses the following encoding: utf-8
+"""
+Tests for the main application window.
+
+ServiceLocator is a process wide singleton and refuses a second registration
+of the same service, so exactly one BaseApplication is built for the whole
+test session and every test shares it. Each test must therefore use its own
+feature name and must not remove anything another test relies on.
+
+The import order below matters. Importing opaque.view.view before
+opaque.view.application raises a circular import error.
+"""
+
+import pytest
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QLabel
+
+from opaque.models.configuration import DefaultApplicationConfiguration
+from opaque.view.application import BaseApplication
+from opaque.models.model import BaseModel
+from opaque.view.view import BaseView
+from opaque.presenters.presenter import BasePresenter
+
+
+class _TestConfiguration(DefaultApplicationConfiguration):
+    """The smallest configuration BaseApplication will accept."""
+
+    def get_application_name(self) -> str:
+        return "OpaqueShellTest"
+
+    def get_application_title(self) -> str:
+        return "Opaque Shell Test"
+
+    def get_application_description(self) -> str:
+        return "A configuration used only by the tests."
+
+    def get_application_icon(self) -> QIcon:
+        return QIcon()
+
+    def get_application_organization(self) -> str:
+        return "Opaque Tests"
+
+
+class _StubModel(BaseModel):
+    """A feature model with no settings and no workspace data."""
+
+    def __init__(self, app, name: str):
+        super().__init__(app)
+        self._name = name
+
+    def feature_name(self) -> str:
+        return self._name
+
+    def feature_description(self) -> str:
+        return "A feature used only by the tests."
+
+    def feature_icon(self) -> QIcon:
+        return QIcon()
+
+
+class _StubView(BaseView):
+    """A feature window holding one label."""
+
+    def __init__(self, app):
+        super().__init__(app)
+        self.setWidget(QLabel("stub"))
+
+
+class _StubPresenter(BasePresenter):
+    """A presenter that records the calls the framework makes on it."""
+
+    def __init__(self, model, view, app, feature_id):
+        self.cleanup_calls = 0
+        super().__init__(model, view, app, feature_id)
+
+    def bind_events(self) -> None:
+        pass
+
+    def initialize(self) -> None:
+        pass
+
+    def cleanup(self) -> None:
+        self.cleanup_calls += 1
+
+    def update(self, *args, **kwargs) -> None:
+        pass
+
+    def on_view_show(self) -> None:
+        pass
+
+    def on_view_close(self) -> None:
+        pass
+
+
+@pytest.fixture(scope="session")
+def app_window(qapp, tmp_path_factory):
+    """Build one BaseApplication for the whole test session."""
+    settings_file = tmp_path_factory.mktemp("shell") / "settings.json"
+    configuration = _TestConfiguration()
+    configuration.settings_file_path = str(settings_file)
+    window = BaseApplication(configuration)
+    yield window
+    window.close()
+
+
+@pytest.fixture
+def make_feature(app_window):
+    """Return a factory that registers one feature under a unique name."""
+    def _make(name: str) -> _StubPresenter:
+        model = _StubModel(app_window, name)
+        view = _StubView(app_window)
+        return _StubPresenter(model, view, app_window, name)
+    return _make
+
+
+def test_a_registered_feature_is_in_the_registry(app_window, make_feature):
+    presenter = make_feature("Registry Feature")
+    app_window.register_feature(presenter)
+    assert "Registry Feature" in app_window._registered_features
+
+
+def test_a_closed_feature_window_stays_registered(app_window, make_feature):
+    presenter = make_feature("Closing Feature")
+    app_window.register_feature(presenter)
+
+    presenter.view.window_closed.emit()
+
+    assert "Closing Feature" in app_window._registered_features
+    assert app_window._registered_features["Closing Feature"] is presenter
+
+
+def test_registering_the_same_feature_twice_is_refused(
+        app_window, make_feature):
+    app_window.register_feature(make_feature("Twice Feature"))
+    with pytest.raises(ValueError):
+        app_window.register_feature(make_feature("Twice Feature"))

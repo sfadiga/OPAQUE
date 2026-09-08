@@ -198,10 +198,10 @@ class BaseApplication(QMainWindow):
         # Add toolbar button for the feature
         self.toolbar.add_feature(presenter)
 
-        def on_view_closed():
-            if feature_name in self._registered_features:
-                del self._registered_features[feature_name]
-        presenter.view.window_closed.connect(on_view_closed)
+        # A feature window that closes is only hidden, so the feature is still
+        # there. Removing it from the registry here would take away its
+        # Settings page and would stop closeEvent from calling its cleanup().
+        # Features are released in closeEvent, never on a window close.
 
         self.mdi_area.addSubWindow(presenter.view)
         presenter.view.show()
