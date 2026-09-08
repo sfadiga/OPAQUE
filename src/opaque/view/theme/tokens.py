@@ -16,6 +16,9 @@ the active QPalette, so a theme change from qdarkstyle, qt-material or
 qt-themes is picked up with no extra work.
 """
 
+from dataclasses import dataclass
+from enum import Enum
+
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
@@ -107,3 +110,53 @@ def muted_on_surface() -> str:
             break
         best = blended.name()
     return best
+
+
+class StatusRole(Enum):
+    """
+    A semantic status, not an appearance.
+
+    Ask for ERROR, never for red. The table below gives a different colour for
+    a light theme and for a dark theme, and both pass the WCAG text contrast
+    minimum.
+    """
+
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+    SUCCESS = "success"
+    NEUTRAL = "neutral"
+
+
+@dataclass(frozen=True)
+class StatusColors:
+    """A background, a foreground and a border for one status role."""
+
+    background: str
+    foreground: str
+    border: str
+
+
+# Saturated fills with light text. Verified at or above 4.5:1.
+_STATUS_LIGHT = {
+    StatusRole.ERROR: StatusColors("#b3261e", "#ffffff", "#8c1d18"),
+    StatusRole.WARNING: StatusColors("#ffd54f", "#000000", "#c8a415"),
+    StatusRole.INFO: StatusColors("#0b6ba8", "#ffffff", "#084f7d"),
+    StatusRole.SUCCESS: StatusColors("#1b5e20", "#ffffff", "#124016"),
+    StatusRole.NEUTRAL: StatusColors("#5f6368", "#ffffff", "#45484b"),
+}
+
+# Pale fills with dark text. A saturated fill on a dark surface glares.
+_STATUS_DARK = {
+    StatusRole.ERROR: StatusColors("#f2b8b5", "#601410", "#8c1d18"),
+    StatusRole.WARNING: StatusColors("#ffd54f", "#000000", "#c8a415"),
+    StatusRole.INFO: StatusColors("#a8c7e0", "#08324f", "#084f7d"),
+    StatusRole.SUCCESS: StatusColors("#a5d6a7", "#0b2e0d", "#124016"),
+    StatusRole.NEUTRAL: StatusColors("#c4c7c5", "#2b2f31", "#45484b"),
+}
+
+
+def status_colors(role: StatusRole) -> StatusColors:
+    """Return the colour triple for one status role, correct for the active theme."""
+    table = _STATUS_DARK if is_dark_theme() else _STATUS_LIGHT
+    return table[role]

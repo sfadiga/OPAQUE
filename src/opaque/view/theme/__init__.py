@@ -29,14 +29,15 @@ from opaque.view.theme.tokens import (
     on_surface,
     on_surface_variant,
     outline,
+    StatusColors,
+    StatusRole,
+    status_colors,
     surface,
     surface_variant,
 )
 
 __all__ = [
     "contrast_ratio",
-    "readable_foreground",
-    "relative_luminance",
     "interactive",
     "is_dark_theme",
     "muted_on_surface",
@@ -44,6 +45,11 @@ __all__ = [
     "on_surface",
     "on_surface_variant",
     "outline",
+    "readable_foreground",
+    "relative_luminance",
+    "StatusColors",
+    "StatusRole",
+    "status_colors",
     "surface",
     "surface_variant",
 ]
