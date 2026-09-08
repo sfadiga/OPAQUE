@@ -12,10 +12,44 @@
 from abc import ABC, ABCMeta
 from typing import Dict, Any, Type, List, TypeVar
 
+from PySide6.QtCore import QCoreApplication, QThread
+
 from opaque.models.annotations import Field
 
 # Type variable for generic type hints in class methods
 T = TypeVar('T', bound='AbstractModel')
+
+
+def _assert_ui_thread(model_name: str, field_name: str) -> None:
+    """
+    Refuse a field write that does not come from the UI thread.
+
+    A field write calls presenter.update() on the same stack, and a presenter
+    touches widgets. Qt allows a widget to be touched only from the thread
+    that owns the QApplication. A write from a worker thread therefore
+    corrupts the UI or crashes the process at a random later point, far from
+    the line that caused it. Failing here names the field instead.
+
+    The check does nothing when no QCoreApplication exists, so a model stays
+    unit testable with no Qt application at all.
+
+    Raises:
+        RuntimeError: When the calling thread is not the UI thread.
+    """
+    application = QCoreApplication.instance()
+    if application is None:
+        return
+    if QThread.currentThread() is application.thread():
+        return
+
+    thread_name = QThread.currentThread().objectName() or "a worker thread"
+    raise RuntimeError(
+        f"{model_name}.{field_name} was written from {thread_name}, not from "
+        f"the UI thread. A field write calls presenter.update() on the same "
+        f"stack, and a presenter touches widgets, which is legal only on the "
+        f"UI thread. Queue the value and drain it on the UI thread; "
+        f"src/opaque/services/console_service.py shows the approved shape."
+    )
 
 
 class ModelMeta(ABCMeta):
@@ -35,6 +69,8 @@ class ModelMeta(ABCMeta):
                     return getattr(self, f'_{name}', default)
 
                 def setter(self, value, name=attr_name, field=attr_value):
+                    _assert_ui_thread(type(self).__name__, name)
+
                     # --- Validation ---
                     if field.choices is not None and value not in field.choices:
                         raise ValueError(

@@ -1,6 +1,8 @@
 # This Python file uses the following encoding: utf-8
 """Tests for the observer and notification contract of AbstractModel."""
 
+import threading
+
 import pytest
 
 from opaque.models.abstract_model import AbstractModel
@@ -171,3 +173,46 @@ def test_notify_still_reaches_observers_for_state_no_field_holds(counter):
     counter.notify("error", "the file is gone")
 
     assert recorder.calls == [("error", "the file is gone", None, counter)]
+
+
+def test_a_field_write_on_the_ui_thread_is_allowed(qapp, counter):
+    counter.count = 12
+    assert counter.count == 12
+
+
+def test_a_field_write_from_a_worker_thread_is_refused(qapp):
+    model = _Counter()
+    failures: list = []
+
+    def write() -> None:
+        try:
+            model.count = 3
+        except RuntimeError as error:
+            failures.append(error)
+
+    worker = threading.Thread(target=write, name="test-worker")
+    worker.start()
+    worker.join(timeout=5)
+
+    assert len(failures) == 1
+    assert "UI thread" in str(failures[0])
+    assert "count" in str(failures[0])
+    assert model.count == 0
+
+    model.cleanup()
+
+
+def test_the_check_is_skipped_when_no_qt_application_exists(monkeypatch):
+    from opaque.models import abstract_model
+
+    class _NoApplication:
+        @staticmethod
+        def instance():
+            return None
+
+    monkeypatch.setattr(abstract_model, "QCoreApplication", _NoApplication)
+
+    model = _Counter()
+    model.count = 6
+    assert model.count == 6
+    model.cleanup()
