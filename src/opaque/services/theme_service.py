@@ -12,6 +12,7 @@
 
 from typing import List
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QApplication
 
 import qt_themes
@@ -24,6 +25,14 @@ from opaque.services.service import BaseService
 
 class ThemeService(BaseService):
     """Discovers and applies themes from qt-material and QDarkStyleSheet."""
+
+    # Emitted with the theme name after a theme is applied. A widget that
+    # paints its own colours must connect to this and repaint.
+    theme_changed = Signal(str)
+
+    # The one theme name that is always available. Any application default must
+    # be a name that get_available_themes() returns.
+    DEFAULT_THEME: str = "Default"
 
     def __init__(self, app: QApplication) -> None:
         """Initializes the theme manager.
@@ -47,6 +56,9 @@ class ThemeService(BaseService):
 
         # Combine all available themes
         self.available_themes: List[str] = []
+
+        # The name of the theme applied most recently.
+        self._current_theme: str = self.DEFAULT_THEME
 
     def initialize(self) -> None:
         self._qt_material_themes = [
@@ -85,27 +97,43 @@ class ThemeService(BaseService):
         """Returns a list of all discoverable theme names."""
         return self.available_themes
 
-    def apply_theme(self, theme_name: str) -> None:
-        """Applies a theme to the application by name."""
-        if not theme_name or theme_name == 'Default':
+    def current_theme(self) -> str:
+        """Return the name of the theme applied most recently."""
+        return self._current_theme
+
+    def is_valid_theme(self, theme_name: str) -> bool:
+        """
+        Return True when the name is one this service can apply.
+
+        Call this before you store a theme name in a settings model. A name
+        that is not on the list is applied silently as nothing, which leaves
+        the settings dialog reporting a theme the user is not looking at.
+        """
+        return theme_name in self.available_themes
+
+    def apply_theme(self, theme_name: str) -> bool:
+        """
+        Apply a theme to the application by name.
+
+        Returns:
+            True when the theme was applied. False when the name is unknown,
+            in which case the current theme is left alone.
+        """
+        if not self.is_valid_theme(theme_name):
+            return False
+
+        if theme_name == self.DEFAULT_THEME:
             self._app.setStyleSheet("")
-            return
 
-        # Check if it's a qt-themes theme
-        if theme_name.startswith('qt-themes: '):
+        elif theme_name.startswith('qt-themes: '):
             actual_theme_name = theme_name.replace('qt-themes: ', '')
+            theme_key = actual_theme_name.replace(' ', '_').lower()
             try:
-                # Convert formatted name back to key (e.g., "Atom One" -> "atom_one")
-                theme_key = actual_theme_name.replace(' ', '_').lower()
-                # qt_themes.set_theme expects the theme key or Theme object as first parameter
-                # It will apply to the current QApplication automatically
                 qt_themes.set_theme(theme_key)
-            except Exception as e:
-                print(
-                    f"Warning: Could not apply qt-themes theme '{actual_theme_name}': {e}")
-            return
+            except Exception:
+                return False
 
-        if theme_name in self._qt_material_themes:
+        elif theme_name in self._qt_material_themes:
             # Invert secondary colors for light themes from qt-material
             invert: bool = 'light_' in theme_name
             apply_stylesheet(
@@ -115,8 +143,11 @@ class ThemeService(BaseService):
             self._app.setStyleSheet(load_stylesheet())
 
         elif theme_name == 'QLightStyle':
-            try:
-                self._app.setStyleSheet(load_stylesheet(palette=LightPalette))
-            except ImportError:
-                print(
-                    "Warning: QLightStyle not available in this version of QDarkStyleSheet.")
+            self._app.setStyleSheet(load_stylesheet(palette=LightPalette))
+
+        else:
+            return False
+
+        self._current_theme = theme_name
+        self.theme_changed.emit(theme_name)
+        return True
