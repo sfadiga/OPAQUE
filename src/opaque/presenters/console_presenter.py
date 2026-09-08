@@ -296,9 +296,3 @@ class ConsolePresenter(BasePresenter):
         if not self.is_console_capturing():
             self._start_console_capture()
         self._update_stats()
-
-    def on_view_close(self):
-        """Called when view is closed - required abstract method implementation."""
-        # Optionally stop capture when view is closed (or keep it running)
-        # For now, keep capture running so output is still collected
-        pass

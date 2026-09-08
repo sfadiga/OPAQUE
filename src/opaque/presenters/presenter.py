@@ -59,9 +59,13 @@ class BasePresenter(ABC):
         self._model: BaseModel = model
         self._view: BaseView = view
 
+        # True after the close sequence has run once. A sub-window can emit
+        # window_closed more than once, and cleanup must not run twice.
+        self._closed: bool = False
+
         # Connect to view events
         self._view.window_opened.connect(self.on_view_show)
-        self._view.window_closed.connect(self.on_view_close)
+        self._view.window_closed.connect(self._handle_view_closed)
 
         # Set window title from feature interface
         self._view.setWindowTitle(self._model.feature_name())
@@ -140,14 +144,32 @@ class BasePresenter(ABC):
         """
         pass
 
-    @abstractmethod
+    def _handle_view_closed(self) -> None:
+        """
+        Run the subclass hook, then release the presenter.
+
+        The framework owns this order on purpose. on_view_close() used to be
+        abstract and to carry the cleanup in its own body, so a subclass that
+        overrode it without calling super() stayed attached to its model and
+        stayed connected to its view for the rest of the process. A subclass
+        cannot forget an order it does not own.
+        """
+        if self._closed:
+            return
+        self._closed = True
+        # DEBUG, not WARNING. Closing a window is normal work. The previous
+        # version logged a WARNING on every close.
+        logger.debug("closing the presenter %s", self.feature_id)
+        self.on_view_close()
+        self.cleanup()
+
     def on_view_close(self) -> None:
         """
-        Called when the view is closed.
-        Override this to perform cleanup or save state.
+        Called when the view is closed. Override to save state.
+
+        Do not call cleanup() here and do not call super(). The framework
+        calls cleanup() straight after this method returns.
         """
-        logger.warning("presenter cleanup")
-        self.cleanup()
 
     def save_workspace(self, workspace_object: dict) -> None:
         """
@@ -186,7 +208,7 @@ class BasePresenter(ABC):
 
         # Disconnect from view events
         try:
-            self._view.window_closed.disconnect(self.on_view_close)
+            self._view.window_closed.disconnect(self._handle_view_closed)
             self._view.window_opened.disconnect(self.on_view_show)
         except RuntimeError:
             # Already disconnected

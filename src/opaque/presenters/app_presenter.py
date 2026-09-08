@@ -79,6 +79,3 @@ class ApplicationPresenter(BasePresenter):
 
     def on_view_show(self) -> None:
         super().on_view_show()
-
-    def on_view_close(self) -> None:
-        super().on_view_close()

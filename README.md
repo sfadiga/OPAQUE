@@ -104,10 +104,10 @@ class GreetingView(BaseView):
 
 class GreetingPresenter(BasePresenter):
     """
-    All four methods below are abstract on BasePresenter. A subclass that
-    leaves one out cannot be instantiated.
-
-    on_view_close must call super(): the base method holds the real cleanup.
+    bind_events(), update() and on_view_show() are abstract on BasePresenter.
+    A subclass that leaves one out cannot be instantiated. on_view_close() is
+    a plain hook with a working default; override it only to save state, and
+    never call super() or cleanup() from it.
     """
 
     def bind_events(self) -> None:
@@ -118,9 +118,6 @@ class GreetingPresenter(BasePresenter):
 
     def on_view_show(self) -> None:
         pass
-
-    def on_view_close(self) -> None:
-        super().on_view_close()
 
 
 class QuickStartApplication(BaseApplication):
@@ -160,13 +157,13 @@ uv run python examples/quickstart/main.py
 | A configuration | The five `get_application_*` accessors. They are abstract; field declarations do not satisfy them. |
 | A model | `feature_name()`, `feature_icon()`, `feature_description()`. |
 | A view | A widget tree, built in `__init__`, handed to `setWidget()`. |
-| A presenter | `bind_events()`, `update()`, `on_view_show()`, `on_view_close()`. All four are abstract. |
+| A presenter | `bind_events()`, `update()`, `on_view_show()`. All three are abstract. `on_view_close()` has a working default; override it only to save state. |
 | Registration | Model, then view, then presenter, then `register_feature(presenter)`. In that order. |
 
 Two traps that cost an hour each:
 
 - `BasePresenter.__init__` calls `bind_events()` at its end. An attribute your subclass creates *after* `super().__init__(...)` does not exist yet inside `bind_events()`. Create it before the `super()` call, or guard for `None`.
-- `on_view_close()` carries the real cleanup in its body. An override must call `super().on_view_close()`.
+- `on_view_close()` is a plain hook. Override it to save state; do not call `super()` and do not call `cleanup()`. `BasePresenter._handle_view_closed()` owns the order and calls `cleanup()` straight after the hook returns.
 
 ## 📚 Documentation
 

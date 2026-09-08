@@ -66,10 +66,10 @@ class GreetingView(BaseView):
 
 class GreetingPresenter(BasePresenter):
     """
-    All four methods below are abstract on BasePresenter. A subclass that
-    leaves one out cannot be instantiated.
-
-    on_view_close must call super(): the base method holds the real cleanup.
+    bind_events(), update() and on_view_show() are abstract on BasePresenter.
+    A subclass that leaves one out cannot be instantiated. on_view_close() is
+    a plain hook with a working default; override it only to save state, and
+    never call super() or cleanup() from it.
     """
 
     def bind_events(self) -> None:
@@ -80,9 +80,6 @@ class GreetingPresenter(BasePresenter):
 
     def on_view_show(self) -> None:
         pass
-
-    def on_view_close(self) -> None:
-        super().on_view_close()
 
 
 class QuickStartApplication(BaseApplication):
