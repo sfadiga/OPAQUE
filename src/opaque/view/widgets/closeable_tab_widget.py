@@ -145,7 +145,7 @@ class CloseableTabWidget(QWidget):
                 # Fallback to empty widget if no factory
                 widget = QWidget()
                 layout = QVBoxLayout(widget)
-                layout.addWidget(QLabel("No widget factory provided"))
+                layout.addWidget(QLabel(self.tr("No widget factory provided")))
                 return widget
         except Exception as e:
             # Fallback to empty widget if factory fails
@@ -327,7 +327,7 @@ class CloseableTabWidget(QWidget):
         # Create an empty widget for the plus tab
         plus_widget = QWidget()
         plus_layout = QVBoxLayout(plus_widget)
-        plus_layout.addWidget(QLabel("Click the '+' tab to add a new tab"))
+        plus_layout.addWidget(QLabel(self.tr("Click the '+' tab to add a new tab")))
 
         self.tab_widget.addTab(plus_widget, self.ADD_TAB_LABEL)
 

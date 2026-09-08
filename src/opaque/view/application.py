@@ -405,7 +405,7 @@ class BaseApplication(QMainWindow):
         """Show a message box informing the user that another instance is already running."""
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setWindowTitle("Application Already Running")
+        msg.setWindowTitle(self.tr("Application Already Running"))
         msg.setText(
             f"Another instance of {self._configuration.get_application_name()} is already running.")
         msg.setInformativeText(

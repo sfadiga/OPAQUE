@@ -63,3 +63,97 @@ def test_no_source_file_wraps_a_runtime_string():
             relative = path.relative_to(SOURCE_ROOT.parents[1])
             offenders.append(f"{relative}:{line} ({kind})")
     assert offenders == []
+
+
+# Setters whose first string argument is read by a person.
+_TRANSLATED_SETTERS = {
+    "setText",
+    "setToolTip",
+    "setWindowTitle",
+    "setPlaceholderText",
+    "setAccessibleName",
+    "setAccessibleDescription",
+    "setStatusTip",
+    "setTitle",
+    "addMenu",
+}
+
+# Widgets whose first argument is a label the user reads.
+_TRANSLATED_CONSTRUCTORS = {
+    "QLabel",
+    "QPushButton",
+    "QCheckBox",
+    "QRadioButton",
+    "QAction",
+    "QGroupBox",
+}
+
+# Files that are not part of the interface.
+_SCAN_SKIP = {"build_tools", "localisation.py"}
+
+
+def _is_a_readable_string(node: ast.AST) -> bool:
+    """True for a string literal that holds at least one letter."""
+    if not isinstance(node, ast.Constant):
+        return False
+    if not isinstance(node.value, str):
+        return False
+    return any(character.isalpha() for character in node.value)
+
+
+def _untranslated_strings(path: Path) -> List[int]:
+    """Return the line of every user visible literal that is not in tr()."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    offenders: List[int] = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+
+        name = None
+        if isinstance(node.func, ast.Attribute):
+            name = node.func.attr
+            if name not in _TRANSLATED_SETTERS:
+                continue
+        elif isinstance(node.func, ast.Name):
+            name = node.func.id
+            if name not in _TRANSLATED_CONSTRUCTORS:
+                continue
+        else:
+            continue
+
+        if _is_a_readable_string(node.args[0]):
+            offenders.append(node.lineno)
+
+    return offenders
+
+
+def _interface_files() -> List[Path]:
+    """Every source file that builds part of the interface."""
+    files = []
+    for path in _python_files():
+        if any(part in _SCAN_SKIP for part in path.parts):
+            continue
+        if path.name in _SCAN_SKIP:
+            continue
+        files.append(path)
+    return files
+
+
+def test_the_scanner_catches_a_bare_label(tmp_path):
+    sample = tmp_path / "sample.py"
+    sample.write_text(
+        "def build():\n"
+        "    return QLabel(\"Hello\")\n",
+        encoding="utf-8",
+    )
+    assert _untranslated_strings(sample) == [2]
+
+
+def test_no_interface_file_shows_an_untranslated_string():
+    offenders = []
+    for path in _interface_files():
+        for line in _untranslated_strings(path):
+            relative = path.relative_to(SOURCE_ROOT.parents[1])
+            offenders.append(f"{relative}:{line}")
+    assert offenders == []
