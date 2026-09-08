@@ -254,17 +254,43 @@ class BaseApplication(QMainWindow):
         self.mdi_area.addSubWindow(presenter.view)
         presenter.view.show()
 
-    def save_workspace(self) -> None:
+    def _ask_for_workspace_path(self, for_load: bool) -> str:
+        """
+        Ask the user for a workspace file path.
+
+        Args:
+            for_load: True to open an existing file, False to save a new one.
+
+        Returns:
+            The chosen path, or an empty string when the user cancelled.
+        """
+        description = self.tr("Application Workspace")
+        extension = self._configuration.get_workspace_file_extension()
+        file_filter = f"{description} (*{extension})"
+
+        if for_load:
+            path, _ = QFileDialog.getOpenFileName(
+                self, self.tr("Load Workspace"), "", file_filter)
+        else:
+            path, _ = QFileDialog.getSaveFileName(
+                self, self.tr("Save Workspace"), "", file_filter)
+        return path
+
+    def save_workspace(self, file_path: Optional[str] = None) -> None:
+        """
+        Save the workspace.
+
+        Args:
+            file_path: Where to save. When empty, the user is asked.
+        """
+        if not file_path:
+            file_path = self._ask_for_workspace_path(for_load=False)
+        if not file_path:
+            return
+
         try:
-            description = self.tr("Application Workspace")
-            extension = self._configuration.get_workspace_file_extension()
-            file_path, _ = QFileDialog.getSaveFileName(
-                self, self.tr("Save Workspace"), "", self.tr(
-                    f"{description} (*{extension})")
-            )
-            if file_path:
-                name = self.workspace_service.save_workspace(file_path)
-                self.update_application_title(name)
+            name = self.workspace_service.save_workspace(file_path)
+            self.update_application_title(name)
         except Exception:
             logger.exception("Failed to save the workspace file")
             QMessageBox.critical(
@@ -275,17 +301,23 @@ class BaseApplication(QMainWindow):
             )
 
     def load_workspace(self, file_path: Optional[str] = None) -> None:
-        try:
-            description = self.tr("Application Workspace")
-            extension = self._configuration.get_workspace_file_extension()
+        """
+        Load a workspace.
 
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, self.tr("Load Workspace"), "", self.tr(
-                    f"{description} (*{extension})")
-            )
-            if file_path:
-                name = self.workspace_service.load_workspace(file_path)
-                self.update_application_title(name)
+        Args:
+            file_path: The workspace file to load. When empty, the user is
+                asked. The old code asked always and then wrote the answer
+                over this argument, so a drop or a command line argument
+                could never work.
+        """
+        if not file_path:
+            file_path = self._ask_for_workspace_path(for_load=True)
+        if not file_path:
+            return
+
+        try:
+            name = self.workspace_service.load_workspace(file_path)
+            self.update_application_title(name)
         except Exception:
             logger.exception("Failed to load the workspace file")
             QMessageBox.critical(

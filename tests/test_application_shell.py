@@ -209,3 +209,51 @@ def test_no_ui_module_reports_an_error_with_print():
             if line.strip().startswith("print("):
                 offenders.append(f"{relative}:{number}")
     assert offenders == []
+
+
+def test_load_workspace_does_not_ask_when_a_path_is_given(
+        app_window, monkeypatch, tmp_path):
+    given = str(tmp_path / "given.wks")
+    asked = []
+    loaded = []
+    monkeypatch.setattr(
+        app_window, "_ask_for_workspace_path",
+        lambda for_load: asked.append(for_load) or "")
+    monkeypatch.setattr(
+        app_window.workspace_service, "load_workspace",
+        lambda path: loaded.append(path) or "given")
+
+    app_window.load_workspace(given)
+
+    assert asked == []
+    assert loaded == [given]
+
+
+def test_load_workspace_asks_when_no_path_is_given(app_window, monkeypatch):
+    asked = []
+    loaded = []
+    monkeypatch.setattr(
+        app_window, "_ask_for_workspace_path",
+        lambda for_load: asked.append(for_load) or "chosen.wks")
+    monkeypatch.setattr(
+        app_window.workspace_service, "load_workspace",
+        lambda path: loaded.append(path) or "chosen")
+
+    app_window.load_workspace()
+
+    assert asked == [True]
+    assert loaded == ["chosen.wks"]
+
+
+def test_load_workspace_does_nothing_when_the_user_cancels(
+        app_window, monkeypatch):
+    loaded = []
+    monkeypatch.setattr(
+        app_window, "_ask_for_workspace_path", lambda for_load: "")
+    monkeypatch.setattr(
+        app_window.workspace_service, "load_workspace",
+        lambda path: loaded.append(path))
+
+    app_window.load_workspace()
+
+    assert loaded == []
