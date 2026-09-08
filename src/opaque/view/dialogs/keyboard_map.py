@@ -79,6 +79,10 @@ class KeyboardMapDialog(QDialog):
 
     def __init__(self, window: QWidget, parent: Optional[QWidget] = None):
         super().__init__(parent or window)
+        # Qt parents window without Python holding a reference to it. If the
+        # caller keeps none either, window is garbage collected at once and
+        # Qt deletes this dialog with it, since it is window's child.
+        self._window = window
         self.setWindowTitle(self.tr("Keyboard Shortcuts"))
         self.setMinimumSize(420, 320)
 
