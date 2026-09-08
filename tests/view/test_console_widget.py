@@ -5,6 +5,8 @@ from datetime import datetime
 
 from opaque.models.console_model import ConsoleOutputItem
 from opaque.view.widgets.console_widget import ConsoleWidget
+from opaque.view.theme import StatusRole, TypeScale, contrast_ratio, surface
+from opaque.view.theme.contrast import TEXT_CONTRAST_MINIMUM
 
 TIMESTAMP = datetime(2026, 9, 7, 12, 0, 0)
 
@@ -50,3 +52,43 @@ def test_a_multi_line_item_records_only_one_entry(qtbot, light_palette_app):
     numbers = widget.block_number_for_items()
     assert len(numbers) == 2
     assert numbers[1] - numbers[0] == 2
+
+
+def test_the_console_does_not_hardcode_the_editor_palette(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    sheet = widget.console_display.styleSheet()
+    assert "#1e1e1e" not in sheet
+    assert "#d4d4d4" not in sheet
+    assert "#264f78" not in sheet
+
+
+def test_the_console_background_comes_from_the_theme(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert widget.background_colour == surface()
+    assert surface() in widget.console_display.styleSheet()
+
+
+def test_the_console_font_is_the_system_fixed_font(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert widget.console_display.font().family() == TypeScale.mono().family()
+
+
+def test_console_text_passes_contrast_on_a_light_theme(qtbot, light_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert contrast_ratio(
+        widget.stdout_colour, widget.background_colour) >= TEXT_CONTRAST_MINIMUM
+    assert contrast_ratio(
+        widget.stderr_colour, widget.background_colour) >= TEXT_CONTRAST_MINIMUM
+
+
+def test_console_text_passes_contrast_on_a_dark_theme(qtbot, dark_palette_app):
+    widget = ConsoleWidget()
+    qtbot.addWidget(widget)
+    assert contrast_ratio(
+        widget.stdout_colour, widget.background_colour) >= TEXT_CONTRAST_MINIMUM
+    assert contrast_ratio(
+        widget.stderr_colour, widget.background_colour) >= TEXT_CONTRAST_MINIMUM

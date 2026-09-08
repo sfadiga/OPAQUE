@@ -11,10 +11,20 @@ from PySide6.QtWidgets import (
     QLabel, QCheckBox, QPushButton, QFileDialog, QMessageBox, QSplitter
 )
 from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QFont, QTextCursor, QColor, QTextCharFormat, QIcon, QAction
+from PySide6.QtGui import QTextCursor, QColor, QTextCharFormat, QIcon, QAction
 
 from opaque.view.view import BaseView
 from opaque.models.console_model import ConsoleOutputItem
+from opaque.view.theme import (
+    StatusRole,
+    TypeScale,
+    interactive,
+    on_interactive,
+    on_surface,
+    outline,
+    status_colors,
+    surface,
+)
 
 
 class ConsoleWidget(QWidget):
@@ -53,22 +63,11 @@ class ConsoleWidget(QWidget):
         # Create main content area with splitter
         splitter = QSplitter(Qt.Orientation.Vertical)
 
-        # Console display area
         self.console_display = QTextEdit()
         self.console_display.setReadOnly(True)
-        self.console_display.setFont(QFont("Consolas", 9))
         self.console_display.setLineWrapMode(
             QTextEdit.LineWrapMode.WidgetWidth)
-
-        # Set colors for better contrast
-        self.console_display.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: 1px solid #3c3c3c;
-                selection-background-color: #264f78;
-            }
-        """)
+        self.apply_theme()
 
         splitter.addWidget(self.console_display)
 
@@ -85,6 +84,29 @@ class ConsoleWidget(QWidget):
         # Status bar
         self.status_bar = self._create_status_bar()
         layout.addWidget(self.status_bar)
+
+    def apply_theme(self) -> None:
+        """
+        Take every console colour and the console font from the active theme.
+
+        The console used to paint one editor palette into a style sheet, so it
+        stayed dark inside a light theme and its text failed the contrast
+        minimum. Call this method again after the theme changes.
+        """
+        self.background_colour = surface()
+        self.stdout_colour = on_surface()
+        self.stderr_colour = status_colors(StatusRole.ERROR).background
+
+        self.console_display.setFont(TypeScale.mono())
+        self.console_display.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {self.background_colour};
+                color: {self.stdout_colour};
+                border: 1px solid {outline()};
+                selection-background-color: {interactive()};
+                selection-color: {on_interactive()};
+            }}
+        """)
 
     def _create_toolbar(self) -> QToolBar:
         """Create the console toolbar."""
@@ -278,14 +300,14 @@ class ConsoleWidget(QWidget):
         # Remember where this item starts, before any text is inserted.
         self._item_block_numbers.append(cursor.blockNumber())
 
-        # Set text color based on output type
+        # The colour says which stream the line came from. The [ERROR] prefix
+        # added by _format_output_item says the same thing in text, so the
+        # colour is never the only cue.
         char_format = QTextCharFormat()
         if item.output_type == 'stderr':
-            char_format.setForeground(
-                QColor("#f48771"))  # Light red for errors
+            char_format.setForeground(QColor(self.stderr_colour))
         else:
-            # Light gray for normal output
-            char_format.setForeground(QColor("#d4d4d4"))
+            char_format.setForeground(QColor(self.stdout_colour))
 
         cursor.insertText(formatted_text, char_format)
 
