@@ -67,8 +67,13 @@ class FlowLayout(QLayout):
         for item in self._item_list:
             size = size.expandedTo(item.minimumSize())
 
+        # The width takes the left and the right margin. The height takes the
+        # top and the bottom margin. The old code used the top margin for
+        # both, so a layout with different margins reported a wrong width.
+        margins = self.contentsMargins()
         size += QSize(
-            2 * self.contentsMargins().top(), 2 * self.contentsMargins().top()
+            margins.left() + margins.right(),
+            margins.top() + margins.bottom(),
         )
         return size
 
