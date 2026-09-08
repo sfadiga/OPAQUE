@@ -18,6 +18,7 @@ from PySide6.QtWidgets import QApplication
 
 from opaque.services.service import BaseService
 from opaque.services.theme_provider import ThemeProvider
+from opaque.services.theme_providers import discover_providers
 from opaque.view.theme.palettes import build_dark_palette, build_light_palette
 
 
@@ -69,6 +70,10 @@ class ThemeService(BaseService):
         self._current_theme: str = self.DEFAULT_THEME
 
     def initialize(self) -> None:
+        # Ask once, at start. A package cannot appear while the process runs,
+        # and the settings dialog needs a stable list.
+        for provider in discover_providers():
+            self._providers.append(provider)
         self._rebuild_available_themes()
         return super().initialize()
 

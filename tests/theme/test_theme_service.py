@@ -7,7 +7,9 @@ from PySide6.QtGui import QColor, QPalette
 
 from opaque.services.theme_provider import ThemeProvider
 from opaque.services.theme_service import ThemeService
+from opaque.services.theme_providers import discover_providers
 from opaque.view.theme.tokens import is_dark_theme
+from opaque.view.theme.tokens import StatusRole, status_colors
 
 
 class _FakeProvider:
@@ -159,3 +161,47 @@ def test_the_service_module_names_no_third_party_theme_package():
     source = inspect.getsource(module)
     for package in ("qt_themes", "qdarkstyle", "qt_material"):
         assert package not in source
+
+
+def test_initialize_offers_every_installed_provider_theme(theme_service):
+    expected = []
+    for provider in discover_providers():
+        expected.extend(provider.names())
+    if not expected:
+        pytest.skip("no optional theme package is installed")
+
+    offered = theme_service.get_available_themes()
+    for name in expected:
+        assert name in offered
+
+
+def test_the_built_in_themes_come_first_in_the_list(theme_service):
+    offered = theme_service.get_available_themes()
+    assert offered[:3] == ["Default", "Light", "Dark"]
+
+
+def test_a_dark_provider_theme_gives_the_dark_status_colours(theme_service):
+    dark_names = [
+        name for name in theme_service.get_available_themes()
+        if name.startswith("dark")
+    ]
+    if not dark_names:
+        pytest.skip("qt-material is not installed")
+
+    assert theme_service.apply_theme(dark_names[0]) is True
+    assert is_dark_theme() is True
+    # The dark table uses a pale error fill, the light table a saturated one.
+    # Before this plan the service installed a dark style sheet and left the
+    # light palette, so the light table was used on a dark window.
+    assert status_colors(StatusRole.ERROR).background == "#f2b8b5"
+
+
+def test_the_built_in_dark_theme_gives_the_dark_status_colours(theme_service):
+    assert theme_service.apply_theme("Dark") is True
+    assert status_colors(StatusRole.ERROR).background == "#f2b8b5"
+
+
+def test_the_built_in_light_theme_gives_the_light_status_colours(
+        theme_service):
+    assert theme_service.apply_theme("Light") is True
+    assert status_colors(StatusRole.ERROR).background == "#b3261e"
