@@ -161,3 +161,47 @@ def test_escape_closes_the_toast(
 
     with qtbot.waitSignal(toast.closed, timeout=2000):
         toast.keyPressEvent(escape)
+
+
+def test_info_closes_after_four_seconds():
+    assert ToastWidget.duration_for_level(NotificationLevel.INFO) == 4000
+    assert ToastWidget.duration_for_level(NotificationLevel.DEBUG) == 4000
+
+
+def test_warning_stays_longer_than_info():
+    warning = ToastWidget.duration_for_level(NotificationLevel.WARNING)
+    info = ToastWidget.duration_for_level(NotificationLevel.INFO)
+    assert warning > info
+
+
+def test_error_stays_longer_than_warning():
+    error = ToastWidget.duration_for_level(NotificationLevel.ERROR)
+    warning = ToastWidget.duration_for_level(NotificationLevel.WARNING)
+    assert error > warning
+
+
+def test_critical_never_closes_on_its_own():
+    assert ToastWidget.duration_for_level(NotificationLevel.CRITICAL) is None
+
+
+def test_a_persistent_notification_has_no_running_timer(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification(persistent=True))
+    qtbot.addWidget(toast)
+    assert not toast.close_timer.isActive()
+
+
+def test_pause_and_resume_control_the_timer(
+        qtbot, light_palette_app, make_notification):
+    toast = ToastWidget(make_notification(
+        NotificationLevel.INFO, persistent=False))
+    qtbot.addWidget(toast)
+    assert toast.close_timer.isActive()
+
+    toast.pause_auto_close()
+    assert not toast.close_timer.isActive()
+
+    toast.resume_auto_close()
+    assert toast.close_timer.isActive()
+
+    toast.pause_auto_close()

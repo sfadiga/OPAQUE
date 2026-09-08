@@ -54,6 +54,21 @@ class ToastWidget(QWidget):
     # 24 pixels is the smallest close target that a pointer can hit reliably.
     CLOSE_BUTTON_SIZE = 24
 
+    # How long each level stays on the screen, in milliseconds. A worse level
+    # needs more reading time. None means the toast never closes on its own.
+    DURATION_BY_LEVEL = {
+        NotificationLevel.DEBUG: 4000,
+        NotificationLevel.INFO: 4000,
+        NotificationLevel.WARNING: 7000,
+        NotificationLevel.ERROR: 10000,
+        NotificationLevel.CRITICAL: None,
+    }
+
+    @staticmethod
+    def duration_for_level(level: NotificationLevel) -> Optional[int]:
+        """Return the auto close delay in milliseconds, or None to never close."""
+        return ToastWidget.DURATION_BY_LEVEL.get(level, 4000)
+
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
@@ -65,10 +80,18 @@ class ToastWidget(QWidget):
 
         self._setup_ui()
         self._setup_animation()
-        
-        # Timer to auto-close
-        if not notification.persistent:
-            QTimer.singleShot(4000, self.close_toast)
+
+        # A persistent notification waits for the user. Every other level
+        # closes itself after a delay that matches how bad the news is.
+        self.duration = (
+            None if notification.persistent
+            else self.duration_for_level(notification.level)
+        )
+        self.close_timer = QTimer(self)
+        self.close_timer.setSingleShot(True)
+        self.close_timer.timeout.connect(self.close_toast)
+        if self.duration is not None:
+            self.close_timer.start(self.duration)
 
     def _setup_ui(self):
         layout = QHBoxLayout(self)
@@ -157,6 +180,7 @@ class ToastWidget(QWidget):
         if self._closing:
             return
         self._closing = True
+        self.close_timer.stop()
         # Stop before restarting. Reversing a running animation without
         # stopping it first can crash on a widget destroyed right after.
         self.anim.stop()
@@ -177,6 +201,25 @@ class ToastWidget(QWidget):
             event.accept()
             return
         super().keyPressEvent(event)
+
+    def pause_auto_close(self) -> None:
+        """Stop the auto close delay. The user is reading the toast."""
+        self.close_timer.stop()
+
+    def resume_auto_close(self) -> None:
+        """Start the auto close delay again, from the beginning."""
+        if self.duration is not None and not self._closing:
+            self.close_timer.start(self.duration)
+
+    def enterEvent(self, event) -> None:
+        """The pointer is over the toast, so hold it on the screen."""
+        self.pause_auto_close()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        """The pointer has left the toast, so let it close again."""
+        self.resume_auto_close()
+        super().leaveEvent(event)
 
 
 class NotificationListItem(QFrame):
