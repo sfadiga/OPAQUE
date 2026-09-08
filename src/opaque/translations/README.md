@@ -12,8 +12,11 @@ want.
 1. Collect every string from the source into a `.ts` file:
 
 ```
-venv\Scripts\pyside6-lupdate.exe src/opaque -ts src/opaque/translations/opaque_pt_BR.ts
+venv\Scripts\pyside6-lupdate.exe -extensions py src/opaque -ts src/opaque/translations/opaque_pt_BR.ts
 ```
+
+`lupdate`'s default extension list does not include `py`. Without `-extensions py`
+it silently scans nothing and reports "Found 0 source text(s)".
 
 2. Translate the `.ts` file. `venv\Scripts\pyside6-linguist.exe` opens it.
 
