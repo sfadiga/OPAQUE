@@ -10,29 +10,42 @@
 """
 
 
-from typing import List
+from typing import List, Optional
 
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 
-import qt_themes
-from qdarkstyle import load_stylesheet
-from qdarkstyle.light.palette import LightPalette
-from qt_material import apply_stylesheet, list_themes
-
 from opaque.services.service import BaseService
+from opaque.services.theme_provider import ThemeProvider
+from opaque.view.theme.palettes import build_dark_palette, build_light_palette
 
 
 class ThemeService(BaseService):
-    """Discovers and applies themes from qt-material and QDarkStyleSheet."""
+    """
+    Offers the themes the application can apply, and applies one.
+
+    The service owns three built-in themes and nothing else. Every other
+    theme arrives through a ThemeProvider, so no third-party theme package is
+    imported here and none is a hard dependency of the framework.
+
+    A built-in theme is a QPalette and nothing more. That matters: the token
+    layer in opaque.view.theme reads QApplication.palette() for every colour,
+    so a theme that changes the palette changes every widget at once.
+    """
 
     # Emitted with the theme name after a theme is applied. A widget that
     # paints its own colours must connect to this and repaint.
     theme_changed = Signal(str)
 
-    # The one theme name that is always available. Any application default must
-    # be a name that get_available_themes() returns.
+    # The theme that is always available. Any application default must be a
+    # name that get_available_themes() returns.
     DEFAULT_THEME: str = "Default"
+    LIGHT_THEME: str = "Light"
+    DARK_THEME: str = "Dark"
+
+    # Built in, always offered, needs no package.
+    BUILT_IN_THEMES: tuple = (DEFAULT_THEME, LIGHT_THEME, DARK_THEME)
 
     def __init__(self, app: QApplication) -> None:
         """Initializes the theme manager.
@@ -44,58 +57,48 @@ class ThemeService(BaseService):
 
         self._app: QApplication = app
 
-        # Qt Material themes
-        self._qt_material_themes: List[str] = []
+        # The palette Qt gave us before any theme was applied. "Default"
+        # means "what the operating system chose", so it must be captured
+        # here, before the first apply_theme call overwrites it.
+        self._default_palette: QPalette = QPalette(app.palette())
 
-        # Discover qt-themes if available
-        self._qt_themes: List[str] = []
-
-        # Qt System default themes
-        self._system_themes: List[str] = [
-            'QDarkStyle', 'QLightStyle', 'Default']
-
-        # Combine all available themes
-        self.available_themes: List[str] = []
+        self._providers: List[ThemeProvider] = []
+        self._available_themes: List[str] = list(self.BUILT_IN_THEMES)
 
         # The name of the theme applied most recently.
         self._current_theme: str = self.DEFAULT_THEME
 
     def initialize(self) -> None:
-        self._qt_material_themes = [
-            t.replace('.xml', '') for t in list_themes()]
-        self._qt_themes = self._list_qt_themes()
-        self.available_themes = (
-            self._qt_material_themes +
-            self._qt_themes +
-            self._system_themes
-        )
+        self._rebuild_available_themes()
         return super().initialize()
 
     def cleanup(self) -> None:
-        self._qt_material_themes.clear()
-        self._qt_themes.clear()
-        self._system_themes.clear()
-        self.available_themes.clear()
+        self._providers.clear()
+        self._available_themes = list(self.BUILT_IN_THEMES)
         return super().cleanup()
 
-    def _list_qt_themes(self) -> List[str]:
-        """Discover themes from qt-themes package if available."""
-        themes: List[str] = []
-        try:
-            # Add each theme with a prefix to distinguish from other sources
-            for theme_name in qt_themes.get_themes().keys():
-                # Format the theme name nicely (e.g., "atom_one" -> "Atom One")
-                formatted_name = theme_name.replace('_', ' ').title()
-                themes.append(f"qt-themes: {formatted_name}")
+    def register_provider(self, provider: ThemeProvider) -> None:
+        """
+        Add a source of extra themes.
 
-        except ImportError:
-            pass
+        Call this before the settings dialog is built. The names the provider
+        reports join the list immediately.
+        """
+        self._providers.append(provider)
+        self._rebuild_available_themes()
 
-        return themes
+    def _rebuild_available_themes(self) -> None:
+        """Recompute the offered names from the built-ins and the providers."""
+        names: List[str] = list(self.BUILT_IN_THEMES)
+        for provider in self._providers:
+            for name in provider.names():
+                if name not in names:
+                    names.append(name)
+        self._available_themes = names
 
     def get_available_themes(self) -> List[str]:
-        """Returns a list of all discoverable theme names."""
-        return self.available_themes
+        """Returns a list of all available theme names."""
+        return list(self._available_themes)
 
     def current_theme(self) -> str:
         """Return the name of the theme applied most recently."""
@@ -109,45 +112,57 @@ class ThemeService(BaseService):
         that is not on the list is applied silently as nothing, which leaves
         the settings dialog reporting a theme the user is not looking at.
         """
-        return theme_name in self.available_themes
+        return theme_name in self._available_themes
 
     def apply_theme(self, theme_name: str) -> bool:
         """
         Apply a theme to the application by name.
 
         Returns:
-            True when the theme was applied. False when the name is unknown,
-            in which case the current theme is left alone.
+            True when the theme was applied. False when the name is unknown
+            or the provider refused it, in which case the current theme is
+            left alone.
         """
         if not self.is_valid_theme(theme_name):
             return False
 
-        if theme_name == self.DEFAULT_THEME:
-            self._app.setStyleSheet("")
-
-        elif theme_name.startswith('qt-themes: '):
-            actual_theme_name = theme_name.replace('qt-themes: ', '')
-            theme_key = actual_theme_name.replace(' ', '_').lower()
-            try:
-                qt_themes.set_theme(theme_key)
-            except Exception:
-                return False
-
-        elif theme_name in self._qt_material_themes:
-            # Invert secondary colors for light themes from qt-material
-            invert: bool = 'light_' in theme_name
-            apply_stylesheet(
-                self._app, theme=f"{theme_name}.xml", invert_secondary=invert)
-
-        elif theme_name == 'QDarkStyle':
-            self._app.setStyleSheet(load_stylesheet())
-
-        elif theme_name == 'QLightStyle':
-            self._app.setStyleSheet(load_stylesheet(palette=LightPalette))
-
+        if theme_name in self.BUILT_IN_THEMES:
+            applied = self._apply_built_in(theme_name)
         else:
+            applied = self._apply_from_provider(theme_name)
+
+        if not applied:
             return False
 
         self._current_theme = theme_name
         self.theme_changed.emit(theme_name)
         return True
+
+    def _apply_built_in(self, theme_name: str) -> bool:
+        """Apply one of the three built-in themes."""
+        # Clear the style sheet first. A style sheet left by a previous theme
+        # paints over the palette, so the palette would stop being the truth.
+        self._app.setStyleSheet("")
+
+        if theme_name == self.DEFAULT_THEME:
+            self._app.setPalette(QPalette(self._default_palette))
+        elif theme_name == self.LIGHT_THEME:
+            self._app.setPalette(build_light_palette())
+        else:
+            self._app.setPalette(build_dark_palette())
+
+        return True
+
+    def _provider_for(self, theme_name: str) -> Optional[ThemeProvider]:
+        """Return the first provider that offers this name, or None."""
+        for provider in self._providers:
+            if theme_name in provider.names():
+                return provider
+        return None
+
+    def _apply_from_provider(self, theme_name: str) -> bool:
+        """Hand the name to the provider that offers it."""
+        provider = self._provider_for(theme_name)
+        if provider is None:
+            return False
+        return provider.apply(theme_name, self._app)
