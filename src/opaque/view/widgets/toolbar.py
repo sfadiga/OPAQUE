@@ -10,11 +10,11 @@
 """
 
 
-from typing import Optional, Callable
+from typing import Callable, List, Optional
 
-from PySide6.QtWidgets import QToolBar, QToolButton, QWidget, QApplication
+from PySide6.QtWidgets import QToolBar, QToolButton, QWidget
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QPalette
+from PySide6.QtGui import QIcon
 
 from opaque.presenters.presenter import BasePresenter
 
@@ -26,20 +26,20 @@ class OpaqueMainToolbar(QToolBar):
     Button highlighting adapts to the current theme's highlight color.
     """
 
-    # Default fallback color if theme doesn't provide one
-    DEFAULT_HIGHLIGHT_COLOR = "rgb(85, 170, 0)"
-
     def __init__(self, title: str, parent: Optional[QWidget] = None) -> None:
         super().__init__(title, parent)
 
         self.setMovable(True)
         self.setFloatable(True)
 
-        self._active_button: Optional[QToolButton] = None
-        self._current_highlight_style: str = ""
+        # Every feature button, in the order it was added. The checked state is
+        # exclusive across this list.
+        self._feature_buttons: List[QToolButton] = []
+        # The notification toggle. None until add_notification_button runs.
+        self._notification_button: Optional[QToolButton] = None
+        self._notification_count: int = 0
 
         self._setup_default_buttons()
-        self._update_highlight_style()
 
     def add_feature(self, presenter: BasePresenter) -> QToolButton:
         """
@@ -56,6 +56,11 @@ class OpaqueMainToolbar(QToolBar):
         button.setIconSize(QSize(24, 24))
         button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         button.setMinimumSize(70, 0)
+        # Qt draws the checked state itself, in every platform style and in
+        # every third-party theme. The visual includes a frame change as well
+        # as a colour change, so the state is not carried by colour alone.
+        button.setCheckable(True)
+        self._feature_buttons.append(button)
 
         self.addWidget(button)
         # --- Connect signals and slots ---
@@ -83,53 +88,95 @@ class OpaqueMainToolbar(QToolBar):
         activate_signal(lambda: self._set_active(button))
 
     def connect_signal_to_set_inactive(self, deactivate_signal: Callable, button: QToolButton):
-        deactivate_signal(lambda: self._set_active(button))
+        deactivate_signal(lambda: self._set_inactive(button))
 
     def add_notification_button(self, callback: Callable) -> QToolButton:
-        """Adds a notification toggle button to the toolbar."""
+        """
+        Add the notification panel toggle.
+
+        The button is checkable so it reports whether the panel is open. Call
+        set_notifications_visible to keep it in step with the dock, and
+        set_notification_count to show the unread count.
+        """
         notif_button = QToolButton()
         notif_button.setText(self.tr("Notifications"))
         notif_button.setToolTip(self.tr("Toggle Notifications Panel"))
-        # Use a generic icon or theme icon if available
-        # "dialog-information" is a standard icon name often available
         notif_button.setIcon(QIcon.fromTheme("dialog-information"))
         notif_button.setIconSize(QSize(24, 24))
         notif_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
         notif_button.setMinimumSize(70, 0)
+        notif_button.setCheckable(True)
+        notif_button.setAccessibleName(self.tr("Notifications"))
         notif_button.clicked.connect(callback)
-        
-        # Insert before the last separator (which is added in _setup_default_buttons)
-        # However, _setup_default_buttons adds cascade, tiled, then separator.
-        # So we probably want it next to them.
-        # Since we are calling this after initialization, simply addWidget will append to end.
-        # If we want it "near" tile/cascade, appending is fine as tile/cascade are default buttons.
-        # But features are added via add_feature which also uses addWidget.
-        # If we want it specifically grouped with cascade/tile, we might need to insert it.
-        # Cascade and Tile are added in __init__. Features are added later.
-        # If we append now, it will be after Cascade/Tile and before features (if features added after).
-        # Actually features are added in register_feature.
-        # Let's just append it. It will be near the start.
-        
-        # But wait, _setup_default_buttons adds a separator at the end.
-        # So if we addWidget now, it will be after the separator.
-        # To be "near" them (group with window management), maybe we want it before the separator?
-        # QToolBar doesn't have insertWidget easily without an action reference.
-        # But we can get actions() list.
-        
+
+        self._notification_button = notif_button
+
+        # Group the toggle with Cascade and Tiled, which sit before the
+        # separator that _setup_default_buttons adds.
         actions = self.actions()
         if actions and actions[-1].isSeparator():
-             self.insertWidget(actions[-1], notif_button)
+            self.insertWidget(actions[-1], notif_button)
         else:
-             self.addWidget(notif_button)
-             
+            self.addWidget(notif_button)
+
         return notif_button
+
+    # The highest count shown as a number. Above this the label reads "99+",
+    # because an exact count stops being useful and starts widening the button.
+    NOTIFICATION_COUNT_LIMIT: int = 99
+
+    def set_notifications_visible(self, visible: bool) -> None:
+        """Keep the notification toggle in step with the panel."""
+        if self._notification_button is None:
+            return
+        self._notification_button.setChecked(visible)
+
+    def set_notification_count(self, count: int) -> None:
+        """
+        Show the unread notification count on the toggle.
+
+        The count is text, not a coloured dot, so it stays readable for a user
+        with a colour vision deficiency and it reaches a screen reader.
+        """
+        self._notification_count = max(0, count)
+        if self._notification_button is None:
+            return
+
+        label = self.tr("Notifications")
+        if self._notification_count == 0:
+            self._notification_button.setText(label)
+            self._notification_button.setAccessibleName(label)
+            self._notification_button.setToolTip(
+                self.tr("Toggle Notifications Panel"))
+            return
+
+        if self._notification_count > self.NOTIFICATION_COUNT_LIMIT:
+            shown = f"{self.NOTIFICATION_COUNT_LIMIT}+"
+        else:
+            shown = str(self._notification_count)
+
+        self._notification_button.setText(f"{label} ({shown})")
+        self._notification_button.setAccessibleName(f"{label} ({shown})")
+        self._notification_button.setToolTip(
+            self.tr("Toggle Notifications Panel. Unread: ") + shown)
 
     def update_theme(self) -> None:
         """
-        Public method to update the toolbar when theme changes.
-        Called by the main application when a new theme is applied.
+        Repaint the toolbar after the application theme changed.
+
+        The toolbar writes no colours of its own. A style sheet theme changes
+        the button appearance, but Qt does not always repolish a widget that
+        was created before the style sheet was installed, so ask for it here.
+
+        Connect this to ThemeService.theme_changed.
         """
-        self._update_highlight_style()
+        style = self.style()
+        for button in self._feature_buttons:
+            style.unpolish(button)
+            style.polish(button)
+        style.unpolish(self)
+        style.polish(self)
+        self.update()
 
     def _setup_default_buttons(self) -> None:
         """Adds the default Cascade and Tiled buttons."""
@@ -165,74 +212,16 @@ class OpaqueMainToolbar(QToolBar):
         """Tell the MDI area to tile the windows."""
         self.parent().mdi_area.tileSubWindows()
 
-    def _get_theme_highlight_color(self) -> str:
-        """
-        Extracts the highlight color from the current theme's palette.
-        Returns a CSS rgb string.
-        """
-        try:
-            # Get the current application palette
-            palette = QApplication.palette()
-
-            # Try to get the highlight color from the palette
-            highlight_color = palette.color(QPalette.ColorRole.Highlight)
-
-            # Check if we got a valid color (not black/default)
-            if highlight_color.isValid() and highlight_color.name() != "#000000":
-                # Return as rgb string for CSS
-                return f"rgb({highlight_color.red()}, {highlight_color.green()}, {highlight_color.blue()})"
-
-            # Try alternative palette colors
-            accent_color = palette.color(QPalette.ColorRole.Accent) if hasattr(
-                QPalette.ColorRole, 'Accent') else None
-            if accent_color and accent_color.isValid() and accent_color.name() != "#000000":
-                return f"rgb({accent_color.red()}, {accent_color.green()}, {accent_color.blue()})"
-
-        except Exception:
-            pass
-
-        # Return default color as fallback
-        return self.DEFAULT_HIGHLIGHT_COLOR
-
-    def _update_highlight_style(self) -> None:
-        """
-        Updates the highlight style sheet based on the current theme.
-        Should be called when the theme changes.
-        """
-        highlight_color = self._get_theme_highlight_color()
-        self._current_highlight_style = f"""
-            QToolButton {{
-                background-color: {highlight_color};
-                border: 1px solid {highlight_color};
-                border-radius: 3px;
-            }}
-            QToolButton:hover {{
-                background-color: {highlight_color};
-                opacity: 0.8;
-            }}
-        """
-
-        # Update the active button if there is one
-        if self._active_button:
-            self._active_button.setStyleSheet(self._current_highlight_style)
-
     def _set_active(self, button_to_activate: QToolButton) -> None:
         """
-        Sets the given button as the single active/highlighted button.
-        Uses the current theme's highlight color.
+        Check one feature button and clear every other one.
+
+        The checked state is exclusive because only one MDI sub window can hold
+        the focus at a time.
         """
-        if self._active_button == button_to_activate:
-            return
-
-        # Deactivate the previously active button
-        if self._active_button is not None:
-            self._active_button.setStyleSheet("")
-
-        # Activate the new one with theme-aware style
-        button_to_activate.setStyleSheet(self._current_highlight_style)
-        self._active_button = button_to_activate
+        for button in self._feature_buttons:
+            button.setChecked(button is button_to_activate)
 
     def _set_inactive(self, button_to_deactivate: QToolButton) -> None:
-        if self._active_button and self._active_button == button_to_deactivate:
-            self._active_button.setStyleSheet("")
-            self._active_button = None
+        """Clear the checked state of one feature button."""
+        button_to_deactivate.setChecked(False)
