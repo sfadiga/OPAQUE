@@ -12,7 +12,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from opaque.services.service import BaseService
 from opaque.presenters.presenter import BasePresenter
@@ -23,7 +23,7 @@ class WorkspaceService(BaseService):
 
     SERVICE_NAME = "workspace"
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the workspace manager.
 
@@ -61,7 +61,7 @@ class WorkspaceService(BaseService):
 
     def save_workspace(self, workspace_file: str) -> Optional[str]:
         """Save workspace to file."""
-        workspace_data = {}
+        workspace_data: Dict[str, Any] = {}
         # Collect current values from registered models
         for _, presenter in self._features.items():
             presenter.save_workspace(workspace_data)

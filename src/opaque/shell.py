@@ -19,7 +19,7 @@ told every reader the opposite. A feature's own view is opaque.view.view.
 
 
 import logging
-from typing import Optional, Dict, Type
+from typing import Optional, Dict, List, Type, cast
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
 from PySide6.QtGui import (
@@ -29,7 +29,7 @@ from PySide6.QtCore import QLocale, Qt
 
 from opaque.view.widgets.mdi_window import OpaqueMdiArea
 from opaque.view.widgets.toolbar import OpaqueMainToolbar
-from opaque.view.dialogs.settings import SettingsDialog
+from opaque.view.dialogs.settings import SettingsDialog, SettingsPage
 from opaque.view.dialogs.keyboard_map import KeyboardMapDialog
 from opaque.features.context import FeatureContext
 from opaque.models.model import BaseModel
@@ -73,7 +73,11 @@ class BaseApplication(QMainWindow):
     See `examples/quickstart/main.py` for the smallest complete subclass.
     """
 
-    def __init__(self, configuration: DefaultApplicationConfiguration, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+            self,
+            configuration: DefaultApplicationConfiguration,
+            parent: Optional[QWidget] = None,
+    ) -> None:
         # Set application metadata before initialization
         QApplication.setApplicationName(configuration.get_application_name())
         QApplication.setOrganizationName(
@@ -89,7 +93,10 @@ class BaseApplication(QMainWindow):
                   if self._language_at_start else QLocale.system())
 
         app = QApplication.instance()
-        if app:
+        # QApplication.instance() is typed to return the base
+        # QCoreApplication. This framework never runs without a real
+        # QApplication, but check rather than assume it.
+        if isinstance(app, QApplication):
             # The translator must be installed before any widget is built.
             # A widget reads its strings once, when it is created.
             install_translator(app, locale=locale)
@@ -144,8 +151,10 @@ class BaseApplication(QMainWindow):
         self.workspace_service.initialize()
         ServiceLocator.register_service(self.workspace_service)
 
-        # Initialize theme service
-        self.theme_service = ThemeService(app)
+        # Initialize theme service. A QApplication must already exist by the
+        # time BaseApplication is built (every example creates one first),
+        # so this is the same instance narrowed above, not a new assumption.
+        self.theme_service = ThemeService(cast(QApplication, app))
         self.theme_service.initialize()
         ServiceLocator.register_service(self.theme_service)
 
@@ -177,7 +186,7 @@ class BaseApplication(QMainWindow):
         self._services_initialized = True
         self.notification_presenter = NotificationPresenter(self)
         self.notification_presenter.initialize()
-        
+
         # Add notification toggle to toolbar
         self.toolbar.add_notification_button(
             self.notification_presenter.toggle_notifications)
@@ -218,7 +227,11 @@ class BaseApplication(QMainWindow):
 
         dock = self.notification_presenter.get_notification_widget()
         if dock is not None:
+            # Every connection here goes through a lambda by policy (see the
+            # docstring above), not because this one needs to transform its
+            # argument.
             dock.visibilityChanged.connect(
+                # pylint: disable-next=unnecessary-lambda
                 lambda visible: self.toolbar.set_notifications_visible(visible))
 
         model = self.notification_presenter.get_notification_model()
@@ -583,7 +596,9 @@ class BaseApplication(QMainWindow):
         try:
             name = self.workspace_service.save_workspace(file_path)
             self.update_application_title(name)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            # An unexpected error here must not crash the shell; report it
+            # and let the user try again instead.
             logger.exception("Failed to save the workspace file")
             QMessageBox.critical(
                 self,
@@ -610,7 +625,9 @@ class BaseApplication(QMainWindow):
         try:
             name = self.workspace_service.load_workspace(file_path)
             self.update_application_title(name)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            # An unexpected error here must not crash the shell; report it
+            # and let the user try again instead.
             logger.exception("Failed to load the workspace file")
             QMessageBox.critical(
                 self,
@@ -624,7 +641,7 @@ class BaseApplication(QMainWindow):
         Gathers all features with settings and displays the settings dialog.
         Handles theme application and saving on dialog acceptance.
         """
-        pages = list(self._registered_features.values())
+        pages: List[SettingsPage] = list(self._registered_features.values())
 
         # The notification settings have a model but no BasePresenter, so the
         # presenter hands over a small adapter that carries the three members
@@ -664,8 +681,12 @@ class BaseApplication(QMainWindow):
         super().closeEvent(event)
 
     def try_acquire_lock(self):
-        # The application name must be known before creating the QApplication
-        # to ensure the single instance check is reliable.
+        """
+        Try to acquire the single instance lock.
+
+        The application name must be known before creating the QApplication,
+        to ensure the single instance check is reliable.
+        """
         return self.single_instance_service.try_acquire_lock()
 
     def show_already_running_message(self):

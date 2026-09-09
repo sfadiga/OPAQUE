@@ -8,10 +8,9 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-from typing import Any
+from typing import Any, cast
 
-from PySide6.QtWidgets import QApplication
-
+from PySide6.QtCore import QCoreApplication
 
 from opaque.services.service import ServiceLocator
 from opaque.services.theme_service import ThemeService
@@ -24,6 +23,17 @@ from opaque.view.view import BaseView
 
 
 class ApplicationPresenter(BasePresenter):
+
+    @property
+    def model(self) -> ApplicationModel:
+        """
+        The application settings model, narrowed from BasePresenter.model.
+
+        register() always builds this presenter with an ApplicationModel;
+        BasePresenter.model is typed BaseModel because it serves every
+        presenter, not just this one.
+        """
+        return cast(ApplicationModel, super().model)
 
     def __init__(
             self,
@@ -62,7 +72,9 @@ class ApplicationPresenter(BasePresenter):
         wanted = str(self.model.theme)
         if not self.theme_service.is_valid_theme(wanted):
             wanted = ThemeService.DEFAULT_THEME
-            self.model.theme = wanted
+            # ModelMeta rewrites theme into a validating str property at
+            # class creation time; mypy only sees the declared Field type.
+            self.model.theme = wanted  # type: ignore[assignment]
         self.theme_service.apply_theme(wanted)
 
     def apply_settings(self) -> None:
@@ -81,8 +93,13 @@ class ApplicationPresenter(BasePresenter):
         if wanted == self._language_at_start:
             return
 
-        title = self.tr("Language changed")
-        message = self.tr(
+        # self.tr() needs a QObject, and BasePresenter is not one.
+        # QCoreApplication.translate() is the same lupdate-visible call for
+        # a class that is not.
+        title = QCoreApplication.translate(
+            "ApplicationPresenter", "Language changed")
+        message = QCoreApplication.translate(
+            "ApplicationPresenter",
             "The new language is used the next time the application starts.")
 
         service = ServiceLocator.get(NotificationService)
@@ -111,4 +128,4 @@ class ApplicationPresenter(BasePresenter):
         pass
 
     def on_view_show(self) -> None:
-        super().on_view_show()
+        pass

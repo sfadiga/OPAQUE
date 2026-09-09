@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 class BuildError(Exception):
     """Exception raised when build process fails."""
-    pass
 
 
 class Builder(ABC):
@@ -56,7 +55,6 @@ class Builder(ABC):
             BuildError: When the backend is not installed, the entry point
                 does not exist, or the backend reports a failure.
         """
-        pass
 
     @abstractmethod
     def is_available(self) -> bool:
@@ -66,9 +64,10 @@ class Builder(ABC):
         Returns:
             True if builder can be used, False otherwise
         """
-        pass
 
-    def _run_command(self, cmd: List[str], cwd: Optional[Path] = None) -> subprocess.CompletedProcess[str]:
+    def _run_command(
+            self, cmd: List[str], cwd: Optional[Path] = None,
+    ) -> subprocess.CompletedProcess[str]:
         """
         Run command and handle errors.
 
@@ -112,7 +111,10 @@ class Builder(ABC):
     def _find_pyside6_path(self) -> Optional[Path]:
         """Find PySide6 installation path."""
         try:
-            import PySide6
+            # A module-level import would crash this whole module, and every
+            # build_tools command with it, on a machine where PySide6 is not
+            # installed. That is exactly the case this method reports on.
+            import PySide6  # pylint: disable=import-outside-toplevel
             return Path(PySide6.__file__).parent
         except ImportError:
             return None

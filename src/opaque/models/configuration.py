@@ -50,8 +50,10 @@ class DefaultApplicationConfiguration(AbstractModel):
         # Now set the dynamic default for settings_file_path
         app_name = self.get_application_name().lower().replace(' ', '_')
         file_path = str(Path.home() / f".{app_name}" / "settings.json")
-        # This sets the value through the property setter
-        self.settings_file_path = file_path
+        # This sets the value through the property setter. ModelMeta rewrites
+        # settings_file_path into a validating str property at class
+        # creation time; mypy only sees the declared StringField type.
+        self.settings_file_path = file_path  # type: ignore[assignment]
 
     @abstractmethod
     def get_application_name(self) -> str:
@@ -61,7 +63,7 @@ class DefaultApplicationConfiguration(AbstractModel):
 
         Example: return "MyApplication"
         """
-        return self.application_name
+        return str(self.application_name)
 
     @abstractmethod
     def get_application_title(self) -> str:
@@ -70,7 +72,7 @@ class DefaultApplicationConfiguration(AbstractModel):
 
         Example: return "My Application"
         """
-        return self.application_title
+        return str(self.application_title)
 
     @abstractmethod
     def get_application_description(self) -> str:
@@ -79,7 +81,7 @@ class DefaultApplicationConfiguration(AbstractModel):
 
         Example: return "My Application does this and that..."
         """
-        return self.application_description
+        return str(self.application_description)
 
     @abstractmethod
     def get_application_icon(self) -> QIcon:
@@ -119,7 +121,7 @@ class DefaultApplicationConfiguration(AbstractModel):
             pass
 
         # Fall back to configured value
-        return self.application_version
+        return str(self.application_version)
 
     @abstractmethod
     def get_application_organization(self) -> str:
@@ -129,7 +131,7 @@ class DefaultApplicationConfiguration(AbstractModel):
 
         Example: return "MyCompany"
         """
-        return self.application_organization
+        return str(self.application_organization)
 
     def get_application_min_size(self) -> Optional[tuple[int, int]]:
         """
@@ -163,4 +165,4 @@ class DefaultApplicationConfiguration(AbstractModel):
         Configurable workspace file extension
         return the extension and a description (to display purposes)
         """
-        return self.workspace_file_extension
+        return str(self.workspace_file_extension)

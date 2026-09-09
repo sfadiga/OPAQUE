@@ -42,7 +42,10 @@ class TypeScale:
     def base_point_size(cls) -> float:
         """Return the application font size, which follows the OS font scale."""
         app = QApplication.instance()
-        if app is None:
+        # QApplication.instance() is typed to return the base QCoreApplication,
+        # which has no font(). This framework never creates a bare
+        # QCoreApplication, but check rather than assume it.
+        if not isinstance(app, QApplication):
             return cls.FALLBACK_POINT_SIZE
         size = app.font().pointSizeF()
         if size <= 0:
@@ -59,7 +62,7 @@ class TypeScale:
     def _font_for_step(cls, step: int) -> QFont:
         """Return a copy of the application font resized to one step."""
         app = QApplication.instance()
-        font = QFont(app.font()) if app is not None else QFont()
+        font = QFont(app.font()) if isinstance(app, QApplication) else QFont()
         font.setPointSizeF(cls._size_for_step(step))
         return font
 

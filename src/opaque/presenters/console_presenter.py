@@ -6,7 +6,7 @@ Licensed under MIT License
 """
 
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, cast
 from PySide6.QtWidgets import QMessageBox
 
 from opaque.presenters.presenter import BasePresenter
@@ -21,6 +21,22 @@ logger = logging.getLogger(__name__)
 
 class ConsolePresenter(BasePresenter):
     """Presenter for managing the console feature."""
+
+    @property
+    def model(self) -> ConsoleModel:  # type: ignore[override]
+        """
+        The console model, narrowed from BasePresenter.model.
+
+        ConsoleModel does not inherit BaseModel (see __init__ below), so
+        this override is not Liskov-safe by construction; every caller in
+        this file needs ConsoleModel specifically, not the base type.
+        """
+        return cast(ConsoleModel, super().model)
+
+    @property
+    def view(self) -> ConsoleView:
+        """The console view, narrowed from BasePresenter.view."""
+        return cast(ConsoleView, super().view)
 
     def __init__(self, model: ConsoleModel, context: FeatureContext):
         # Create view with the context
@@ -261,7 +277,7 @@ class ConsolePresenter(BasePresenter):
 
     def is_console_capturing(self) -> bool:
         """Check if console is currently capturing output."""
-        return self.console_service and self.console_service.is_capturing()
+        return bool(self.console_service and self.console_service.is_capturing())
 
     def write_to_console(self, text: str, output_type: str = 'stdout'):
         """

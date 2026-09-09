@@ -60,7 +60,7 @@ class ConsoleModel(QObject):
     def __init__(self, context: FeatureContext):
         super().__init__()
         self._context = context
-        self._observers = []
+        self._observers: List[Any] = []
 
         # Configuration settings
         self._auto_scroll = True

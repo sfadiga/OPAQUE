@@ -10,13 +10,25 @@
 """
 
 
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Protocol, cast
 
 from PySide6.QtWidgets import QToolBar, QToolButton, QWidget
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 
 from opaque.presenters.presenter import BasePresenter
+from opaque.view.widgets.mdi_window import OpaqueMdiArea
+
+
+class _HasMdiArea(Protocol):
+    """
+    The one attribute this toolbar needs from its parent.
+
+    The real parent is BaseApplication, in shell.py, which this module
+    cannot import: shell.py already imports this one.
+    """
+
+    mdi_area: OpaqueMdiArea
 
 
 class OpaqueMainToolbar(QToolBar):
@@ -209,11 +221,11 @@ class OpaqueMainToolbar(QToolBar):
 
     def _cascade_windows(self) -> None:
         """Tell the MDI area to cascade the windows."""
-        self.parent().mdi_area.cascadeSubWindows()
+        cast(_HasMdiArea, self.parent()).mdi_area.cascadeSubWindows()
 
     def _tile_windows(self) -> None:
         """Tell the MDI area to tile the windows."""
-        self.parent().mdi_area.tileSubWindows()
+        cast(_HasMdiArea, self.parent()).mdi_area.tileSubWindows()
 
     def _set_active(self, button_to_activate: QToolButton) -> None:
         """

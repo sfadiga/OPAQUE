@@ -14,6 +14,7 @@ from .builder import BuildError
 from .config import BuildConfig
 from .nuitka_builder import NuitkaBuilder
 from .pyinstaller_builder import PyInstallerBuilder
+from ..services.version_service import VersionManager
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -200,11 +201,9 @@ def build(args: argparse.Namespace) -> int:
 
 def _prepare_version_info(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
     """Prepare version information from various sources."""
-    from ..services.version_service import VersionManager
-    
     version_manager = VersionManager()
     version_info: Dict[str, Any] = {}
-    
+
     # Get version from command line arg or auto-detect
     if hasattr(args, 'version') and args.version:
         version_info["version"] = args.version
@@ -213,11 +212,11 @@ def _prepare_version_info(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
         version = version_manager.get_version()
         if version:
             version_info["version"] = version
-    
+
     # Add build number if provided
     if hasattr(args, 'build_number') and args.build_number:
         version_info["build_number"] = args.build_number
-    
+
     # Get additional version info
     version_manager_info = version_manager.get_version_info()
     if version_manager_info:
@@ -225,7 +224,7 @@ def _prepare_version_info(args: argparse.Namespace) -> Optional[Dict[str, Any]]:
         for key, value in version_manager_info.items():
             if key not in version_info and value:
                 version_info[key] = value
-    
+
     return version_info if version_info else None
 
 

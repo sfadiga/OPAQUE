@@ -82,7 +82,7 @@ class NotificationService(BaseService):
     notification_removed = Signal(str)  # notification id
     notifications_cleared = Signal(NotificationLevel)  # level or None for all
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._notifications: List[Notification] = []
         self._max_notifications = 1000

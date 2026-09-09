@@ -192,7 +192,10 @@ class NuitkaBuilder(Builder):
         """Return the executable file extension for this platform."""
         return ".exe" if platform.system() == "Windows" else ""
 
-    def _find_executable(self, default_name: str, custom_name: Optional[str] = None, onefile: bool = False) -> Optional[Path]:
+    def _find_executable(
+            self, default_name: str, custom_name: Optional[str] = None,
+            onefile: bool = False,
+    ) -> Optional[Path]:
         """Find the built executable."""
         name = custom_name or default_name
 
@@ -201,23 +204,23 @@ class NuitkaBuilder(Builder):
             exe_name = f"{name}.exe" if platform.system(
             ) == "Windows" else name
             return self.output_dir / exe_name
-        else:
-            # Standalone distribution
-            # Nuitka creates a directory with the app name
-            exe_dir = self.output_dir / f"{default_name}.dist"
-            exe_name = f"{name}.exe" if platform.system(
-            ) == "Windows" else name
-            exe_path = exe_dir / exe_name
 
-            # If custom name was used, also check for that
-            if custom_name and custom_name != default_name:
-                alt_exe_name = f"{custom_name}.exe" if platform.system(
-                ) == "Windows" else custom_name
-                alt_exe_path = exe_dir / alt_exe_name
-                if alt_exe_path.exists():
-                    return alt_exe_path
+        # Standalone distribution
+        # Nuitka creates a directory with the app name
+        exe_dir = self.output_dir / f"{default_name}.dist"
+        exe_name = f"{name}.exe" if platform.system(
+        ) == "Windows" else name
+        exe_path = exe_dir / exe_name
 
-            return exe_path if exe_path.exists() else None
+        # If custom name was used, also check for that
+        if custom_name and custom_name != default_name:
+            alt_exe_name = f"{custom_name}.exe" if platform.system(
+            ) == "Windows" else custom_name
+            alt_exe_path = exe_dir / alt_exe_name
+            if alt_exe_path.exists():
+                return alt_exe_path
+
+        return exe_path if exe_path.exists() else None
 
     def get_nuitka_version(self) -> Optional[str]:
         """Get Nuitka version."""
@@ -246,14 +249,16 @@ class NuitkaBuilder(Builder):
 
     def create_config_file(
             self,
-            entry_point: Union[str, Path],
+            entry_point: Union[str, Path],  # pylint: disable=unused-argument
             config: BuildConfig,
     ) -> Path:
         """
         Create a Nuitka configuration file for reproducible builds.
 
         Args:
-            entry_point: The .py file that starts the application.
+            entry_point: The .py file that starts the application. Not read
+                here; kept so this method's signature matches build() and
+                build_command(), which do read it.
             config: Every build option.
 
         Returns:
@@ -368,7 +373,10 @@ class NuitkaBuilder(Builder):
 
         return '\n'.join(lines) + '\n'
 
-    def build_from_config(self, config_file: Union[str, Path], entry_point: Union[str, Path]) -> Path:
+    def build_from_config(
+            self, config_file: Union[str, Path],
+            entry_point: Union[str, Path],
+    ) -> Path:
         """
         Build executable from existing config file.
 

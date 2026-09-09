@@ -18,7 +18,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
 
 from opaque.services.service import ServiceLocator
-from opaque.services.notification_service import NotificationService, Notification, NotificationLevel
+from opaque.services.notification_service import (
+    NotificationService, Notification, NotificationLevel)
 from opaque.view.widgets.close_button import CloseButton
 from opaque.view.widgets.confirm import confirm_destructive_action
 from opaque.view.theme import (
@@ -125,13 +126,13 @@ class ToastWidget(QWidget):
     def _setup_ui(self):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.container = QFrame()
         self.container.setObjectName("ToastContainer")
         self.container.setStyleSheet(self._get_stylesheet())
-        
+
         container_layout = QVBoxLayout(self.container)
-        
+
         colors = self._get_level_colors()
 
         title_layout, self.level_label, self.title_label = (
@@ -154,7 +155,7 @@ class ToastWidget(QWidget):
         self.message_label.setFont(TypeScale.body())
         self.message_label.setStyleSheet(f"color: {colors.foreground};")
         container_layout.addWidget(self.message_label)
-        
+
         layout.addWidget(self.container)
 
     def _get_level_colors(self) -> StatusColors:
@@ -303,7 +304,7 @@ class SimplifiedNotificationList(QWidget):
     """
     A simpler list widget for notifications.
     """
-    
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.items: Dict[str, NotificationListItem] = {}
@@ -315,7 +316,7 @@ class SimplifiedNotificationList(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         header = QHBoxLayout()
         self.title_label = QLabel(self.tr("Notifications"))
         self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
@@ -339,18 +340,18 @@ class SimplifiedNotificationList(QWidget):
         self.clear_button.clicked.connect(self._clear_all)
         header.addWidget(self.clear_button)
         layout.addLayout(header)
-        
+
         # Scroll Area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        
+
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
         self.container_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.container_layout.setContentsMargins(0,0,0,0)
         self.container_layout.setSpacing(1)
-        
+
         self.scroll_area.setWidget(self.container)
         layout.addWidget(self.scroll_area)
 

@@ -17,7 +17,7 @@ def test_the_swatch_is_painted_with_a_style_sheet(qtbot, light_palette_app):
 def test_the_swatch_follows_the_colour(qtbot, light_palette_app):
     picker = ColorPicker("#ff0000")
     qtbot.addWidget(picker)
-    picker.setColor("#00ff00")
+    picker.set_color("#00ff00")
     assert "#00ff00" in picker.button.styleSheet()
     assert "#ff0000" not in picker.button.styleSheet()
 

@@ -33,30 +33,35 @@ class ColorPicker(QWidget):
         self._color = QColor(initial_color)
         self._text_is_valid = True
 
-        self.layout = QHBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        # Named _layout, not layout: QWidget.layout is a method that returns
+        # this same object, and assigning over it made mypy see the method's
+        # type on every line below instead of QHBoxLayout's.
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
 
         self.line_edit = QLineEdit(self._color.name())
         self.line_edit.setAccessibleName(self.tr("Colour value"))
         self.line_edit.textChanged.connect(self._on_text_changed)
         # The colour is taken when the user leaves the box, not on every key.
         self.line_edit.editingFinished.connect(self._commit_text)
-        self.layout.addWidget(self.line_edit)
+        self._layout.addWidget(self.line_edit)
 
         self.button = QPushButton("...")
         self.button.setFixedSize(self.BUTTON_SIZE, self.BUTTON_SIZE)
         self.button.setAccessibleName(self.tr("Choose a colour"))
         self.button.setToolTip(self.tr("Open the colour dialog"))
         self.button.clicked.connect(self._on_button_clicked)
-        self.layout.addWidget(self.button)
+        self._layout.addWidget(self.button)
 
         self._update_button_color()
         self._update_validation_style()
 
     def color(self) -> str:
+        """Return the current colour as a hex string."""
         return self._color.name()
 
-    def setColor(self, color: str):
+    def set_color(self, color: str):
+        """Set the current colour from a hex string and update the display."""
         new_color = QColor(color)
         if self._color != new_color:
             self._color = new_color
@@ -68,7 +73,7 @@ class ColorPicker(QWidget):
     def _on_button_clicked(self):
         dialog = QColorDialog(self._color, self)
         if dialog.exec():
-            self.setColor(dialog.selectedColor().name())
+            self.set_color(dialog.selectedColor().name())
 
     def is_text_valid(self) -> bool:
         """Return True when the text in the box names a colour Qt understands."""
@@ -113,7 +118,7 @@ class ColorPicker(QWidget):
             self._text_is_valid = True
             self._update_validation_style()
             return
-        self.setColor(self.line_edit.text())
+        self.set_color(self.line_edit.text())
 
     def _update_button_color(self) -> None:
         """

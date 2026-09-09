@@ -10,7 +10,7 @@
 """
 
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, cast
 
 from PySide6.QtCore import QObject, Qt, QPoint, QTimer
 from PySide6.QtWidgets import QMainWindow, QDockWidget
@@ -264,7 +264,7 @@ class NotificationPresenter(QObject):
         if not toast.close_timer.isActive():
             return
 
-        timeout = int(settings.auto_hide_timeout)
+        timeout = cast(int, settings.auto_hide_timeout)
         if timeout > 0:
             toast.close_timer.start(timeout)
 
@@ -433,7 +433,7 @@ class NotificationPresenter(QObject):
 
         if self._notification_list is not None:
             self._notification_list.set_maximum_rows(
-                int(settings.max_notification_display))
+                cast(int, settings.max_notification_display))
 
         if self._dock_widget is None or self._main_window is None:
             return
@@ -446,8 +446,8 @@ class NotificationPresenter(QObject):
         self._main_window.addDockWidget(area, self._dock_widget)
         self._dock_widget.setVisible(was_visible)
 
-        width = int(settings.notification_widget_width)
-        height = int(settings.notification_widget_height)
+        width = cast(int, settings.notification_widget_width)
+        height = cast(int, settings.notification_widget_height)
         if area in (Qt.DockWidgetArea.LeftDockWidgetArea,
                     Qt.DockWidgetArea.RightDockWidgetArea):
             self._main_window.resizeDocks(

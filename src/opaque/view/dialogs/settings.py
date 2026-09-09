@@ -10,8 +10,9 @@
 """
 
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QSplitter,
     QListWidget, QListWidgetItem, QScrollArea, QWidget, QDialogButtonBox, QFormLayout,
@@ -19,7 +20,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from opaque.presenters.presenter import BasePresenter
 from opaque.services.service import ServiceLocator
 from opaque.services.settings_service import SettingsService
 
@@ -27,14 +27,57 @@ from opaque.view.widgets.color_picker import ColorPicker
 from opaque.models.annotations import Field, UIType
 
 
+class _FeatureModel(Protocol):
+    """
+    The subset of a model this dialog needs.
+
+    BaseModel and NotificationSettingsModel both satisfy this structurally;
+    they are siblings under AbstractModel, not one a subclass of the other.
+    """
+
+    @classmethod
+    def get_fields(cls) -> Dict[str, Field]:
+        """Return every declared field, keyed by name."""
+
+    def feature_name(self) -> str:
+        """Return the display title shown in the settings groups list."""
+
+    def feature_icon(self) -> QIcon:
+        """Return the icon shown beside the title in the groups list."""
+
+
+class SettingsPage(Protocol):
+    """
+    What this dialog needs from one entry: an identity, a model with
+    annotated fields, and a place to apply changes once they are written.
+
+    BasePresenter satisfies this structurally, by having all three.
+    NotificationPresenter is a QObject, not a BasePresenter, so
+    NotificationSettingsPage exists only to satisfy this shape too.
+    """
+
+    @property
+    def feature_id(self) -> str:
+        """Return the one stable identity of this feature."""
+
+    @property
+    def model(self) -> _FeatureModel:
+        """Return the model this entry reads and writes settings on."""
+
+    def apply_settings(self) -> None:
+        """Called after the dialog has written every pending edit."""
+
+
 class SettingsDialog(QDialog):
-    def __init__(self, presenters: List[BasePresenter], parent: Optional[QWidget] = None) -> None:
+    """The Settings dialog: one page per registered feature."""
+
+    def __init__(self, presenters: List[SettingsPage], parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
         self.setWindowTitle(self.tr("Settings"))
         self.setMinimumSize(800, 600)
 
-        self.features: Dict[str, BasePresenter] = {
+        self.features: Dict[str, SettingsPage] = {
             p.feature_id: p for p in presenters}
 
         # get() raises a LookupError that names the missing service and lists
@@ -65,7 +108,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.search_bar)
 
         # Splitter for the main area
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         layout.addWidget(splitter)
 
         # Left panel: List of settings groups
@@ -373,7 +416,7 @@ class SettingsDialog(QDialog):
             label_widget = QLabel(label_text)
             self._current_form_widgets[label_text.lower()] = label_widget
 
-            widget = None
+            widget: Optional[QWidget] = None
             if hasattr(field, 'ui_type') and field.ui_type == UIType.CHECKBOX:
                 widget = QCheckBox()
                 widget.setChecked(bool(current_value))

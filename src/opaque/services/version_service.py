@@ -19,11 +19,17 @@ class VersionManager(BaseService):
 
     SERVICE_NAME = "version"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self._cached_version: Optional[str] = None
         self._version_info: Dict[str, Any] = {}
         self._initialize()
+
+    def initialize(self) -> None:
+        return super().initialize()
+
+    def cleanup(self) -> None:
+        return super().cleanup()
 
     def _initialize(self):
         """Initialize version detection from available sources."""

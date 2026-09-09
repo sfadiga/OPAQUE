@@ -43,7 +43,10 @@ MINIMUM_HIT_TARGET: int = 28
 def _palette() -> QPalette:
     """Return the active application palette, or a default one in a headless test."""
     app = QApplication.instance()
-    if app is None:
+    # QApplication.instance() is typed to return the base QCoreApplication,
+    # which has no palette(). This framework never creates a bare
+    # QCoreApplication, but check rather than assume it.
+    if not isinstance(app, QApplication):
         return QPalette()
     return app.palette()
 

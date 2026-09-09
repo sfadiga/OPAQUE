@@ -113,6 +113,10 @@ class AbstractModel(ABC, metaclass=ModelMeta):
 
     _version = "1.0.0"
 
+    # ModelMeta.__new__ always rebuilds this for every subclass; the
+    # declaration here is only so mypy knows the attribute exists.
+    _fields: Dict[str, Field] = {}
+
     # The one stable identity of this feature. A subclass must declare it.
     # Empty means undeclared, which feature_id() reports.
     FEATURE_ID: str = ""

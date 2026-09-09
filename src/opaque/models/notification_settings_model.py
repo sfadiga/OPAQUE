@@ -9,6 +9,8 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+from typing import cast
+
 from PySide6.QtGui import QIcon
 
 from opaque.models.abstract_model import AbstractModel
@@ -204,11 +206,11 @@ class NotificationSettingsModel(AbstractModel):
         level = level.upper()
 
         if level == "WARNING":
-            return self.notification_on_warning
+            return bool(self.notification_on_warning)
         elif level == "ERROR":
-            return self.notification_on_error
+            return bool(self.notification_on_error)
         elif level == "CRITICAL":
-            return self.notification_on_critical
+            return bool(self.notification_on_critical)
 
         return False
 
@@ -230,10 +232,10 @@ class NotificationSettingsModel(AbstractModel):
             "enabled": bool(self.notifications_enabled),
             "show_count": bool(self.show_notification_count),
             "auto_hide": bool(self.auto_hide_notifications),
-            "auto_hide_timeout": int(self.auto_hide_timeout),
+            "auto_hide_timeout": cast(int, self.auto_hide_timeout),
             "position": str(self.notification_widget_position),
-            "max_display": int(self.max_notification_display),
-            "width": int(self.notification_widget_width),
-            "height": int(self.notification_widget_height),
+            "max_display": cast(int, self.max_notification_display),
+            "width": cast(int, self.notification_widget_width),
+            "height": cast(int, self.notification_widget_height),
             "enabled_levels": self.get_enabled_notification_levels(),
         }

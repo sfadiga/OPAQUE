@@ -56,7 +56,7 @@ class CloseableTabWidget(QWidget):
         """Return True when the tab at index is the add button, not content."""
         if not self._show_plus_tab:
             return False
-        if not (0 <= index < self.tab_widget.count()):
+        if not 0 <= index < self.tab_widget.count():
             return False
         return self.tab_widget.tabBar().tabData(index) == self.ADD_TAB_ROLE
 
@@ -95,7 +95,7 @@ class CloseableTabWidget(QWidget):
         self._minimum_tabs = max(1, minimum_tabs)
         self._show_plus_tab = show_plus_tab
         self._tab_counter = 0
-        self._current_widget = None
+        self._current_widget: Optional[QWidget] = None
         self._removing_tab = False  # Flag to prevent dialog during tab removal
         self._adding_tab = False    # Flag to stop add_tab calling itself
 
@@ -106,7 +106,7 @@ class CloseableTabWidget(QWidget):
 
         # Create factory function if only type is provided
         if not widget_factory and widget_type:
-            self._widget_factory = lambda: widget_type()
+            self._widget_factory = widget_type
 
         self._setup_ui()
         self._setup_connections()
@@ -143,14 +143,15 @@ class CloseableTabWidget(QWidget):
         try:
             if self._widget_factory is not None:
                 return self._widget_factory()
-            else:
-                # Fallback to empty widget if no factory
-                widget = QWidget()
-                layout = QVBoxLayout(widget)
-                layout.addWidget(QLabel(self.tr("No widget factory provided")))
-                return widget
-        except Exception as e:
-            # Fallback to empty widget if factory fails
+
+            # Fallback to empty widget if no factory
+            widget = QWidget()
+            layout = QVBoxLayout(widget)
+            layout.addWidget(QLabel(self.tr("No widget factory provided")))
+            return widget
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # widget_factory is caller-supplied and can raise anything; one
+            # bad tab must not take down the whole tab widget.
             widget = QWidget()
             layout = QVBoxLayout(widget)
             layout.addWidget(QLabel(f"Error creating widget: {str(e)}"))
@@ -198,18 +199,20 @@ class CloseableTabWidget(QWidget):
 
     def can_close_tab(self, index: int) -> bool:
         """Return True when the tab at index may be closed right now."""
-        if not (0 <= index < self.tab_widget.count()):
+        if not 0 <= index < self.tab_widget.count():
             return False
         if self.is_add_tab(index):
             return False
         return self._get_real_tab_count() > self._minimum_tabs
 
-    def _confirm_close_tab(self, name: str) -> bool:
+    def _confirm_close_tab(self, name: str) -> bool:  # pylint: disable=unused-argument
         """
         Ask before a tab and everything in it are destroyed.
 
         A test replaces this method, so the question box never opens in a test
-        run. Keep the question in this method and nothing else.
+        run. Keep the question in this method and nothing else. name is not
+        read here (the question does not name the tab), but the call site
+        passes it and a test replaces this method with a matching signature.
         """
         return confirm_destructive_action(
             self,
@@ -274,7 +277,7 @@ class CloseableTabWidget(QWidget):
         Returns:
             True if tab was renamed, False otherwise
         """
-        if not (0 <= index < self.tab_widget.count()):
+        if not 0 <= index < self.tab_widget.count():
             return False
 
         current_name = self.tab_widget.tabText(index)
@@ -438,7 +441,7 @@ class CloseableTabWidget(QWidget):
 
     def get_widget_at_index(self, index: int) -> Optional[QWidget]:
         """Get the content widget at the specified tab index."""
-        if not (0 <= index < self.tab_widget.count()):
+        if not 0 <= index < self.tab_widget.count():
             return None
         if self.is_add_tab(index):
             return None
@@ -450,7 +453,7 @@ class CloseableTabWidget(QWidget):
 
     def set_current_tab(self, index: int) -> bool:
         """Set the current tab by index. The add tab cannot be selected."""
-        if not (0 <= index < self.tab_widget.count()):
+        if not 0 <= index < self.tab_widget.count():
             return False
         if self.is_add_tab(index):
             return False
@@ -459,7 +462,7 @@ class CloseableTabWidget(QWidget):
 
     def get_tab_name(self, index: int) -> Optional[str]:
         """Get the name of the content tab at the specified index."""
-        if not (0 <= index < self.tab_widget.count()):
+        if not 0 <= index < self.tab_widget.count():
             return None
         if self.is_add_tab(index):
             return None
@@ -491,7 +494,9 @@ class CloseableTabWidget(QWidget):
                     workspace_method = getattr(widget, 'get_workspace_data')
                     if callable(workspace_method):
                         tab_data['widget_data'] = workspace_method()
-                except Exception:
+                except Exception:  # pylint: disable=broad-exception-caught
+                    # get_workspace_data is duck-typed and caller-supplied;
+                    # one bad tab must not stop the whole workspace save.
                     logger.exception(
                         "Failed to get workspace data from a tab widget")
 
@@ -537,7 +542,10 @@ class CloseableTabWidget(QWidget):
                         load_method = getattr(widget, 'load_workspace_data')
                         if callable(load_method):
                             load_method(tab_data['widget_data'])
-                    except Exception:
+                    except Exception:  # pylint: disable=broad-exception-caught
+                        # load_workspace_data is duck-typed and
+                        # caller-supplied; one bad tab must not stop the
+                        # rest of the workspace from loading.
                         logger.exception(
                             "Failed to load workspace data into a tab widget")
 
@@ -552,7 +560,9 @@ class CloseableTabWidget(QWidget):
 
             return True
 
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            # A corrupt or unexpected workspace file must not crash the
+            # application; fall back to a minimum working state instead.
             logger.exception("Failed to load workspace data")
             # Ensure at least minimum tabs exist
             while self._get_real_tab_count() < self._minimum_tabs:

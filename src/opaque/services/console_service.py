@@ -78,7 +78,7 @@ class ConsoleService(BaseService):
     # Signals
     output_received = Signal(dict)  # Emitted when new output is captured
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         self.output_queue: Queue[Dict[str, Any]] = Queue(maxsize=1000)

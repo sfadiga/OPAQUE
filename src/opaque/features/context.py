@@ -130,4 +130,6 @@ class FeatureContext:
             raise RuntimeError(
                 f"{type(self._shell).__name__} cannot host a feature window: "
                 f"it has no add_feature_window(view) method.")
-        add_sub_window(view)
+        # getattr's result is checked for None just above; pylint cannot
+        # follow that this is a duck-typed callable, not an arbitrary object.
+        add_sub_window(view)  # pylint: disable=not-callable

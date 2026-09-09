@@ -15,6 +15,7 @@ import socket
 import atexit
 import tempfile
 import time
+from typing import Optional
 
 from PySide6.QtCore import QObject, QStandardPaths, Signal
 
@@ -53,8 +54,8 @@ class SingleInstanceService(BaseService):
             QStandardPaths.StandardLocation.TempLocation)
         self.lock_file_path = os.path.join(
             temporary or tempfile.gettempdir(), f"{app_name}.lock")
-        self.lock_file = None
-        self.socket = None
+        self.lock_file: Optional[str] = None
+        self.socket: Optional[socket.socket] = None
         self.lock_acquired = False
 
         # Register cleanup on exit

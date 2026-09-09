@@ -5,7 +5,11 @@ Version information dialog for OPAQUE framework applications.
 Licensed under MIT License
 """
 
+import platform
+import sys
 from typing import Dict, Any, Optional
+
+from PySide6 import __version__ as pyside_version
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -14,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon
 
+import opaque
 from opaque.view.theme import (
     MINIMUM_HIT_TARGET,
     TypeScale,
@@ -198,15 +203,12 @@ class VersionInfoDialog(QDialog):
         self.system_text = text_widget
 
         # Gather system information
-        import platform as plt
-        import sys
-        from PySide6 import __version__ as pyside_version
-
         system_info = []
         system_info.append("=== System Information ===")
         system_info.append(
-            f"Operating System: {plt.system()} {plt.release()} ({plt.machine()})")
-        system_info.append(f"Platform: {plt.platform()}")
+            f"Operating System: {platform.system()} {platform.release()} "
+            f"({platform.machine()})")
+        system_info.append(f"Platform: {platform.platform()}")
         system_info.append(f"Python Version: {sys.version}")
         system_info.append(f"PySide6 Version: {pyside_version}")
         system_info.append("")
@@ -236,11 +238,7 @@ class VersionInfoDialog(QDialog):
 
     def _get_framework_version(self) -> str:
         """Get OPAQUE framework version."""
-        try:
-            import opaque
-            return getattr(opaque, '__version__', 'Unknown')
-        except (ImportError, AttributeError):
-            return "Unknown"
+        return getattr(opaque, '__version__', 'Unknown')
 
     def _copy_to_clipboard(self):
         """Copy version information to clipboard."""
@@ -276,10 +274,8 @@ class VersionInfoDialog(QDialog):
             info_lines.append("")
 
         # System info
-        import platform as plt
-        import sys
         info_lines.append("=== System Information ===")
-        info_lines.append(f"OS: {plt.system()} {plt.release()}")
+        info_lines.append(f"OS: {platform.system()} {platform.release()}")
         info_lines.append(f"Python: {sys.version.split()[0]}")
 
         clipboard = QApplication.clipboard()
@@ -291,7 +287,6 @@ class VersionInfoDialog(QDialog):
         # Recreate UI with new information
         # For simplicity, we'll just close and reopen
         # In a real implementation, you might want to update existing widgets
-        pass
 
 
 class VersionStatusWidget(QPushButton):

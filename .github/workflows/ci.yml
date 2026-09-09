@@ -52,14 +52,10 @@ jobs:
       - name: Run the suite
         run: uv run python -m pytest tests -q
 
-      # These two steps report but do not gate yet. Plan 10 Task 8 removes
-      # continue-on-error once the existing error count reaches zero.
       - name: Type check
-        continue-on-error: true
         run: uv run python -m mypy src/opaque
 
       - name: Lint
-        continue-on-error: true
         run: uv run python -m pylint src/opaque
 
   wheel:

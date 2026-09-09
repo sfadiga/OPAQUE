@@ -21,6 +21,7 @@ class FocusInEventFilter(QObject):
     widgetFocused: Signal = Signal()
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        """Emit widgetFocused when the watched widget gains keyboard focus."""
         if event.type() == QEvent.Type.FocusIn:
             self.widgetFocused.emit()
         return super().eventFilter(obj, event)
@@ -135,14 +136,17 @@ class OpaqueMdiSubWindow(QMdiSubWindow):
     # --- Qt Overrided Functions -------------------------------------------- #
 
     def focusInEvent(self, event: QFocusEvent) -> None:
+        """Emit window_focused when this sub window gains keyboard focus."""
         super().focusInEvent(event)
         self.window_focused.emit()
 
     def focusOutEvent(self, event: QFocusEvent) -> None:
+        """Emit window_unfocused when this sub window loses keyboard focus."""
         super().focusOutEvent(event)
         self.window_unfocused.emit()
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        """Emit window_focused/window_unfocused on window activation change."""
         if obj == self:
             if event.type() == QEvent.Type.WindowActivate:
                 self.window_focused.emit()
@@ -151,6 +155,7 @@ class OpaqueMdiSubWindow(QMdiSubWindow):
         return super().eventFilter(obj, event)
 
     def setWidget(self, widget: QWidget) -> None:
+        """Set the content widget, then grow the window to fit its size hint."""
         super().setWidget(widget)
 
         widget_size_hint = widget.sizeHint()

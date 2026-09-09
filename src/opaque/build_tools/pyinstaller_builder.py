@@ -151,22 +151,21 @@ class PyInstallerBuilder(Builder):
             exe_name = f"{name}.exe" if platform.system(
             ) == "Windows" else name
             return self.output_dir / exe_name
-        else:
-            # Directory distribution
-            exe_dir = self.output_dir / name
-            exe_name = f"{name}.exe" if platform.system(
-            ) == "Windows" else name
-            return exe_dir / exe_name
+
+        # Directory distribution
+        exe_dir = self.output_dir / name
+        exe_name = f"{name}.exe" if platform.system(
+        ) == "Windows" else name
+        return exe_dir / exe_name
 
     def _get_lib_extension(self) -> str:
         """Get library file extension for current platform."""
         system = platform.system()
         if system == "Windows":
             return ".dll"
-        elif system == "Darwin":
+        if system == "Darwin":
             return ".dylib"
-        else:
-            return ".so"
+        return ".so"
 
     def create_spec_file(
             self,
@@ -311,19 +310,19 @@ exe = EXE(
     def build_from_spec(self, spec_file: Union[str, Path]) -> Path:
         """
         Build executable from existing spec file.
-        
+
         Args:
             spec_file: Path to PyInstaller spec file
-            
+
         Returns:
             Path to built executable
         """
         spec_path = Path(spec_file)
         if not spec_path.exists():
             raise BuildError(f"Spec file not found: {spec_path}")
-            
+
         cmd = ["pyinstaller", "--clean", str(spec_path)]
-        
+
         try:
             result = self._run_command(cmd)
             logger.info("PyInstaller output:\n%s", result.stdout)
@@ -337,9 +336,9 @@ exe = EXE(
                     logger.info("Build successful! Executable: %s (%s)",
                                  exe_path, self.format_size(size))
                     return exe_path
-                    
+
             raise BuildError("Executable not found after build")
-            
+
         except BuildError:
             raise
         except Exception as e:
@@ -352,12 +351,15 @@ exe = EXE(
 
         version = version_info.get("version", "0.0.1")
         build_number = version_info.get("build_number", "0")
-        
+
         # Parse version string to get numeric components
         version_parts = version.replace("-", ".").replace("+", ".").split(".")
-        major = int(version_parts[0]) if len(version_parts) > 0 and version_parts[0].isdigit() else 0
-        minor = int(version_parts[1]) if len(version_parts) > 1 and version_parts[1].isdigit() else 0
-        micro = int(version_parts[2]) if len(version_parts) > 2 and version_parts[2].isdigit() else 0
+        major = (int(version_parts[0])
+                  if len(version_parts) > 0 and version_parts[0].isdigit() else 0)
+        minor = (int(version_parts[1])
+                  if len(version_parts) > 1 and version_parts[1].isdigit() else 0)
+        micro = (int(version_parts[2])
+                  if len(version_parts) > 2 and version_parts[2].isdigit() else 0)
         build = int(build_number) if build_number.isdigit() else 0
 
         company = version_info.get("company", "OPAQUE Framework Application")
@@ -397,7 +399,7 @@ VSVersionInfo(
         StringStruct(u'OriginalFilename', u'{original_filename}'),
         StringStruct(u'ProductName', u'{product_name}'),
         StringStruct(u'ProductVersion', u'{version}')])
-      ]), 
+      ]),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
   ]
 )

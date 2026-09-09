@@ -82,8 +82,10 @@ class BusyOverlay(QWidget):
         resizes - only the parent itself gets a resize event. Watching the
         parent directly is the only way to track its size live.
         """
-        if (watched is self.parentWidget()
+        parent = self.parentWidget()
+        if (watched is parent
+                and parent is not None
                 and event.type() == QEvent.Type.Resize
                 and self.isVisible()):
-            self.setGeometry(self.parentWidget().rect())
+            self.setGeometry(parent.rect())
         return super().eventFilter(watched, event)
