@@ -11,7 +11,7 @@
 
 from typing import Optional, Dict, Any, Tuple
 from PySide6.QtCore import Qt, Signal, QObject, QEvent
-from PySide6.QtGui import QCloseEvent, QIcon, QPixmap, QFocusEvent, QShowEvent
+from PySide6.QtGui import QCloseEvent, QFocusEvent, QShowEvent
 from PySide6.QtWidgets import QMdiSubWindow, QWidget, QMdiArea
 
 

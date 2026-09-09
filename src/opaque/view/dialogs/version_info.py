@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QTextEdit, QTabWidget, QWidget, QGridLayout,
     QScrollArea, QGroupBox, QApplication
 )
-from PySide6.QtGui import QIcon, QMouseEvent
+from PySide6.QtGui import QIcon
 
 from opaque.view.theme import (
     MINIMUM_HIT_TARGET,

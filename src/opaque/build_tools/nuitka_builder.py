@@ -434,7 +434,6 @@ class NuitkaBuilder(Builder):
         company = version_info.get("company", "OPAQUE Framework Application")
         description = version_info.get(
             "description", "OPAQUE Framework Application")
-        copyright_info = version_info.get("copyright", "Copyright © 2025")
         product_name = version_info.get(
             "product_name", "OPAQUE Framework Application")
 
@@ -442,8 +441,9 @@ class NuitkaBuilder(Builder):
         cmd.extend([f"--windows-file-description={description}"])
         cmd.extend([f"--windows-product-name={product_name}"])
 
-        # Note: Nuitka doesn't have a direct copyright argument,
-        # but we store it in the version module for runtime access
+        # Note: Nuitka doesn't have a direct copyright argument. The
+        # version module _create_version_module() writes separately does
+        # carry it, for runtime access.
 
     def _create_version_module(self, version_info: Optional[Dict[str, Any]]) -> Optional[Path]:
         """Create a version module file that can be imported at runtime."""

@@ -9,8 +9,7 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from typing import Optional, List, Dict
-from datetime import datetime
+from typing import Optional, Dict
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,

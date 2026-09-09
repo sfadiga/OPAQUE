@@ -134,6 +134,57 @@ def test_every_user_visible_string_in_the_running_message_is_translated():
     assert "setInformativeText( self.tr(" in normalised
 
 
+def test_no_module_has_an_unused_import():
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pylint", "--disable=all",
+         "--enable=W0611", "--score=n", "src/opaque"],
+        capture_output=True, text=True, check=False)
+
+    assert result.stdout.strip() == "", result.stdout
+
+
+def test_no_module_has_an_unused_variable():
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pylint", "--disable=all",
+         "--enable=W0612", "--score=n", "src/opaque"],
+        capture_output=True, text=True, check=False)
+
+    assert result.stdout.strip() == "", result.stdout
+
+
+COMMENTED_OUT_CODE = [
+    "src/opaque/view/view.py",
+    "src/opaque/view/widgets/toolbar.py",
+    "src/opaque/models/configuration.py",
+    "src/opaque/presenters/notification_presenter.py",
+]
+
+
+@pytest.mark.parametrize("path", COMMENTED_OUT_CODE)
+def test_a_file_holds_no_commented_out_code(path):
+    import pathlib
+    import re
+
+    # A comment that starts with a statement keyword or an attribute write is
+    # code, not prose.
+    pattern = re.compile(
+        r"^\s*#\s*(self\.|from |import |return |def |class |if |for |while )")
+
+    offenders = [
+        line for line in pathlib.Path(path).read_text(
+            encoding="utf-8").splitlines()
+        if pattern.match(line)
+    ]
+
+    assert offenders == []
+
+
 def test_no_default_of_none_is_annotated_as_a_value():
     import inspect
     import typing

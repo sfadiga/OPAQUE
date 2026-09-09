@@ -8,10 +8,6 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-from abc import abstractmethod
-from typing import Any, Optional
-
-from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
 from opaque.features.context import FeatureContext

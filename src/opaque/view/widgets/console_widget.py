@@ -8,7 +8,7 @@ Licensed under MIT License
 from typing import Optional, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QToolBar, QLineEdit,
-    QLabel, QCheckBox, QPushButton, QFileDialog, QMessageBox, QSplitter
+    QLabel, QCheckBox, QPushButton, QFileDialog, QSplitter
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import (

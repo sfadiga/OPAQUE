@@ -15,8 +15,6 @@ action. An operation longer than one second must show a progress indicator.
 Every feature uses this one overlay, so busy always looks the same.
 """
 
-from typing import Optional
-
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import QLabel, QProgressBar, QVBoxLayout, QWidget
 
