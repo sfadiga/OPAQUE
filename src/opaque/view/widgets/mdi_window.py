@@ -27,9 +27,13 @@ class FocusInEventFilter(QObject):
 
 
 class OpaqueMdiArea(QMdiArea):
-    """A MDI area that emits a signal when the active subwindow changes."""
+    """
+    A MDI area that can show its windows as tabs.
 
-    subWindowActivated = Signal(QMdiSubWindow)
+    QMdiArea already has a subWindowActivated signal. This class used to
+    redeclare it, which replaced the Qt signal with one that nothing ever
+    emitted, so a listener was told nothing. Connect to the inherited signal.
+    """
 
     def is_tabbed(self) -> bool:
         """Return True when the windows are shown as tabs."""
