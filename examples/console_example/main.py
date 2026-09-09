@@ -23,7 +23,7 @@ sys.path.insert(0, str(project_root / "src"))
 sys.path.insert(0, str(project_root))
 
 try:
-    from opaque.view.application import BaseApplication
+    from opaque.shell import BaseApplication
     from opaque.presenters.console_presenter import ConsolePresenter
     from opaque.models.console_model import ConsoleModel
     from opaque.view.widgets.console_widget import ConsoleView

@@ -20,9 +20,9 @@ from PySide6.QtGui import QColor, QIcon, QPalette
 from PySide6.QtWidgets import QLabel
 
 # The import order below matters. Importing opaque.view.view before
-# opaque.view.application raises a circular import error.
+# opaque.shell raises a circular import error.
 from opaque.models.configuration import DefaultApplicationConfiguration
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 from opaque.models.model import BaseModel
 from opaque.view.view import BaseView
 from opaque.presenters.presenter import BasePresenter

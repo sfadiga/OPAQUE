@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 # Add the src directory to the Python path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 from opaque.features.context import FeatureContext
 from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.models.model import BaseModel

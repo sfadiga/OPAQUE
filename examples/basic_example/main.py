@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 from opaque.models.annotations import StringField, IntField
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.services.service import ServiceLocator
 

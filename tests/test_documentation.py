@@ -16,6 +16,7 @@ review found in the documentation.
 import ast
 import importlib
 import re
+import warnings
 from pathlib import Path
 
 import pytest
@@ -125,8 +126,14 @@ def test_the_scanner_found_documentation_to_check():
 
 @pytest.mark.parametrize("path,module,names", CASES)
 def test_documented_import_resolves(path, module, names):
+    # A deprecated-but-still-real module (opaque.view.application) warns as
+    # it imports. This check asks only whether the import resolves, not
+    # whether it is the current path, so a strict -W error run must not
+    # fail here over a warning the module means to raise.
     try:
-        imported = importlib.import_module(module)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            imported = importlib.import_module(module)
     except ImportError as error:
         pytest.fail(f"{path.name} documents '{module}', which does not exist: {error}")
 

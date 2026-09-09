@@ -57,7 +57,7 @@ class MyAppConfig(DefaultApplicationConfiguration):
 Inherit from `BaseApplication` to get the MDI interface, service integration, and lifecycle management.
 
 ```python
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 
 class MyApplication(BaseApplication):
     def __init__(self):

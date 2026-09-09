@@ -19,9 +19,9 @@ The imports below are grouped by layer. No order is required between them.
 The one real import cycle in this package is `view/view.py` to
 `view/widgets/__init__.py` to `toolbar.py` to `presenters/presenter.py`,
 which would then re-import `view.py`. It is already broken inside
-`presenters/presenter.py`, which keeps its `BaseView` and `BaseApplication`
-imports behind `TYPE_CHECKING`. That guard holds whatever order this file
-uses, so do not treat this list as fragile.
+`presenters/presenter.py`, which keeps its `BaseView` import behind
+`TYPE_CHECKING`. That guard holds whatever order this file uses, so do not
+treat this list as fragile.
 """
 
 from importlib.metadata import (
@@ -43,7 +43,7 @@ from opaque.models.abstract_model import AbstractModel
 from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.services.service import BaseService, ServiceLocator
 from opaque.features.context import FeatureContext
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 from opaque.models.model import BaseModel
 from opaque.view.view import BaseView
 from opaque.presenters.presenter import BasePresenter

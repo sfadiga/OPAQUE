@@ -21,6 +21,7 @@ package, and they are not expected to import.
 """
 
 import importlib
+import warnings
 from pathlib import Path
 
 import pytest
@@ -72,4 +73,10 @@ def test_the_walk_reaches_the_namespace_packages():
 
 @pytest.mark.parametrize("module_name", MODULES)
 def test_module_imports(module_name):
-    importlib.import_module(module_name)
+    # opaque.view.application is a deprecated-but-real shim that warns as it
+    # imports; this test asks only whether every module imports cleanly, not
+    # whether it is the current path, so the warning is not this test's
+    # business.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        importlib.import_module(module_name)

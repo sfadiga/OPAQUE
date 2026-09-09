@@ -8,7 +8,7 @@ test session and every test shares it. Each test must therefore use its own
 feature name and must not remove anything another test relies on.
 
 The import order below matters. Importing opaque.view.view before
-opaque.view.application raises a circular import error.
+opaque.shell raises a circular import error.
 """
 
 import logging
@@ -18,7 +18,7 @@ import pytest
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QWidget
 
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 
 
 def test_a_registered_feature_is_in_the_registry(app_window, make_feature):
@@ -96,7 +96,7 @@ def test_the_file_menu_actions_have_shortcuts(app_window):
 
 
 _UI_MODULES = [
-    "src/opaque/view/application.py",
+    "src/opaque/shell.py",
     "src/opaque/presenters/presenter.py",
     "src/opaque/presenters/notification_presenter.py",
     "src/opaque/presenters/console_presenter.py",
@@ -111,9 +111,9 @@ _UI_MODULES = [
 
 def test_the_shell_modules_have_a_logger():
     import opaque.presenters.notification_presenter as notification_module
-    import opaque.view.application as application_module
+    import opaque.shell as shell_module
 
-    assert isinstance(application_module.logger, logging.Logger)
+    assert isinstance(shell_module.logger, logging.Logger)
     assert isinstance(notification_module.logger, logging.Logger)
 
 

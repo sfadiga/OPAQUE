@@ -12,7 +12,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from opaque.models.annotations import StringField, IntField
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 from opaque.models.configuration import DefaultApplicationConfiguration
 
 

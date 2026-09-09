@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, Q
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.services.notification_service import NotificationLevel
 from opaque.services.service import ServiceLocator

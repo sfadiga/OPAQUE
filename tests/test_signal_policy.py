@@ -9,7 +9,7 @@ makes it safe. If one of them fails, the policy has to change with the code.
 
 import inspect
 
-from opaque.view.application import BaseApplication
+from opaque.shell import BaseApplication
 
 
 def test_the_shell_offers_no_way_to_unregister_a_feature():
