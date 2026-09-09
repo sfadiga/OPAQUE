@@ -86,5 +86,5 @@ class WorkspaceService(BaseService):
         self._features.clear()
 
     def cleanup(self) -> None:
-        super().initialize()
         self._features.clear()
+        return super().cleanup()
