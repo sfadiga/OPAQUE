@@ -145,3 +145,12 @@ def test_a_service_whose_name_does_not_match_its_class_is_refused(tmp_path):
 
 def test_the_string_lookup_is_gone():
     assert not hasattr(ServiceLocator, "get_service")
+
+
+def test_the_service_table_in_the_quick_reference_is_complete():
+    from pathlib import Path
+
+    text = Path("docs/QUICK_REFERENCE.md").read_text(encoding="utf-8")
+    for service_class in SERVICE_CLASSES:
+        assert service_class.__name__ in text
+        assert service_class.SERVICE_NAME in text

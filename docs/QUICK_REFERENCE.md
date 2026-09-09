@@ -61,26 +61,36 @@ A field write calls the presenter's `update()` method. Write model fields from t
 from opaque.services.service import BaseService, ServiceLocator
 ```
 
-The locator is string-keyed and returns `Optional[BaseService]`, so a wrong name is a silent `None`. The registered names are:
+The locator is typed. Ask for the class, not a string:
 
-| Name | Class | Module |
+```python
+from opaque.services.service import ServiceLocator
+from opaque.services.settings_service import SettingsService
+
+settings = ServiceLocator.get(SettingsService)            # raises if missing
+console = ServiceLocator.get_optional(ConsoleService)     # may be None
+```
+
+`get()` raises `LookupError` naming the missing service and listing what is registered. `get_optional()` returns `None` instead, and is for the one case where absence is normal. The registry key is the `SERVICE_NAME` class attribute of the service, which is the only place the string is written:
+
+| Class | `SERVICE_NAME` | Reach it with |
 |---|---|---|
-| `"settings"` | `SettingsService` | `opaque.services.settings_service` |
-| `"workspace"` | `WorkspaceService` | `opaque.services.workspace_service` |
-| `"themes"` | `ThemeService` | `opaque.services.theme_service` |
-| `"notification"` | `NotificationService` | `opaque.services.notification_service` |
-| `"logger"` | `LoggerService` | `opaque.services.logger_service` |
-| `"single_instance"` | `SingleInstanceService` | `opaque.services.single_instance_service` |
-| `"console"` | `ConsoleService` | `opaque.services.console_service` (registered only once a console feature exists) |
+| `SettingsService` | `settings` | `ServiceLocator.get(SettingsService)` |
+| `WorkspaceService` | `workspace` | `ServiceLocator.get(WorkspaceService)` |
+| `ThemeService` | `themes` | `ServiceLocator.get(ThemeService)` |
+| `NotificationService` | `notification` | `ServiceLocator.get(NotificationService)` |
+| `LoggerService` | `logger` | `ServiceLocator.get(LoggerService)` |
+| `SingleInstanceService` | `single_instance` | `ServiceLocator.get(SingleInstanceService)` |
+| `ConsoleService` | `console` | `ServiceLocator.get_optional(ConsoleService)` (registered only once a console feature exists) |
+| `VersionManager` | `version` | not registered by the framework; construct directly with `VersionManager()` |
 
-`"themes"` is plural. There is no `"theme"`.
+`themes` is plural. There is no `theme`.
 
 Your own service must be initialized before it is registered. `register_service` raises `ValueError` otherwise.
 
 ```python
 class CalculationService(BaseService):
-    def __init__(self) -> None:
-        super().__init__("calculation")
+    SERVICE_NAME = "calculation"
 
     def initialize(self) -> None:
         super().initialize()
@@ -98,8 +108,9 @@ ServiceLocator.register_service(service)
 
 ```python
 from opaque.services.service import ServiceLocator
+from opaque.services.theme_service import ThemeService
 
-theme_service = ServiceLocator.get_service("themes")
+theme_service = ServiceLocator.get(ThemeService)
 theme_service.get_available_themes()          # every name this machine can apply
 theme_service.apply_theme("Default")          # True when applied, False when unknown
 theme_service.theme_changed.connect(repaint)  # a widget that paints must repaint
