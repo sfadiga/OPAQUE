@@ -97,11 +97,12 @@ class ConsolePresenter(BasePresenter):
             lambda checked: setattr(self.model, '_word_wrap', checked)
         )
 
-        # Repaint the console when the user picks another theme.
-        theme_service = ServiceLocator.get_service("theme")
-        if theme_service is not None and hasattr(theme_service, "theme_changed"):
-            theme_service.theme_changed.connect(
-                lambda _name: console_widget.apply_theme())
+        # The console widget repaints itself from the theme tokens. The shell
+        # calls apply_theme() on every widget that has it after a theme
+        # change, so this presenter needs no theme connection of its own.
+        # This code used to ask the locator for the wrong service name (it
+        # is registered under a different, plural name), so the connection
+        # was never made.
 
     def _start_console_capture(self):
         """Start console capture if service is available."""
