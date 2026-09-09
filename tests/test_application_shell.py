@@ -365,3 +365,16 @@ def test_a_settings_change_reaches_the_notification_presenter(
         NOTIFICATION_SETTINGS_ID, {})
 
     assert calls == [True]
+
+
+def test_the_application_object_carries_no_bolted_on_window(app_window):
+    from PySide6.QtWidgets import QApplication
+
+    application = QApplication.instance()
+
+    assert not hasattr(application, "main_window")
+
+
+def test_the_shell_is_reachable_through_the_presenter(app_window):
+    presenter = next(iter(app_window._registered_features.values()))
+    assert presenter.app is app_window

@@ -78,10 +78,8 @@ class BaseApplication(QMainWindow):
         locale = (QLocale(self._language_at_start)
                   if self._language_at_start else QLocale.system())
 
-        # Make this window accessible to views via QApplication
         app = QApplication.instance()
         if app:
-            app.main_window = self  # type: ignore
             # The translator must be installed before any widget is built.
             # A widget reads its strings once, when it is created.
             install_translator(app, locale=locale)
