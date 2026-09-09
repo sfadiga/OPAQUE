@@ -48,8 +48,8 @@ class PyInstallerBuilder(Builder):
                 "PyInstaller is not installed. Install the build extra: "
                 "uv sync --extra build")
 
-        command = self.build_command(entry_point, config)
         self._ensure_directories()
+        command = self.build_command(entry_point, config)
         result = self._run_command(command)
         logger.info("PyInstaller output:\n%s", result.stdout)
 

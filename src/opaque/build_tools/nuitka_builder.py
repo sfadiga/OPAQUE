@@ -50,8 +50,8 @@ class NuitkaBuilder(Builder):
                 "uv sync --extra build")
 
         entry_path = Path(entry_point)
-        command = self.build_command(entry_point, config)
         self._ensure_directories()
+        command = self.build_command(entry_point, config)
         result = self._run_command(command)
         logger.info("Nuitka output:\n%s", result.stdout)
 
