@@ -435,11 +435,47 @@ class BaseApplication(QMainWindow):
         Raises:
             ValueError: When the FEATURE_ID is already registered.
         """
-        model = model_class(self._context)
-        view = view_class(self._context)
-        presenter = presenter_class(model, view, self._context)
+        model = self._build_part("model", model_class, self._context)
+        view = self._build_part("view", view_class, self._context)
+        presenter = self._build_presenter(presenter_class, model, view)
         self.register_feature(presenter)
         return presenter
+
+    def _build_part(self, role: str, part_class: type, context: FeatureContext):
+        """
+        Build a model or a view, and explain a wrong constructor.
+
+        Args:
+            role: "model" or "view", used in the message.
+            part_class: The class to build.
+            context: The context every part receives.
+        """
+        try:
+            return part_class(context)
+        except TypeError as error:
+            raise TypeError(
+                f"{part_class.__name__} cannot be built as the {role} of a "
+                f"feature: {error}. A {role} takes one argument, a "
+                f"FeatureContext. Write:\n"
+                f"    def __init__(self, context: FeatureContext) -> None:\n"
+                f"        super().__init__(context)") from error
+
+    def _build_presenter(
+            self,
+            presenter_class: Type[BasePresenter],
+            model: BaseModel,
+            view: BaseView,
+    ) -> BasePresenter:
+        """Build the presenter, and explain a wrong constructor."""
+        try:
+            return presenter_class(model, view, self._context)
+        except TypeError as error:
+            raise TypeError(
+                f"{presenter_class.__name__} cannot be built as the "
+                f"presenter of a feature: {error}. A presenter takes three "
+                f"arguments, model, view, context. Write:\n"
+                f"    def __init__(self, model, view, context) -> None:\n"
+                f"        super().__init__(model, view, context)") from error
 
     def register_feature(self, presenter: BasePresenter) -> None:
         """
@@ -460,6 +496,13 @@ class BaseApplication(QMainWindow):
             ValueError: When another feature is already registered under the
                 same name.
         """
+        if not isinstance(presenter, BasePresenter):
+            raise TypeError(
+                f"register_feature takes a BasePresenter, not a "
+                f"{type(presenter).__name__}. Build the feature with "
+                f"self.register(ModelClass, ViewClass, PresenterClass), or "
+                f"pass a presenter that extends BasePresenter.")
+
         feature_id = presenter.model.feature_id()
         if feature_id in self._registered_features:
             other = self._registered_features[feature_id]

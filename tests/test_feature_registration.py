@@ -95,3 +95,55 @@ def test_the_manual_recipe_still_works(app_window):
     app_window.register_feature(presenter)
 
     assert app_window._registered_features["registration_manual"] is presenter
+
+
+def test_a_model_with_the_wrong_constructor_is_explained(app_window):
+    class WrongModel(BaseModel):
+        FEATURE_ID = "wrong_model"
+
+        def __init__(self) -> None:  # takes no context
+            pass
+
+        def feature_name(self) -> str:
+            return "Wrong"
+
+    with pytest.raises(TypeError) as error:
+        app_window.register(WrongModel, DemoView, DemoPresenter)
+
+    message = str(error.value)
+    assert "WrongModel" in message
+    assert "FeatureContext" in message
+    assert "model" in message
+
+
+def test_a_view_with_the_wrong_constructor_is_explained(app_window):
+    class WrongView(BaseView):
+        def __init__(self) -> None:
+            pass
+
+    with pytest.raises(TypeError) as error:
+        app_window.register(DemoModel, WrongView, DemoPresenter)
+
+    message = str(error.value)
+    assert "WrongView" in message
+    assert "FeatureContext" in message
+
+
+def test_a_presenter_with_the_wrong_constructor_is_explained(app_window):
+    class WrongPresenter(DemoPresenter):
+        def __init__(self, model) -> None:
+            pass
+
+    with pytest.raises(TypeError) as error:
+        app_window.register(DemoModel, DemoView, WrongPresenter)
+
+    message = str(error.value)
+    assert "WrongPresenter" in message
+    assert "model, view, context" in message
+
+
+def test_a_presenter_that_is_not_a_presenter_is_refused(app_window):
+    with pytest.raises(TypeError) as error:
+        app_window.register_feature(object())
+
+    assert "BasePresenter" in str(error.value)
