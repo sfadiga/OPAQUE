@@ -9,7 +9,7 @@ The one worked example is `examples/quickstart/main.py` (smallest) and `examples
 One feature is one MVP triple.
 
 ```python
-from opaque import BaseApplication, BaseModel, BasePresenter, BaseView
+from opaque import BaseApplication, BaseModel, BasePresenter, BaseView, FeatureContext
 ```
 
 | Class | Module | Is a | You must write |
@@ -18,18 +18,29 @@ from opaque import BaseApplication, BaseModel, BasePresenter, BaseView
 | `BaseModel` | `opaque.models.model` | State plus feature identity | `FEATURE_ID`, `feature_name()`, `feature_icon()`, `feature_description()` |
 | `BaseView` | `opaque.view.view` | One MDI sub-window | the widget tree |
 | `BasePresenter` | `opaque.presenters.presenter` | The wiring | `bind_events()`, `update()`, `on_view_show()`, `on_view_close()` |
+| `FeatureContext` | `opaque.features.context` | Everything a feature may know about its application | nothing; the shell builds it |
 | `DefaultApplicationConfiguration` | `opaque.models.configuration` | Application metadata | five `get_application_*` accessors |
+
+Each of `BaseModel`, `BaseView` and `BasePresenter` takes a `FeatureContext`, not the application. It offers the configuration (`context.configuration`), a typed service lookup (`context.service(SomeService)`), and one way to put a window on screen (`context.show_window(view)`) — nothing else.
 
 ## Registering a feature
 
-Order matters. A wrong order raises a bare `AttributeError`.
+One call builds the three parts, in order, and registers them:
 
 ```python
-model = MyModel(self)
-view = MyView(self)
-presenter = MyPresenter(model, view, self)
+self.register(MyModel, MyView, MyPresenter)
+```
+
+A presenter that needs an extra constructor argument cannot use `register()`; build the three parts by hand and call `register_feature()`:
+
+```python
+model = MyModel(self.context)
+view = MyView(self.context)
+presenter = MyPresenter(model, view, self.context)
 self.register_feature(presenter)
 ```
+
+Order still matters in the manual form. A wrong constructor — on either form — raises a `TypeError` that shows the signature to write.
 
 ## Model fields
 
@@ -61,7 +72,16 @@ A field write calls the presenter's `update()` method. Write model fields from t
 from opaque.services.service import BaseService, ServiceLocator
 ```
 
-The locator is typed. Ask for the class, not a string:
+The locator is typed. Ask for the class, not a string. A feature reaches it through its context, not through `ServiceLocator` directly:
+
+```python
+from opaque.services.settings_service import SettingsService
+
+settings = self.context.service(SettingsService)          # raises if missing
+console = self.context.optional_service(ConsoleService)   # may be None
+```
+
+Code outside a feature (the shell itself, a service, a build script) uses `ServiceLocator` directly:
 
 ```python
 from opaque.services.service import ServiceLocator

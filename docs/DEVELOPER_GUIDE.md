@@ -134,8 +134,8 @@ from opaque.view.view import BaseView
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QPushButton
 
 class MyFeatureView(BaseView):
-    def __init__(self, app, parent=None):
-        super().__init__(app, parent)
+    def __init__(self, context, parent=None):
+        super().__init__(context, parent)
         
         # Create layout
         layout = QVBoxLayout()
@@ -163,17 +163,22 @@ The Presenter connects the Model and View.
 
 ```python
 from opaque.presenters.presenter import BasePresenter
+from opaque.services.notification_service import NotificationLevel, NotificationService
 
 class MyFeaturePresenter(BasePresenter):
-    def __init__(self, model, view, app):
-        super().__init__(model, view, app)
+    def __init__(self, model, view, context):
+        super().__init__(model, view, context)
         
     def bind_events(self):
         # Connect View signals to Presenter methods
         self.view.button.clicked.connect(self.on_button_clicked)
         
     def on_button_clicked(self):
-        self.app.notification_presenter.notify_info("Clicked!", "You clicked the button.")
+        self.context.service(NotificationService).add_notification(
+            level=NotificationLevel.INFO,
+            title="Clicked!",
+            message="You clicked the button.",
+        )
         self.view.update_label("Button Clicked!")
         
     def update(self, field_name, new_value, old_value=None, model=None):
@@ -189,7 +194,7 @@ class MyFeaturePresenter(BasePresenter):
 
 ### 4. Register the Feature
 
-Update `MyApplication.register_features` in `main.py`:
+Update `MyApplication.register_features` in `main.py`. One call builds the three parts, in order, and registers them:
 
 ```python
     def register_features(self):
@@ -197,30 +202,35 @@ Update `MyApplication.register_features` in `main.py`:
         from my_feature.view import MyFeatureView
         from my_feature.presenter import MyFeaturePresenter
         
-        model = MyFeatureModel(self)
-        view = MyFeatureView(self)
-        presenter = MyFeaturePresenter(model, view, self)
-        
-        self.register_feature(presenter)
+        self.register(MyFeatureModel, MyFeatureView, MyFeaturePresenter)
 ```
+
+A presenter that needs an extra constructor argument cannot use `register()`; build the three parts by hand instead, in the same order, and call `self.register_feature(presenter)`.
 
 ---
 
 ## 🛠️ Using Built-in Services
 
+A feature reaches a service through its context, not through the application: `self.context.service(SomeService)` raises if the service is missing, `self.context.optional_service(SomeService)` answers `None` instead.
+
 ### Notifications (Toasts)
 
-Use `self.app.notification_presenter` (available in Presenters) to show toast notifications.
-
 ```python
+from opaque.services.notification_service import NotificationLevel, NotificationService
+
+notifications = self.context.service(NotificationService)
+
 # Info
-self.app.notification_presenter.notify_info("Title", "Message")
+notifications.add_notification(level=NotificationLevel.INFO, title="Title", message="Message")
 
 # Warning
-self.app.notification_presenter.notify_warning("Warning", "Something confusing happened")
+notifications.add_notification(
+    level=NotificationLevel.WARNING, title="Warning",
+    message="Something confusing happened")
 
-# Error (Shows toast + persists in list)
-self.app.notification_presenter.notify_error("Error", "Operation failed")
+# Error (shows a toast and persists in the list)
+notifications.add_notification(
+    level=NotificationLevel.ERROR, title="Error", message="Operation failed")
 ```
 
 ### Console System
@@ -231,9 +241,11 @@ To add the developer console to your app:
 from opaque.presenters.console_presenter import ConsolePresenter
 from opaque.models.console_model import ConsoleModel
 
-# In register_features:
-console_model = ConsoleModel(self)
-console_presenter = ConsolePresenter(console_model, self)
+# In register_features: ConsolePresenter takes (model, context), not
+# (model, view, context) -- it builds its own view -- so it cannot use
+# register() and keeps the manual construction.
+console_model = ConsoleModel(self.context)
+console_presenter = ConsolePresenter(console_model, self.context)
 self.register_feature(console_presenter)
 console_presenter.initialize() # Starts capturing stdout/stderr
 ```
