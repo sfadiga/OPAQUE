@@ -64,28 +64,64 @@ class SettingsService(BaseService):
         """
         self._feature_models[feature_id] = model
 
-        # Initialize model with saved settings
+        # Fill the model from what was already loaded. initialize() reads the
+        # file once; re-reading it here made every registration touch the disk.
         self.load_settings_file()
-        if feature_id in self._settings:
-            # Explicitly call get_fields on the class
-            fields = type(model).get_fields()
-            for key, value in self._settings[feature_id].items():
-                if key in fields and fields[key].is_setting:
-                    # Check if the property is settable
-                    if hasattr(model.__class__, key) and isinstance(getattr(model.__class__, key), property):
-                        if getattr(model.__class__, key).fset is None:
-                            continue  # Skip read-only properties
-                    try:
-                        setattr(model, key, value)
-                    except ValueError:
-                        # A settings file written by an older version can hold
-                        # a value the field no longer allows. Keep the field
-                        # default and carry on. Raising here would stop the
-                        # application from starting.
-                        logging.getLogger(__name__).warning(
-                            "Ignoring stored setting %s.%s: value %r is no longer allowed",
-                            feature_id, key, value,
-                        )
+        for key, value in self._settings.get(feature_id, {}).items():
+            self._apply_stored_value(model, key, value)
+
+    def _apply_stored_value(
+            self, model: Any, key: str, value: Any) -> bool:
+        """
+        Write one stored value into one model field, or refuse it.
+
+        This is the only path from stored data into a model. Four methods
+        used to do it, each with a different amount of care, so a value that
+        one accepted another rejected and a key that was not a field at all
+        could be written as a new attribute.
+
+        The value is converted by the field first. JSON holds no types, so a
+        file written by an older version, or edited by hand, hands back a
+        string where an int was stored.
+
+        Args:
+            model: The model to write into.
+            key: The field name from the settings file.
+            value: The stored value.
+
+        Returns:
+            True when the value was written.
+        """
+        field = type(model).get_fields().get(key)
+        if field is None:
+            logger.warning(
+                "Ignoring the stored setting %s: %s declares no such field",
+                key, type(model).__name__)
+            return False
+
+        if not field.is_setting:
+            logger.warning(
+                "Ignoring the stored setting %s: the field is not declared "
+                "with settings=True", key)
+            return False
+
+        declared = getattr(type(model), key, None)
+        if isinstance(declared, property) and declared.fset is None:
+            return False
+
+        try:
+            setattr(model, key, field.coerce(value))
+        except (TypeError, ValueError):
+            # A settings file written by an older version, or edited by hand,
+            # can hold a value the field no longer allows. Keep the field
+            # default and carry on. Raising here would stop the application
+            # from starting.
+            logger.warning(
+                "Ignoring the stored setting %s: the value %r is not allowed",
+                key, value)
+            return False
+
+        return True
 
     def _collect_annotated_settings(self, model: Any) -> Dict[str, Any]:
         """
@@ -119,11 +155,10 @@ class SettingsService(BaseService):
         self._settings[feature_id].update(settings)
 
         # Update model if registered
-        if feature_id in self._feature_models:
-            model = self._feature_models[feature_id]
+        model = self._feature_models.get(feature_id)
+        if model is not None:
             for key, value in settings.items():
-                if hasattr(model, key):
-                    setattr(model, key, value)
+                self._apply_stored_value(model, key, value)
 
         self.settings_changed.emit(feature_id, self._settings[feature_id])
         self.save_settings_file()
@@ -227,14 +262,8 @@ class SettingsService(BaseService):
         """Load all settings from file and update models."""
         self.load_settings_file()
         for feature_id, model in self._feature_models.items():
-            if feature_id in self._settings:
-                for key, value in self._settings[feature_id].items():
-                    if hasattr(model, key):
-                        # Check if the property is settable
-                        if hasattr(model.__class__, key) and isinstance(getattr(model.__class__, key), property):
-                            if getattr(model.__class__, key).fset is None:
-                                continue  # Skip read-only properties
-                        setattr(model, key, value)
+            for key, value in self._settings.get(feature_id, {}).items():
+                self._apply_stored_value(model, key, value)
 
     def get_all_settings(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -273,7 +302,7 @@ class SettingsService(BaseService):
             True if successful, False otherwise
         """
         try:
-            with open(export_file, 'w') as f:
+            with open(export_file, 'w', encoding='utf-8') as f:
                 json.dump(self._settings, f, indent=2)
             return True
         except IOError:
@@ -291,7 +320,7 @@ class SettingsService(BaseService):
             True if successful, False otherwise
         """
         try:
-            with open(import_file, 'r') as f:
+            with open(import_file, 'r', encoding='utf-8') as f:
                 imported_settings = json.load(f)
 
             self._settings.update(imported_settings)
@@ -299,10 +328,8 @@ class SettingsService(BaseService):
 
             # Update registered models
             for feature_id, model in self._feature_models.items():
-                if feature_id in self._settings:
-                    for key, value in self._settings[feature_id].items():
-                        if hasattr(model, key):
-                            setattr(model, key, value)
+                for key, value in self._settings.get(feature_id, {}).items():
+                    self._apply_stored_value(model, key, value)
 
             # Emit changes for all features
             for feature_id in imported_settings:
