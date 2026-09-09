@@ -17,6 +17,7 @@ it can never disagree with the application. A hand written list goes stale.
 from typing import List, Optional, Tuple
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
@@ -33,18 +34,24 @@ from opaque.view.theme import TypeScale
 
 def collect_shortcuts(window: QWidget) -> List[Tuple[str, str]]:
     """
-    Return every action label and key on a window, sorted by label.
+    Return every shortcut label and key on a window, sorted by label.
+
+    Two kinds of shortcut exist in a Qt application. A QAction carries its own
+    label, and a QShortcut carries none, so the widget that owns a QShortcut
+    says what it is called with setWhatsThis. A QShortcut with no whatsThis is
+    left out, because a key with no label tells the user nothing.
 
     Args:
-        window: The widget whose actions are read. The actions of every child
-            widget are read too, so a menu bar action is found as well.
+        window: The widget whose shortcuts are read. Every child widget is
+            read too, so a menu bar action and a console search key are both
+            found.
 
     Returns:
-        A list of label and key pairs. An action with no key is left out, and
-        the menu ampersand is removed from the label.
+        A list of label and key pairs. A shortcut with no key or no label is
+        left out, and the menu ampersand is removed from the label.
     """
     entries: List[Tuple[str, str]] = []
-    seen = set()
+    seen: set = set()
 
     for action in window.actions():
         _add_action(action, entries, seen)
@@ -52,6 +59,9 @@ def collect_shortcuts(window: QWidget) -> List[Tuple[str, str]]:
     for child in window.findChildren(QWidget):
         for action in child.actions():
             _add_action(action, entries, seen)
+
+    for shortcut in window.findChildren(QShortcut):
+        _add_shortcut(shortcut, entries, seen)
 
     entries.sort(key=lambda pair: pair[0])
     return entries
@@ -64,6 +74,23 @@ def _add_action(action, entries: List[Tuple[str, str]], seen: set) -> None:
         return
 
     label = action.text().replace("&", "").strip()
+    if not label:
+        return
+
+    if (label, key) in seen:
+        return
+
+    seen.add((label, key))
+    entries.append((label, key))
+
+
+def _add_shortcut(shortcut, entries: List[Tuple[str, str]], seen: set) -> None:
+    """Add one QShortcut to the list, if it has a key and a label."""
+    key = shortcut.key().toString()
+    if not key:
+        return
+
+    label = shortcut.whatsThis().replace("&", "").strip()
     if not label:
         return
 

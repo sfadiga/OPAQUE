@@ -96,12 +96,15 @@ class ConsoleWidget(QWidget):
             QKeySequence.StandardKey.FindNext, self)
         self.next_shortcut.setContext(
             Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        # A QShortcut carries no label, and the keyboard map dialog needs one.
+        self.next_shortcut.setWhatsThis(self.tr("Console: find next"))
         self.next_shortcut.activated.connect(self._search_next)
 
         self.prev_shortcut = QShortcut(
             QKeySequence.StandardKey.FindPrevious, self)
         self.prev_shortcut.setContext(
             Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.prev_shortcut.setWhatsThis(self.tr("Console: find previous"))
         self.prev_shortcut.activated.connect(self._search_previous)
 
     def apply_theme(self) -> None:
