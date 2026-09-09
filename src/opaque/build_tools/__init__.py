@@ -9,9 +9,11 @@ Licensed under MIT License
 """
 
 from .builder import Builder, BuildError
+from .config import BuildConfig
 from .pyinstaller_builder import PyInstallerBuilder
 from .nuitka_builder import NuitkaBuilder
 
-__all__ = ['Builder', 'BuildError', 'PyInstallerBuilder', 'NuitkaBuilder']
+__all__ = ['Builder', 'BuildConfig', 'BuildError', 'PyInstallerBuilder',
+           'NuitkaBuilder']
 
 __version__ = '1.0.0'
