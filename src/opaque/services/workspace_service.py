@@ -21,6 +21,8 @@ from opaque.presenters.presenter import BasePresenter
 class WorkspaceService(BaseService):
     """Manages workspace state persistence."""
 
+    SERVICE_NAME = "workspace"
+
     def __init__(self):
         """
         Initialize the workspace manager.
@@ -28,7 +30,7 @@ class WorkspaceService(BaseService):
         Args:
             workspace_file: Path to workspace file. If None, uses default location.
         """
-        super().__init__(name="workspace")
+        super().__init__()
 
         # Store feature models for annotation support
         self._features: Dict[str, BasePresenter] = {}

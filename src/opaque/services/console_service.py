@@ -70,11 +70,13 @@ class StreamRedirector(io.TextIOBase):
 class ConsoleService(BaseService):
     """Service for capturing stdout/stderr and providing console functionality."""
 
+    SERVICE_NAME = "console"
+
     # Signals
     output_received = Signal(dict)  # Emitted when new output is captured
 
     def __init__(self):
-        super().__init__("console")
+        super().__init__()
 
         self.output_queue: Queue[Dict[str, Any]] = Queue(maxsize=1000)
         self.original_stdout = sys.stdout

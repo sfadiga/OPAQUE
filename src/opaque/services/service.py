@@ -21,16 +21,40 @@ class BaseService(QObject):
     """
     Abstract base class for all services in the application.
     Services encapsulate business logic and can be accessed via the service locator.
+
+    A subclass declares SERVICE_NAME, and that one string is both the name it
+    registers under and the key ServiceLocator.get() looks up. The name used
+    to be a literal inside each constructor call and another literal at each
+    call site, with nothing connecting the two.
     """
 
-    def __init__(self, name: str):
+    # The registry key of this service. A subclass must declare it. Empty on
+    # the base class, which is never registered.
+    SERVICE_NAME: str = ""
+
+    def __init__(self, name: Optional[str] = None):
         """
         Initialize the service.
+
         Args:
-            name: service name for identification
+            name: Service name for identification. Defaults to SERVICE_NAME,
+                which is what every service in the framework uses. Pass a
+                name only to register two instances of one class, which the
+                framework never does.
+
+        Raises:
+            ValueError: When neither a name nor a SERVICE_NAME is given.
         """
         super().__init__()  # Initialize QObject properly
-        self._name = name
+        resolved = name or self.SERVICE_NAME
+        if not resolved:
+            raise ValueError(
+                f"{type(self).__name__} must declare SERVICE_NAME, for "
+                f"example:\n"
+                f"    class {type(self).__name__}(BaseService):\n"
+                f"        SERVICE_NAME = 'my_service'\n"
+                f"It is the key ServiceLocator uses.")
+        self._name = resolved
         self._initialized = False
 
     @property

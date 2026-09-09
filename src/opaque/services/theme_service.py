@@ -35,6 +35,8 @@ class ThemeService(BaseService):
     so a theme that changes the palette changes every widget at once.
     """
 
+    SERVICE_NAME = "themes"
+
     # Emitted with the theme name after a theme is applied. A widget that
     # paints its own colours must connect to this and repaint.
     theme_changed = Signal(str)
@@ -54,7 +56,7 @@ class ThemeService(BaseService):
         Args:
             app (QApplication): The main application instance.
         """
-        super().__init__("themes")
+        super().__init__()
 
         self._app: QApplication = app
 

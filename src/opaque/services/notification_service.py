@@ -74,6 +74,8 @@ class NotificationService(BaseService):
     Supports filtering, persistence, and integration with logging systems.
     """
 
+    SERVICE_NAME = "notification"
+
     # Signals
     notification_added = Signal(Notification)
     notification_updated = Signal(Notification)
@@ -81,7 +83,7 @@ class NotificationService(BaseService):
     notifications_cleared = Signal(NotificationLevel)  # level or None for all
 
     def __init__(self):
-        super().__init__("notification")
+        super().__init__()
         self._notifications: List[Notification] = []
         self._max_notifications = 1000
         self._auto_clear_timer = QTimer()

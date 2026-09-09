@@ -17,8 +17,10 @@ from .service import BaseService
 class VersionManager(BaseService):
     """Service for managing application version information from multiple sources."""
 
+    SERVICE_NAME = "version"
+
     def __init__(self):
-        super().__init__("version")
+        super().__init__()
         self._cached_version: Optional[str] = None
         self._version_info: Dict[str, Any] = {}
         self._initialize()

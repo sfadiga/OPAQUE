@@ -64,6 +64,8 @@ def stored_language(settings_file: Path) -> str:
 class SettingsService(BaseService):
     """Manages application settings persistence."""
 
+    SERVICE_NAME = "settings"
+
     settings_changed = Signal(str, object)  # feature_id, settings
 
     def __init__(self, settings_file: Optional[Path] = None):
@@ -73,7 +75,7 @@ class SettingsService(BaseService):
         Args:
             settings_file: Path to settings file. If None, uses default location.
         """
-        super().__init__("settings")
+        super().__init__()
 
         if settings_file is None:
             settings_file = Path.home() / ".opaque" / "settings.json"

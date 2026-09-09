@@ -29,6 +29,8 @@ class SingleInstanceService(BaseService):
     Uses socket binding as the primary mechanism for instance detection.
     """
 
+    SERVICE_NAME = "single_instance"
+
     # Signal emitted when another instance is detected
     another_instance_detected = Signal()
 
@@ -40,7 +42,7 @@ class SingleInstanceService(BaseService):
             app_name: Name used for the lock file
             port: TCP port to bind to (default is first private port 49152)
         """
-        super().__init__("single_instance")
+        super().__init__()
         self.app_name = app_name
         self.port = port
         # The lock goes into the per user temporary folder, not into the

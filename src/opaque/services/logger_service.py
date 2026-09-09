@@ -29,6 +29,8 @@ class LoggerService(BaseService):
     console output, and integration with the notification system.
     """
 
+    SERVICE_NAME = "logger"
+
     # Signals
     # level, message, source, timestamp
     log_entry_added = Signal(str, str, str, str)
@@ -56,7 +58,7 @@ class LoggerService(BaseService):
     APPLICATION_LOGGER_NAME: str = "opaque.app"
 
     def __init__(self, log_directory: Optional[str] = None, application_name: Optional[str] = None):
-        super().__init__("logger")
+        super().__init__()
         # "logs" was relative to the working directory, so a packaged
         # application could not write it. The per user application data
         # folder always can, and one place holds every session.
