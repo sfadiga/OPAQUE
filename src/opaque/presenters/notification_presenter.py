@@ -30,6 +30,34 @@ from opaque.view.layouts.toast_stack import (
 
 logger = logging.getLogger(__name__)
 
+# The settings.json key and the dialog page identity of the notification
+# settings. It is a constant because two modules need the same string.
+NOTIFICATION_SETTINGS_ID = "notification_settings"
+
+
+class NotificationSettingsPage:
+    """
+    What SettingsDialog needs from a feature, for the notification settings.
+
+    The dialog reads exactly three members from every entry it is given:
+    feature_id, model and apply_settings(). NotificationPresenter is a QObject
+    and not a BasePresenter, so it cannot be such an entry itself. This
+    adapter is, and it forwards the apply to the presenter.
+    """
+
+    def __init__(
+            self,
+            presenter: "NotificationPresenter",
+            model: NotificationSettingsModel,
+    ) -> None:
+        self.feature_id: str = NOTIFICATION_SETTINGS_ID
+        self.model: NotificationSettingsModel = model
+        self._presenter = presenter
+
+    def apply_settings(self) -> None:
+        """Called by the settings dialog after it wrote the model."""
+        self._presenter.apply_settings()
+
 
 class NotificationPresenter(QObject):
     """
@@ -45,6 +73,7 @@ class NotificationPresenter(QObject):
         # Models
         self._notification_model: Optional[NotificationModel] = None
         self._settings_model: Optional[NotificationSettingsModel] = None
+        self._settings_page: Optional[NotificationSettingsPage] = None
         self._logger_model: Optional[LoggerModel] = None
 
         # Views
@@ -79,11 +108,16 @@ class NotificationPresenter(QObject):
             if self._logger_model:
                 self._logger_model.initialize()
             
-            # Register settings model
+            # Register the settings model so its values are saved and drawn.
             settings_service = ServiceLocator.get_service("settings")
-            if settings_service:
-                 # settings_service.register_model("notification_settings", self._settings_model)
-                 pass # Assuming registration happens elsewhere or manual loading
+            if settings_service is not None:
+                settings_service.register_model(
+                    NOTIFICATION_SETTINGS_ID, self._settings_model)
+                settings_service.save_feature_settings(
+                    NOTIFICATION_SETTINGS_ID, self._settings_model)
+
+            self._settings_page = NotificationSettingsPage(
+                self, self._settings_model)
 
         except Exception:
             logger.exception("Failed to set up the notification models")
@@ -334,6 +368,23 @@ class NotificationPresenter(QObject):
     def get_logger_model(self) -> Optional[LoggerModel]:
         """Get the logger model instance"""
         return self._logger_model
+
+    def settings_page(self) -> Optional[NotificationSettingsPage]:
+        """
+        Return the settings dialog page for the notification settings.
+
+        None only when the models failed to build, which _setup_models logs.
+        """
+        return self._settings_page
+
+    def apply_settings(self) -> None:
+        """
+        Apply every notification setting to the running interface.
+
+        Called by the settings dialog through NotificationSettingsPage, and by
+        BaseApplication when SettingsService reports a change from anywhere
+        else. Task 7, Task 8 and Task 9 of this plan fill it in.
+        """
 
     def set_log_level(self, level: str) -> None:
         """Set logging level"""

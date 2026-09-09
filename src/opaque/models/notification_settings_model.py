@@ -9,6 +9,8 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
+from PySide6.QtGui import QIcon
+
 from opaque.models.abstract_model import AbstractModel
 from opaque.models.annotations import BoolField, StringField, IntField, ChoiceField
 
@@ -16,117 +18,150 @@ from opaque.models.annotations import BoolField, StringField, IntField, ChoiceFi
 class NotificationSettingsModel(AbstractModel):
     """
     Model for notification system settings and preferences.
+
+    Every field is a setting, so every field is saved to settings.json and
+    drawn in the settings dialog. The presenter that honours each one is
+    NotificationPresenter; see its apply_settings().
     """
 
     # General notification settings
     notifications_enabled = BoolField(
         default=True,
-        description="Enable/disable all notifications"
+        description="Enable/disable all notifications",
+        settings=True
     )
 
     enable_toasts = BoolField(
         default=True,
-        description="Enable transient toast notifications"
+        description="Enable transient toast notifications",
+        settings=True
     )
 
     show_notification_count = BoolField(
         default=True,
-        description="Show notification count in the widget"
+        description="Show notification count in the widget",
+        settings=True
     )
 
     auto_hide_notifications = BoolField(
         default=False,
-        description="Automatically hide non-persistent notifications after timeout"
+        description="Automatically hide non-persistent notifications after timeout",
+        settings=True
     )
 
     auto_hide_timeout = IntField(
         default=5000,
-        description="Auto-hide timeout in milliseconds (5 seconds default)"
+        min_value=500,
+        max_value=120000,
+        description="Auto-hide timeout in milliseconds (5 seconds default)",
+        settings=True
     )
 
     # Notification level filters
     show_debug_notifications = BoolField(
         default=False,
-        description="Show DEBUG level notifications"
+        description="Show DEBUG level notifications",
+        settings=True
     )
 
     show_info_notifications = BoolField(
         default=True,
-        description="Show INFO level notifications"
+        description="Show INFO level notifications",
+        settings=True
     )
 
     show_warning_notifications = BoolField(
         default=True,
-        description="Show WARNING level notifications"
+        description="Show WARNING level notifications",
+        settings=True
     )
 
     show_error_notifications = BoolField(
         default=True,
-        description="Show ERROR level notifications"
+        description="Show ERROR level notifications",
+        settings=True
     )
 
     show_critical_notifications = BoolField(
         default=True,
-        description="Show CRITICAL level notifications"
+        description="Show CRITICAL level notifications",
+        settings=True
     )
 
     # Logger integration settings
     log_level = ChoiceField(
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        description="Minimum logging level"
+        description="Minimum logging level",
+        settings=True
     )
 
     console_logging_enabled = BoolField(
         default=True,
-        description="Enable console logging output"
+        description="Enable console logging output",
+        settings=True
     )
 
     file_logging_enabled = BoolField(
         default=True,
-        description="Enable file logging output"
+        description="Enable file logging output",
+        settings=True
     )
 
     log_file_path = StringField(
         default="",
-        description="Custom log file path (empty for default)"
+        description="Custom log file path (empty for default)",
+        settings=True
     )
 
     notification_on_warning = BoolField(
         default=False,
-        description="Create notifications for WARNING log messages"
+        description="Create notifications for WARNING log messages",
+        settings=True
     )
 
     notification_on_error = BoolField(
         default=True,
-        description="Create notifications for ERROR log messages"
+        description="Create notifications for ERROR log messages",
+        settings=True
     )
 
     notification_on_critical = BoolField(
         default=True,
-        description="Create notifications for CRITICAL log messages"
+        description="Create notifications for CRITICAL log messages",
+        settings=True
     )
 
     # Widget appearance settings
     notification_widget_position = ChoiceField(
         default="Right",
         choices=["Left", "Right", "Top", "Bottom"],
-        description="Default docking position for notification widget"
+        description="Default docking position for notification widget",
+        settings=True
     )
 
     max_notification_display = IntField(
         default=100,
-        description="Maximum number of notifications to display in widget"
+        min_value=1,
+        max_value=1000,
+        description="Maximum number of notifications to display in widget",
+        settings=True
     )
 
     notification_widget_width = IntField(
         default=300,
-        description="Default width of notification widget"
+        min_value=120,
+        max_value=2000,
+        description="Default width of notification widget",
+        settings=True
     )
 
     notification_widget_height = IntField(
         default=400,
-        description="Default height of notification widget"
+        min_value=120,
+        max_value=2000,
+        description="Default height of notification widget",
+        settings=True
     )
 
     def __init__(self):
@@ -135,6 +170,14 @@ class NotificationSettingsModel(AbstractModel):
     def feature_name(self) -> str:
         """Return the feature name for this settings model"""
         return "Notification System"
+
+    def feature_description(self) -> str:
+        """Return one sentence for the settings dialog."""
+        return "Notifications, toasts and logging"
+
+    def feature_icon(self) -> QIcon:
+        """Return the icon the settings dialog draws beside the group name."""
+        return QIcon.fromTheme("dialog-information")
 
     def get_enabled_notification_levels(self) -> list[str]:
         """Get list of enabled notification levels based on settings"""

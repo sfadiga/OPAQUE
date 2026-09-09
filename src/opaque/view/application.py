@@ -446,8 +446,16 @@ class BaseApplication(QMainWindow):
         Gathers all features with settings and displays the settings dialog.
         Handles theme application and saving on dialog acceptance.
         """
-        dialog = SettingsDialog(
-            list(self._registered_features.values()), parent=self)
+        pages = list(self._registered_features.values())
+
+        # The notification settings have a model but no BasePresenter, so the
+        # presenter hands over a small adapter that carries the three members
+        # the dialog reads.
+        notification_page = self.notification_presenter.settings_page()
+        if notification_page is not None:
+            pages.append(notification_page)
+
+        dialog = SettingsDialog(pages, parent=self)
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
             # On cancel, revert any changes by reloading from disk
