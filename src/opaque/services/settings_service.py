@@ -12,6 +12,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -127,23 +128,85 @@ class SettingsService(BaseService):
         self.settings_changed.emit(feature_id, self._settings[feature_id])
         self.save_settings_file()
 
-    def load_settings_file(self) -> None:
-        """Load settings from file."""
-        if self.settings_file.exists():
-            try:
-                with open(self.settings_file, 'r', encoding='utf-8') as f:
-                    self._settings = json.load(f)
-            except (json.JSONDecodeError, IOError):
-                logger.exception("Failed to load settings")
-                self._settings = {}
+    def load_settings_file(self) -> bool:
+        """
+        Load settings from the file.
 
-    def save_settings_file(self) -> None:
-        """Save settings to file."""
+        A file that cannot be parsed is moved aside with the suffix
+        ".corrupt" and reported, instead of being silently replaced by an
+        empty dictionary that the next save then writes over the user's own
+        file. A file that cannot be read at all leaves the settings already
+        held in memory alone, for the same reason.
+
+        Returns:
+            True when the file was read. False when there was nothing to
+            read, or when reading failed.
+        """
+        if not self.settings_file.exists():
+            return False
+
         try:
-            with open(self.settings_file, 'w', encoding='utf-8') as f:
-                json.dump(self._settings, f, indent=2)
-        except IOError:
-            logger.exception("Failed to save settings")
+            with open(self.settings_file, 'r', encoding='utf-8') as handle:
+                loaded = json.load(handle)
+        except json.JSONDecodeError:
+            kept = self.settings_file.with_suffix(
+                self.settings_file.suffix + ".corrupt")
+            try:
+                os.replace(self.settings_file, kept)
+                logger.error(
+                    "The settings file %s could not be parsed. It was kept as "
+                    "%s and the defaults are in use.",
+                    self.settings_file, kept)
+            except OSError:
+                logger.exception(
+                    "The settings file %s could not be parsed and could not "
+                    "be moved aside", self.settings_file)
+            return False
+        except OSError:
+            logger.exception(
+                "The settings file %s could not be read. The settings already "
+                "loaded are kept.", self.settings_file)
+            return False
+
+        if not isinstance(loaded, dict):
+            logger.error(
+                "The settings file %s holds %s, not an object. The defaults "
+                "are in use.", self.settings_file, type(loaded).__name__)
+            return False
+
+        self._settings = loaded
+        return True
+
+    def save_settings_file(self) -> bool:
+        """
+        Save settings to the file, atomically.
+
+        The data is written to a temporary file next to the target and then
+        moved onto it, because os.replace is atomic on Windows and on POSIX.
+        Writing into the target directly left a truncated file whenever the
+        write failed part way, and the next start read nothing.
+
+        Returns:
+            True when the file was written.
+        """
+        temporary = self.settings_file.with_suffix(
+            self.settings_file.suffix + ".tmp")
+        try:
+            with open(temporary, 'w', encoding='utf-8') as handle:
+                json.dump(self._settings, handle, indent=2)
+            os.replace(temporary, self.settings_file)
+            return True
+        except (OSError, TypeError, ValueError):
+            logger.exception(
+                "Failed to save the settings to %s. The previous file is "
+                "unchanged.", self.settings_file)
+            try:
+                if temporary.exists():
+                    temporary.unlink()
+            except OSError:
+                logger.exception(
+                    "Failed to remove the temporary file %s", temporary)
+            return False
 
     def save_feature_settings(self, feature_id: str, model: Any) -> None:
         """
