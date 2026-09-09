@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtGui import QCloseEvent
 
 from opaque.services.service import ServiceLocator
+from opaque.services.settings_service import SettingsService
 
 
 @pytest.fixture(autouse=True)
@@ -40,7 +41,7 @@ def _restore_the_locator_after_a_real_shutdown(app_window):
         ):
             if not service.is_initialized:
                 service.initialize()
-            if ServiceLocator.get_service(service.name) is not service:
+            if ServiceLocator.get_optional(type(service)) is not service:
                 ServiceLocator._services[service.name] = service
 
     _heal()
@@ -59,7 +60,7 @@ def test_a_presenter_is_cleaned_up_before_the_services(app_window):
 
     app_window._registered_features["recorder"] = _Recorder()
 
-    settings = ServiceLocator.get_service("settings")
+    settings = ServiceLocator.get(SettingsService)
     real_cleanup = settings.cleanup
 
     def _tracked_cleanup():
@@ -78,7 +79,7 @@ def test_a_presenter_can_still_reach_a_service_while_closing(app_window):
 
     class _Saver:
         def cleanup(self):
-            seen.append(ServiceLocator.get_service("settings"))
+            seen.append(ServiceLocator.get(SettingsService))
 
     app_window._registered_features["saver"] = _Saver()
 

@@ -74,19 +74,20 @@ class CalculatorPresenter(BasePresenter):
         """Handle operation button click."""
         self.model.set_operation(operation)
 
-        # Use calculation service if available
-        calc_service = ServiceLocator.get_service("calculation")
-        if calc_service:
-            # Store in service history
-            calc_service._add_to_history(f"Operation: {operation}")
+        from services.calculation_service import CalculationService
+
+        calc_service = ServiceLocator.get(CalculationService)
+        # Store in service history
+        calc_service._add_to_history(f"Operation: {operation}")
 
     def _on_equals_clicked(self):
         """Handle equals button click."""
         self.model.execute_operation()
 
-        # Use calculation service if available
-        calc_service = ServiceLocator.get_service("calculation")
-        if calc_service and self.model.current_value != "Error":
+        from services.calculation_service import CalculationService
+
+        calc_service = ServiceLocator.get(CalculationService)
+        if self.model.current_value != "Error":
             # Store result in service
             calc_service._add_to_history(
                 f"Result: {self.model.current_value}")
@@ -113,10 +114,11 @@ class CalculatorPresenter(BasePresenter):
         self._log("info", "History cleared")
 
     def _log(self, level: str, message: str):
-        """Log a message using the logging service if available."""
-        logging_service = ServiceLocator.get_service("logging")
-        if logging_service:
-            logging_service.log(level, f"[Calculator] {message}")
+        """Log a message using the logging service."""
+        from services.logging_service import LoggingService
+
+        logging_service = ServiceLocator.get(LoggingService)
+        logging_service.log(level, f"[Calculator] {message}")
 
     def on_view_show(self):
         """Show the calculator view."""

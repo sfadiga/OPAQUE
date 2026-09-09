@@ -250,9 +250,10 @@ self.app.notification_presenter.log_info("Application started", "Main")
 
 # Or via ServiceLocator
 from opaque.services.service import ServiceLocator
-logger = ServiceLocator.get_service("logger")
-if logger:
-    logger.info("Message", "Source")
+from opaque.services.logger_service import LoggerService
+
+logger = ServiceLocator.get(LoggerService)
+logger.info("Message", "Source")
 ```
 
 ### Tab Manager (CloseableTabWidget)

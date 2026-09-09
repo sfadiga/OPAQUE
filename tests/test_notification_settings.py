@@ -114,7 +114,7 @@ def test_the_settings_dialog_shows_the_notification_page(presenter):
 def _add(presenter, level):
     from opaque.services.notification_service import NotificationLevel
 
-    service = ServiceLocator.get_service("notification")
+    service = ServiceLocator.get(NotificationService)
     return service.add_notification(
         level=level, title="Title", message="Message", source="Test")
 

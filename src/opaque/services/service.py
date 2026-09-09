@@ -163,25 +163,6 @@ class ServiceLocator:
         return found
 
     @classmethod
-    def get_service(cls, name: str) -> Optional[BaseService]:
-        """
-        Get a registered service by name. Do not use this in new code.
-
-        It answers None for a name nothing registered, and the answer has no
-        useful type. Use ServiceLocator.get(SomeService) instead, or
-        get_optional(SomeService) where absence is normal. This method is
-        removed in Task 4 of this plan, once every call site is converted.
-
-        Args:
-            name: Service identifier
-
-        Returns:
-            Service instance or None if not found
-        """
-        with cls._lock:
-            return cls._services.get(name)
-
-    @classmethod
     def register_service(cls, service: BaseService) -> None:
         """
         Register a service with the locator.

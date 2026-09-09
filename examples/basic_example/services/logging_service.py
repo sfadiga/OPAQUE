@@ -8,9 +8,10 @@ from datetime import datetime
 class LoggingService(BaseService):
     """Service that provides logging functionality to features."""
 
+    SERVICE_NAME = "logging"
+
     def __init__(self):
-        # The name is the locator key. The presenters look up "logging".
-        super().__init__("logging")
+        super().__init__()
         self._logs = []
 
     def initialize(self, **kwargs):

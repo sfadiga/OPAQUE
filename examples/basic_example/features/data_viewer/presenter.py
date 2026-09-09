@@ -54,39 +54,40 @@ class DataViewerPresenter(BasePresenter):
 
     def _on_refresh(self):
         """Handle refresh button click."""
-        data_service = ServiceLocator.get_service("data")
-        if data_service:
-            data = data_service.get_all_data()
-            self.model.set_data(data)
-            self._log("info", "Data refreshed from service")
-        else:
-            self.model.generate_sample_data()
-            self._log("info", "Sample data generated")
+        from services.data_service import DataService
+
+        data_service = ServiceLocator.get(DataService)
+        data = data_service.get_all_data()
+        self.model.set_data(data)
+        self._log("info", "Data refreshed from service")
 
     def _on_add_item(self):
         """Handle add item button click."""
+        from services.data_service import DataService
+
         item_data = self.view.get_new_item_data()
         if item_data:
             self.model.add_item(item_data)
-            data_service = ServiceLocator.get_service("data")
-            if data_service:
-                data_service.add_data(item_data['id'], item_data)
+            data_service = ServiceLocator.get(DataService)
+            data_service.add_data(item_data['id'], item_data)
 
     def _on_remove_item(self):
         """Handle remove item button click."""
+        from services.data_service import DataService
+
         selected_id = self.view.get_selected_item_id()
         if selected_id:
             self.model.remove_item(selected_id)
-            data_service = ServiceLocator.get_service("data")
-            if data_service:
-                data_service.remove_data(selected_id)
+            data_service = ServiceLocator.get(DataService)
+            data_service.remove_data(selected_id)
 
     def _on_clear(self):
         """Handle clear button click."""
+        from services.data_service import DataService
+
         self.model.clear_data()
-        data_service = ServiceLocator.get_service("data")
-        if data_service:
-            data_service.clear_data()
+        data_service = ServiceLocator.get(DataService)
+        data_service.clear_data()
         self._log("info", "All data cleared")
 
     def _on_export(self):
@@ -110,19 +111,21 @@ class DataViewerPresenter(BasePresenter):
             if success:
                 self.view.set_status(f"Data imported from {import_path}")
                 self._log("info", f"Data imported from {import_path}")
-                data_service = ServiceLocator.get_service("data")
-                if data_service:
-                    for item in self.model.get_data():
-                        data_service.add_data(item['id'], item)
+                from services.data_service import DataService
+
+                data_service = ServiceLocator.get(DataService)
+                for item in self.model.get_data():
+                    data_service.add_data(item['id'], item)
             else:
                 self.view.set_status("Import failed")
                 self._log("error", "Data import failed")
 
     def _log(self, level: str, message: str):
-        """Log a message using the logging service if available."""
-        logging_service = ServiceLocator.get_service("logging")
-        if logging_service:
-            logging_service.log(level, f"[DataViewer] {message}")
+        """Log a message using the logging service."""
+        from services.logging_service import LoggingService
+
+        logging_service = ServiceLocator.get(LoggingService)
+        logging_service.log(level, f"[DataViewer] {message}")
 
     def on_view_show(self):
         """Show the data viewer view."""

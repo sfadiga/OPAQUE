@@ -11,9 +11,10 @@ from opaque.services.service import BaseService
 class CalculationService(BaseService):
     """Service that provides calculation functionality to features."""
 
+    SERVICE_NAME = "calculation"
+
     def __init__(self):
-        # The name is the locator key. The presenters look up "calculation".
-        super().__init__("calculation")
+        super().__init__()
         self._history: list[str] = []
         self._memory: float | None = None
 

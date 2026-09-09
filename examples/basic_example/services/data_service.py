@@ -8,9 +8,10 @@ from opaque.services.service import BaseService
 class DataService(BaseService):
     """Service that provides data management functionality to features."""
 
+    SERVICE_NAME = "data"
+
     def __init__(self):
-        # The name is the locator key. The presenters look up "data".
-        super().__init__("data")
+        super().__init__()
         self._data_store = {}
     
     def initialize(self, **kwargs):
