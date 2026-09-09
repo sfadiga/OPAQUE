@@ -173,13 +173,35 @@ class NotificationPresenter(QObject):
             logger.exception("Failed to connect the notification signals")
 
     def _on_service_notification_added(self, notification: Notification):
-        # Add to list
+        # Every notification reaches the interface through this method, so
+        # this is the one place the display settings have to be honoured.
+        if not self._shows(notification):
+            return
+
         if self._notification_list:
             self._notification_list.add_notification(notification)
-            
+
         # Show Toast if enabled
         if self._settings_model and self._settings_model.enable_toasts:
             self._show_toast(notification)
+
+    def _shows(self, notification: Notification) -> bool:
+        """
+        Return True when the settings allow this notification to be shown.
+
+        notifications_enabled switches every notification off. The five
+        show_*_notifications fields switch off one level each. Both were
+        declared and read by nothing.
+        """
+        settings = self._settings_model
+        if settings is None:
+            return True
+
+        if not settings.notifications_enabled:
+            return False
+
+        allowed = settings.get_enabled_notification_levels()
+        return notification.level.name in allowed
 
     def _on_service_notification_removed(self, notification_id: str):
         """Handle notification removal from service"""
@@ -219,10 +241,34 @@ class NotificationPresenter(QObject):
         self._drop_oldest_toasts()
 
         toast = ToastWidget(notification, self._main_window)
+        self._apply_toast_lifetime(toast)
         toast.closed.connect(self._on_toast_closed)
         self._active_toasts.append(toast)
         toast.show()
         self._reposition_toasts()
+
+    def _apply_toast_lifetime(self, toast: ToastWidget) -> None:
+        """
+        Replace the per level toast lifetime when the user asked for one.
+
+        ToastWidget picks its duration from the notification level. The two
+        auto_hide settings were declared and read by nothing.
+
+        A toast whose timer is not running has no duration at all, which is
+        how a critical notification stays on screen until the user dismisses
+        it. That toast is left alone: an auto-hide timeout must not take away
+        the one notification the user must see.
+        """
+        settings = self._settings_model
+        if settings is None or not settings.auto_hide_notifications:
+            return
+
+        if not toast.close_timer.isActive():
+            return
+
+        timeout = int(settings.auto_hide_timeout)
+        if timeout > 0:
+            toast.close_timer.start(timeout)
 
     def _drop_oldest_toasts(self) -> None:
         """

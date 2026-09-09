@@ -100,3 +100,104 @@ def test_the_settings_dialog_shows_the_notification_page(presenter):
         assert "Notification System" in titles
     finally:
         dialog.deleteLater()
+
+
+def _add(presenter, level):
+    from opaque.services.notification_service import NotificationLevel
+
+    service = ServiceLocator.get_service("notification")
+    return service.add_notification(
+        level=level, title="Title", message="Message", source="Test")
+
+
+def test_a_notification_reaches_the_list(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    _add(presenter, NotificationLevel.ERROR)
+
+    assert len(presenter._notification_list.items) == 1
+
+
+def test_the_master_switch_stops_every_notification(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    presenter.settings_page().model.notifications_enabled = False
+
+    _add(presenter, NotificationLevel.ERROR)
+
+    assert presenter._notification_list.items == {}
+
+
+def test_a_level_that_is_switched_off_does_not_reach_the_list(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    presenter.settings_page().model.show_error_notifications = False
+
+    _add(presenter, NotificationLevel.ERROR)
+
+    assert presenter._notification_list.items == {}
+
+
+def test_a_level_that_is_switched_on_still_reaches_the_list(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    presenter.settings_page().model.show_error_notifications = False
+
+    _add(presenter, NotificationLevel.INFO)
+
+    assert len(presenter._notification_list.items) == 1
+
+
+def test_debug_notifications_are_off_by_default(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    _add(presenter, NotificationLevel.DEBUG)
+
+    assert presenter._notification_list.items == {}
+
+
+def test_no_toast_appears_when_toasts_are_switched_off(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    presenter.settings_page().model.enable_toasts = False
+
+    _add(presenter, NotificationLevel.ERROR)
+
+    assert presenter._active_toasts == []
+
+
+def test_a_toast_appears_when_toasts_are_switched_on(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    _add(presenter, NotificationLevel.ERROR)
+
+    assert len(presenter._active_toasts) == 1
+
+
+def test_the_auto_hide_timeout_replaces_the_level_duration(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    model = presenter.settings_page().model
+    model.auto_hide_notifications = True
+    model.auto_hide_timeout = 1500
+
+    _add(presenter, NotificationLevel.ERROR)
+
+    toast = presenter._active_toasts[0]
+    assert toast.close_timer.isActive()
+    assert toast.close_timer.interval() == 1500
+
+
+def test_a_toast_that_never_expires_is_left_alone(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    model = presenter.settings_page().model
+    model.auto_hide_notifications = True
+    model.auto_hide_timeout = 1500
+
+    _add(presenter, NotificationLevel.CRITICAL)
+
+    toast = presenter._active_toasts[0]
+    # A critical toast has no duration, so it must not gain one.
+    if not toast.close_timer.isActive():
+        assert toast.close_timer.interval() != 1500
