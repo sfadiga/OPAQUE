@@ -377,4 +377,42 @@ def test_the_application_object_carries_no_bolted_on_window(app_window):
 
 def test_the_shell_is_reachable_through_the_presenter(app_window):
     presenter = next(iter(app_window._registered_features.values()))
-    assert presenter.app is app_window
+    assert presenter.context.shell is app_window
+
+
+def test_the_shell_offers_one_context(app_window):
+    from opaque.features.context import FeatureContext
+
+    assert isinstance(app_window.context, FeatureContext)
+
+
+def test_the_shell_context_carries_the_shell(app_window):
+    assert app_window.context.shell is app_window
+
+
+def test_the_shell_context_carries_the_configuration(app_window):
+    assert app_window.context.configuration is app_window._configuration
+
+
+def test_the_shell_can_host_a_feature_window(app_window, qtbot):
+    from PySide6.QtWidgets import QWidget
+
+    before = len(app_window.mdi_area.subWindowList())
+    app_window.add_feature_window(QWidget())
+
+    assert len(app_window.mdi_area.subWindowList()) == before + 1
+
+
+def test_the_application_model_reads_the_icon_from_the_context(app_window):
+    from PySide6.QtGui import QIcon
+
+    presenter = app_window._registered_features["application"]
+    assert isinstance(presenter.model.feature_icon(), QIcon)
+
+
+def test_no_model_reaches_a_private_shell_attribute():
+    import inspect
+
+    from opaque.models import app_model
+
+    assert "_configuration" not in inspect.getsource(app_model)

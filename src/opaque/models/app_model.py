@@ -51,7 +51,9 @@ class ApplicationModel(BaseModel):
     def feature_icon(self) -> QIcon:
         """
         Return the feature icon for the settings dialog.
+
+        This used to read a private attribute of the application object
+        through self.app, which is exactly what FeatureContext exists to
+        stop.
         """
-        if self.app:
-            return self.app._configuration.get_application_icon()
-        return QIcon.fromTheme("tool")
+        return self.context.application_icon()

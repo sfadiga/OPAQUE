@@ -24,6 +24,7 @@ from opaque.view.widgets.mdi_window import OpaqueMdiArea
 from opaque.view.widgets.toolbar import OpaqueMainToolbar
 from opaque.view.dialogs.settings import SettingsDialog
 from opaque.view.dialogs.keyboard_map import KeyboardMapDialog
+from opaque.features.context import FeatureContext
 from opaque.presenters.presenter import BasePresenter
 from opaque.services.service import ServiceLocator
 from opaque.localisation import apply_layout_direction, install_translator
@@ -87,6 +88,12 @@ class BaseApplication(QMainWindow):
 
         # Application internal configuration, not its settings
         self._configuration = configuration
+
+        # The one context every feature of this application receives. It is
+        # built as early as possible, because the application settings
+        # feature below needs it.
+        self._context = FeatureContext(
+            configuration=configuration, shell=self)
 
         # Set up the main window
         self.update_application_title(None)
@@ -258,9 +265,9 @@ class BaseApplication(QMainWindow):
 
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
-        model = ApplicationModel(self)
-        view = ApplicationView(self)  # dummy only for settings
-        presenter = ApplicationPresenter(model, view, self)
+        model = ApplicationModel(self._context)
+        view = ApplicationView(self._context)  # dummy only for settings
+        presenter = ApplicationPresenter(model, view, self._context)
         # add settings presenter directly to registered features so it is not displayed on toolbar
         self._registered_features[presenter.feature_id] = presenter
         ServiceLocator.get(SettingsService).register_model(
@@ -378,6 +385,27 @@ class BaseApplication(QMainWindow):
             workspace,
         ))
 
+    @property
+    def context(self) -> FeatureContext:
+        """
+        The context every feature of this application receives.
+
+        A feature holds this instead of the whole application. See
+        FeatureContext for what it offers and why.
+        """
+        return self._context
+
+    def add_feature_window(self, view: QWidget) -> None:
+        """
+        Put one feature window into the MDI area and show it.
+
+        FeatureContext.show_window() calls this. It is the only way a feature
+        reaches the MDI area, which is why the MDI area is not on the
+        context.
+        """
+        self.mdi_area.addSubWindow(view)
+        view.show()
+
     def register_feature(self, presenter: BasePresenter) -> None:
         """
         Register one built MVP triple and show its window.
@@ -420,8 +448,7 @@ class BaseApplication(QMainWindow):
         # Settings page and would stop closeEvent from calling its cleanup().
         # Features are released in closeEvent, never on a window close.
 
-        self.mdi_area.addSubWindow(presenter.view)
-        presenter.view.show()
+        self.add_feature_window(presenter.view)
 
     def _ask_for_workspace_path(self, for_load: bool) -> str:
         """
