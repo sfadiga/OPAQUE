@@ -5,12 +5,17 @@ Nuitka builder for OPAQUE framework applications.
 Licensed under MIT License
 """
 
+import logging
 import platform
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from .builder import Builder, BuildError
+from .config import BuildConfig
+
+logger = logging.getLogger(__name__)
 
 
 class NuitkaBuilder(Builder):
@@ -20,170 +25,172 @@ class NuitkaBuilder(Builder):
         """Check if Nuitka is available."""
         return shutil.which("nuitka") is not None
 
-    def build(self, entry_point: Union[str, Path], **kwargs: Any) -> Path:
+    def build(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> Path:
         """
-        Build executable using Nuitka.
+        Build one executable with Nuitka.
 
         Args:
-            entry_point: Path to main Python file
-            **kwargs: Nuitka options:
-                - standalone (bool): Create standalone executable (default: True)
-                - onefile (bool): Create single executable file
-                - console (bool): Show console window (default: False for GUI apps) 
-                - name (str): Name for the executable
-                - icon (str): Path to icon file
-                - output_dir (str): Output directory
-                - optimization (str): Optimization level ('0', '1', '2')
-                - include_data_files (List[str]): Data files to include
-                - include_package (List[str]): Packages to include
-                - exclude_module (List[str]): Modules to exclude
-                - follow_imports (bool): Follow all imports
-                - plugin_enable (List[str]): Nuitka plugins to enable
-                - debug (bool): Enable debug mode
-                - lto (bool): Enable Link Time Optimization
-                - jobs (int): Number of parallel compilation jobs
+            entry_point: The .py file that starts the application.
+            config: Every build option. See BuildConfig.
 
         Returns:
-            Path to built executable
+            The path of the executable that was produced.
 
         Raises:
-            BuildError: If build process fails
+            BuildError: When Nuitka is not installed, the entry point does
+                not exist, or Nuitka reports a failure.
         """
         if not self.is_available():
             raise BuildError(
-                "Nuitka is not available. Install with: pip install nuitka")
+                "Nuitka is not installed. Install the build extra: "
+                "uv sync --extra build")
 
+        entry_path = Path(entry_point)
+        command = self.build_command(entry_point, config)
+        self._ensure_directories()
+        result = self._run_command(command)
+        logger.info("Nuitka output:\n%s", result.stdout)
+
+        executable = self._find_executable(
+            entry_path.stem, config.name, config.onefile)
+        if executable is None or not executable.exists():
+            raise BuildError(
+                f"Nuitka reported success but no executable named "
+                f"{config.name} was found under {self.output_dir}.")
+
+        size = self.get_executable_size(executable)
+        logger.info("Build successful! Executable: %s (%s)",
+                     executable, self.format_size(size))
+        return executable
+
+    def build_command(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> List[str]:
+        """
+        Return the Nuitka command line for one build.
+
+        This is separate from build() so a test can check every option
+        without installing Nuitka and without waiting minutes for a real
+        compile.
+
+        Args:
+            entry_point: The .py file that starts the application.
+            config: Every build option. The fields marked pyinstaller in
+                BuildConfig are ignored here.
+
+        Returns:
+            The command, as a list of arguments, with the entry point last.
+
+        Raises:
+            BuildError: When the entry point does not exist.
+        """
         entry_path = Path(entry_point)
         if not entry_path.exists():
             raise BuildError(f"Entry point not found: {entry_path}")
 
-        self._ensure_directories()
+        command: List[str] = [
+            sys.executable, "-m", "nuitka",
+            "--assume-yes-for-downloads",
+            f"--output-dir={self.output_dir}",
+            f"--output-filename={config.name}{self._executable_suffix()}",
+        ]
 
-        # Build command
-        cmd = ["nuitka"]
-
-        # Basic mode
-        if kwargs.get("standalone", True):
-            cmd.append("--standalone")
+        if config.standalone:
+            command.append("--standalone")
         else:
-            cmd.append("--module")
+            command.append("--module")
 
-        # Single file mode
-        if kwargs.get("onefile", False):
-            cmd.append("--onefile")
+        if config.onefile:
+            command.append("--onefile")
 
-        # Console/GUI mode
-        if not kwargs.get("console", False):
-            if platform.system() == "Windows":
-                cmd.append("--windows-disable-console")
-            else:
-                cmd.append("--disable-console")
-
-        # Output directory
-        cmd.extend(["--output-dir", str(self.output_dir)])
-
-        # Name
-        name = kwargs.get("name")
-        if name:
-            cmd.extend(["--output-filename", name])
-
-        # Icon
-        icon = kwargs.get("icon")
-        if icon and Path(icon).exists():
-            if platform.system() == "Windows":
-                cmd.extend(["--windows-icon-from-ico", str(icon)])
-            elif platform.system() == "Darwin":
-                cmd.extend(["--macos-app-icon", str(icon)])
-
-        # Optimization
-        optimization = kwargs.get("optimization", "1")
-        if optimization in ["0", "1", "2"]:
-            cmd.extend([f"--optimization-level={optimization}"])
-
-        # PySide6 plugin
-        pyside6_path = self._find_pyside6_path()
-        if pyside6_path:
-            cmd.append("--enable-plugin=pyside6")
-
-        # Additional plugins
-        for plugin in kwargs.get("plugin_enable", []):
-            cmd.extend(["--enable-plugin", plugin])
-
-        # Include packages
-        for package in kwargs.get("include_package", []):
-            cmd.extend(["--include-package", package])
-
-        # Exclude modules
-        exclude_modules = self._get_common_excludes() + kwargs.get("exclude_module", [])
-        for module in exclude_modules:
-            cmd.extend(["--nofollow-import-to", module])
-
-        # Data files
-        for data_file in kwargs.get("include_data_files", []):
-            cmd.extend(["--include-data-files", data_file])
-
-        # Follow imports
-        if kwargs.get("follow_imports", True):
-            cmd.append("--follow-imports")
+        if config.follow_imports:
+            command.append("--follow-imports")
         else:
-            cmd.append("--nofollow-imports")
+            command.append("--nofollow-imports")
 
-        # Performance options
-        jobs = kwargs.get("jobs", 0)
-        if jobs > 0:
-            cmd.extend([f"--jobs={jobs}"])
-
-        if kwargs.get("lto", False):
-            cmd.append("--lto=yes")
-
-        # Version info for Windows
+        # `--windows-console-mode` is a Windows-only flag, and
+        # `--disable-console` is the equivalent everywhere else. Guarded
+        # exactly as the code they replace guarded them.
         if platform.system() == "Windows":
-            version_info = kwargs.get("version_info")
-            if version_info:
-                self._add_windows_version_args(cmd, version_info)
+            command.append(
+                "--windows-console-mode=force" if config.console
+                else "--windows-console-mode=disable")
+        elif not config.console:
+            command.append("--disable-console")
 
-        # Debug mode
-        if kwargs.get("debug", False):
-            cmd.append("--debug")
+        if config.debug:
+            command.append("--debug")
         else:
-            cmd.append("--no-progressbar")
+            command.append("--no-progressbar")
 
-        # Remove build files
-        cmd.append("--remove-output")
+        # `--windows-icon-from-ico` and `--macos-app-icon` are each
+        # platform-specific, guarded exactly as the code they replace
+        # guarded them.
+        if config.icon:
+            if platform.system() == "Windows":
+                command.append(f"--windows-icon-from-ico={config.icon}")
+            elif platform.system() == "Darwin":
+                command.append(f"--macos-app-icon={config.icon}")
 
-        # Create version module if needed
+        # PySide6 always needs its own plug-in, so the caller never has to
+        # remember it.
+        for plugin in ["pyside6"] + config.nuitka_plugins:
+            command.append(f"--enable-plugin={plugin}")
+
+        for package in config.include_packages:
+            command.append(f"--include-package={package}")
+
+        for module in config.hidden_imports:
+            command.append(f"--include-module={module}")
+
+        for module in config.exclude_modules + self._get_common_excludes():
+            command.append(f"--nofollow-import-to={module}")
+
+        for entry in config.data_files:
+            command.append(f"--include-data-files={entry}")
+
+        if config.jobs > 1:
+            command.append(f"--jobs={config.jobs}")
+        elif config.jobs == 1:
+            command.append("--jobs=1")
+
+        if config.lto:
+            command.append("--lto=yes")
+
+        # BuildConfig.optimization is the Python optimisation level (assert
+        # and docstring stripping), not Nuitka's own compiler optimisation
+        # level, so it is spelled as a Python flag.
+        if config.optimization:
+            command.append("--python-flag=" + "O" * config.optimization)
+
+        # `_add_windows_version_args` writes Windows resource-version flags,
+        # so it is guarded exactly as the code it replaces guarded it: only
+        # on Windows, and only when there is version information to write.
+        if platform.system() == "Windows" and config.version_info:
+            self._add_windows_version_args(command, config.version_info)
+
+        command.append("--remove-output")
+
         version_module_path = self._create_version_module(
-            kwargs.get("version_info"))
+            config.version_info)
         if version_module_path:
-            # Include the version module directory
-            cmd.extend(["--include-data-files",
-                       f"{version_module_path}=_opaque_version.py"])
+            command.append(
+                f"--include-data-files={version_module_path}="
+                f"_opaque_version.py")
 
-        # Entry point
-        cmd.append(str(entry_path))
+        command.append(str(entry_path))
+        return command
 
-        # Run Nuitka
-        try:
-            result = self._run_command(cmd)
-            print("Nuitka output:")
-            print(result.stdout)
-
-            # Find the executable
-            exe_path = self._find_executable(
-                entry_path.stem, name, kwargs.get("onefile", False))
-
-            if exe_path and exe_path.exists():
-                size = self.get_executable_size(exe_path)
-                print(f"Build successful! Executable: {exe_path}")
-                print(f"Size: {self.format_size(size)}")
-                return exe_path
-            else:
-                raise BuildError("Executable not found after build")
-
-        except BuildError:
-            raise
-        except Exception as e:
-            raise BuildError(f"Nuitka build failed: {str(e)}") from e
+    @staticmethod
+    def _executable_suffix() -> str:
+        """Return the executable file extension for this platform."""
+        return ".exe" if platform.system() == "Windows" else ""
 
     def _find_executable(self, default_name: str, custom_name: Optional[str] = None, onefile: bool = False) -> Optional[Path]:
         """Find the built executable."""
@@ -237,33 +244,34 @@ class NuitkaBuilder(Builder):
         except BuildError:
             return []
 
-    def create_config_file(self, entry_point: Union[str, Path], **kwargs: Any) -> Path:
+    def create_config_file(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> Path:
         """
         Create a Nuitka configuration file for reproducible builds.
 
         Args:
-            entry_point: Path to main Python file
-            **kwargs: Same options as build method
+            entry_point: The .py file that starts the application.
+            config: Every build option.
 
         Returns:
             Path to created config file
         """
-        entry_path = Path(entry_point)
-        name = kwargs.get("name", entry_path.stem)
-        config_path = self.build_dir / f"{name}-nuitka.cfg"
+        config_path = self.build_dir / f"{config.name}-nuitka.cfg"
 
         self._ensure_directories()
 
-        # Generate config content
-        config_content = self._generate_config_content(**kwargs)
+        config_content = self._generate_config_content(config)
 
         with open(config_path, 'w', encoding='utf-8') as f:
             f.write(config_content)
 
-        print(f"Nuitka config file created: {config_path}")
+        logger.info("Nuitka config file created: %s", config_path)
         return config_path
 
-    def _generate_config_content(self, **kwargs: Any) -> str:
+    def _generate_config_content(self, config: BuildConfig) -> str:
         """Generate Nuitka configuration file content."""
         lines = [
             "# Nuitka Configuration File",
@@ -271,73 +279,92 @@ class NuitkaBuilder(Builder):
             "",
         ]
 
-        # Basic options
-        if kwargs.get("standalone", True):
+        if config.standalone:
             lines.append("--standalone")
 
-        if kwargs.get("onefile", False):
+        if config.onefile:
             lines.append("--onefile")
 
-        if not kwargs.get("console", False):
-            if platform.system() == "Windows":
-                lines.append("--windows-disable-console")
-            else:
-                lines.append("--disable-console")
+        if config.follow_imports:
+            lines.append("--follow-imports")
+        else:
+            lines.append("--nofollow-imports")
 
-        # Output
-        lines.append(f"--output-dir={self.output_dir}")
+        # `--windows-console-mode` is a Windows-only flag, and
+        # `--disable-console` is the equivalent everywhere else. Guarded
+        # exactly as the code they replace guarded them.
+        if platform.system() == "Windows":
+            lines.append(
+                "--windows-console-mode=force" if config.console
+                else "--windows-console-mode=disable")
+        elif not config.console:
+            lines.append("--disable-console")
 
-        name = kwargs.get("name")
-        if name:
-            lines.append(f"--output-filename={name}")
-
-        # Icon
-        icon = kwargs.get("icon")
-        if icon and Path(icon).exists():
-            if platform.system() == "Windows":
-                lines.append(f"--windows-icon-from-ico={icon}")
-            elif platform.system() == "Darwin":
-                lines.append(f"--macos-app-icon={icon}")
-
-        # Optimization
-        optimization = kwargs.get("optimization", "1")
-        if optimization in ["0", "1", "2"]:
-            lines.append(f"--optimization-level={optimization}")
-
-        # PySide6
-        if self._find_pyside6_path():
-            lines.append("--enable-plugin=pyside6")
-
-        # Additional plugins
-        for plugin in kwargs.get("plugin_enable", []):
-            lines.append(f"--enable-plugin={plugin}")
-
-        # Include packages
-        for package in kwargs.get("include_package", []):
-            lines.append(f"--include-package={package}")
-
-        # Exclude modules
-        exclude_modules = self._get_common_excludes() + kwargs.get("exclude_module", [])
-        for module in exclude_modules:
-            lines.append(f"--nofollow-import-to={module}")
-
-        # Data files
-        for data_file in kwargs.get("include_data_files", []):
-            lines.append(f"--include-data-files={data_file}")
-
-        # Performance
-        jobs = kwargs.get("jobs", 0)
-        if jobs > 0:
-            lines.append(f"--jobs={jobs}")
-
-        if kwargs.get("lto", False):
-            lines.append("--lto=yes")
-
-        # Other options
-        if not kwargs.get("debug", False):
+        if config.debug:
+            lines.append("--debug")
+        else:
             lines.append("--no-progressbar")
 
+        lines.append(f"--output-dir={self.output_dir}")
+        lines.append(
+            f"--output-filename={config.name}{self._executable_suffix()}")
+
+        # `--windows-icon-from-ico` and `--macos-app-icon` are each
+        # platform-specific, guarded exactly as the code they replace
+        # guarded them.
+        if config.icon:
+            if platform.system() == "Windows":
+                lines.append(f"--windows-icon-from-ico={config.icon}")
+            elif platform.system() == "Darwin":
+                lines.append(f"--macos-app-icon={config.icon}")
+
+        # PySide6 always needs its own plug-in, so the caller never has to
+        # remember it.
+        for plugin in ["pyside6"] + config.nuitka_plugins:
+            lines.append(f"--enable-plugin={plugin}")
+
+        for package in config.include_packages:
+            lines.append(f"--include-package={package}")
+
+        for module in config.hidden_imports:
+            lines.append(f"--include-module={module}")
+
+        for module in config.exclude_modules + self._get_common_excludes():
+            lines.append(f"--nofollow-import-to={module}")
+
+        for data_file in config.data_files:
+            lines.append(f"--include-data-files={data_file}")
+
+        if config.jobs > 1:
+            lines.append(f"--jobs={config.jobs}")
+        elif config.jobs == 1:
+            lines.append("--jobs=1")
+
+        if config.lto:
+            lines.append("--lto=yes")
+
+        # BuildConfig.optimization is the Python optimisation level (assert
+        # and docstring stripping), not Nuitka's own compiler optimisation
+        # level, so it is spelled as a Python flag.
+        if config.optimization:
+            lines.append("--python-flag=" + "O" * config.optimization)
+
+        # `_add_windows_version_args` writes Windows resource-version flags,
+        # so it is guarded exactly as the code it replaces guarded it: only
+        # on Windows, and only when there is version information to write.
+        if platform.system() == "Windows" and config.version_info:
+            args: List[str] = []
+            self._add_windows_version_args(args, config.version_info)
+            lines.extend(args)
+
         lines.append("--remove-output")
+
+        version_module_path = self._create_version_module(
+            config.version_info)
+        if version_module_path:
+            lines.append(
+                f"--include-data-files={version_module_path}="
+                f"_opaque_version.py")
 
         return '\n'.join(lines) + '\n'
 
@@ -364,8 +391,7 @@ class NuitkaBuilder(Builder):
 
         try:
             result = self._run_command(cmd)
-            print("Nuitka output:")
-            print(result.stdout)
+            logger.info("Nuitka output:\n%s", result.stdout)
 
             # Try to find the executable
             name = entry_path.stem
@@ -373,8 +399,8 @@ class NuitkaBuilder(Builder):
                 exe_path = self._find_executable(name, None, onefile)
                 if exe_path and exe_path.exists():
                     size = self.get_executable_size(exe_path)
-                    print(f"Build successful! Executable: {exe_path}")
-                    print(f"Size: {self.format_size(size)}")
+                    logger.info("Build successful! Executable: %s (%s)",
+                                 exe_path, self.format_size(size))
                     return exe_path
 
             raise BuildError("Executable not found after build")
