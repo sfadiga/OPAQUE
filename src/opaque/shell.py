@@ -45,6 +45,7 @@ from opaque.services.theme_service import ThemeService
 from opaque.services.settings_service import SettingsService, stored_language
 from opaque.services.notification_service import NotificationService
 from opaque.services.logger_service import LoggerService
+from opaque.services.version_service import VersionManager
 
 from opaque.presenters.app_presenter import ApplicationPresenter
 from opaque.presenters.notification_presenter import (
@@ -102,6 +103,13 @@ class BaseApplication(QMainWindow):
         # feature below needs it.
         self._context = FeatureContext(
             configuration=configuration, shell=self)
+
+        # Initialize version service. This must be registered before the
+        # first update_application_title() call below, because the title
+        # reads the application version through this service.
+        self.version_service = VersionManager()
+        self.version_service.initialize()
+        ServiceLocator.register_service(self.version_service)
 
         # Set up the main window
         self.update_application_title(None)

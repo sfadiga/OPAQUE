@@ -49,6 +49,42 @@ def test_every_module_still_imports():
         importlib.import_module(name)
 
 
+def test_the_version_manager_is_registered(app_window):
+    from opaque.services.service import ServiceLocator
+    from opaque.services.version_service import VersionManager
+
+    assert isinstance(ServiceLocator.get(VersionManager), VersionManager)
+
+
+def test_the_title_bar_reuses_one_version_manager(app_window, monkeypatch):
+    from opaque.services import version_service
+
+    built = []
+    real = version_service.VersionManager.__init__
+
+    def _counting_init(self, *args, **kwargs):
+        built.append(True)
+        real(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        version_service.VersionManager, "__init__", _counting_init)
+
+    app_window.update_application_title(None)
+    app_window.update_application_title(None)
+
+    assert built == []
+
+
+@pytest.mark.parametrize("removed", [
+    "src/opaque/build_tools/templates/pyinstaller_config.py",
+    "src/opaque/build_tools/templates/nuitka_config.cfg",
+])
+def test_an_unread_template_is_gone(removed):
+    from pathlib import Path
+
+    assert not Path(removed).exists()
+
+
 def test_no_default_of_none_is_annotated_as_a_value():
     import inspect
     import typing

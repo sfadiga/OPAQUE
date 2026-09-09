@@ -16,7 +16,11 @@ from opaque.services.settings_service import SettingsService
 
 @pytest.fixture
 def services(tmp_path, qapp):
-    ServiceLocator.cleanup_services()
+    # Save and restore, not just wipe: cleanup_services() alone discarded
+    # whatever the session-scoped app_window fixture had already registered
+    # (including, later, the version service), and nothing put it back.
+    saved = dict(ServiceLocator._services)
+    ServiceLocator._services.clear()
     settings = SettingsService(tmp_path / "settings.json")
     settings.initialize()
     ServiceLocator.register_service(settings)
@@ -29,6 +33,7 @@ def services(tmp_path, qapp):
     ServiceLocator.register_service(logger_service)
     yield settings
     ServiceLocator.cleanup_services()
+    ServiceLocator._services.update(saved)
 
 
 @pytest.fixture
@@ -79,7 +84,8 @@ def test_a_stored_value_reaches_the_model_at_start(tmp_path, qapp, qtbot):
         json.dumps({NOTIFICATION_SETTINGS_ID: {"enable_toasts": False}}),
         encoding="utf-8")
 
-    ServiceLocator.cleanup_services()
+    saved = dict(ServiceLocator._services)
+    ServiceLocator._services.clear()
     settings = SettingsService(path)
     settings.initialize()
     ServiceLocator.register_service(settings)
@@ -97,6 +103,7 @@ def test_a_stored_value_reaches_the_model_at_start(tmp_path, qapp, qtbot):
         assert presenter.settings_page().model.enable_toasts is False
     finally:
         ServiceLocator.cleanup_services()
+        ServiceLocator._services.update(saved)
 
 
 def test_the_settings_dialog_shows_the_notification_page(presenter):

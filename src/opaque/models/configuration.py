@@ -99,10 +99,15 @@ class DefaultApplicationConfiguration(AbstractModel):
 
         Example: 1.2.3 , 0.1.0-alpha, 1.0.0-rc1 , etc
         """
-        # Try to get version from VersionManager service
+        # Try to get version from the registered VersionManager service. It
+        # may not be registered yet (a configuration built on its own, before
+        # any BaseApplication exists), so fall back to a throwaway instance.
         try:
+            from opaque.services.service import ServiceLocator
             from opaque.services.version_service import VersionManager
-            version_manager = VersionManager()
+            version_manager = ServiceLocator.get_optional(VersionManager)
+            if version_manager is None:
+                version_manager = VersionManager()
             runtime_version = version_manager.get_version()
             if runtime_version:
                 return runtime_version
