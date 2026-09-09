@@ -51,5 +51,5 @@ The worked examples are `examples/quickstart/main.py` (smallest) and `examples/b
 
 - Commits: conventional style `type(scope): summary` in plain, simple English (match `git log`).
 - Identifiers use American spelling (`color`); historic prose/comments use British spelling — do not "fix" prose spelling in unrelated diffs.
-- Shell signal wiring goes through lambdas by stated policy (`_wire_shell_signals` docstring); there is no disconnect discipline yet, and features never unload at runtime.
+- Shell signal wiring goes through lambdas by stated policy (`_wire_shell_signals` docstring). There is deliberately no disconnect discipline in the shell: features never unload at run time and the shell lives as long as the process. `tests/test_signal_policy.py` fails if that stops being true. A presenter is different and does disconnect from its own view in `cleanup()`.
 - Design plans from previous sessions are in `docs/superpowers/plans/`; known-issue write-ups in `docs/known-issues/`.

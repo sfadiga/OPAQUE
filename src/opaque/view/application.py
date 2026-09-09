@@ -178,6 +178,17 @@ class BaseApplication(QMainWindow):
         connected straight to a bound method keeps the object it saw at
         connect time, which makes the connection impossible to replace in a
         test and impossible to follow when the toolbar is rebuilt.
+
+        These connections are made once and are never taken apart. That is a
+        decision, not an oversight: features never unload at run time, and
+        the shell lives as long as the process, so there is nothing to
+        disconnect from and nothing to leak. `tests/test_signal_policy.py`
+        keeps that assumption honest. If a way to unload a feature is ever
+        added, this method needs a matching teardown, and a lambda that
+        captures `self` has to be replaced first.
+
+        A presenter is different: it connects to its own view, and its view
+        can go away, so `BasePresenter.cleanup()` does disconnect.
         """
         self.theme_service.theme_changed.connect(
             lambda _name: self._repaint_after_theme_change())
