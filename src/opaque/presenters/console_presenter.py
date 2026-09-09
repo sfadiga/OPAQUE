@@ -34,7 +34,7 @@ class ConsolePresenter(BasePresenter):
         self._initialized = False
 
         # Get or create console service
-        self.console_service = ServiceLocator.get_service("console")
+        self.console_service = ServiceLocator.get_optional(ConsoleService)
         if self.console_service is None:
             self.console_service = ConsoleService()
             self.console_service.initialize()

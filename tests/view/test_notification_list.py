@@ -3,15 +3,20 @@
 
 import pytest
 
-from opaque.services.notification_service import NotificationLevel
+from opaque.services.notification_service import NotificationLevel, NotificationService
 from opaque.services.service import ServiceLocator
 from opaque.view.widgets.notification_widget import SimplifiedNotificationList
 
 
-class _FakeNotificationService:
-    """Records the calls the widget makes, so a test can check them."""
+class _FakeNotificationService(NotificationService):
+    """Records the calls the widget makes, so a test can check them.
+
+    Subclasses the real service instead of duck typing it, because
+    ServiceLocator.get(NotificationService) now checks isinstance().
+    """
 
     def __init__(self):
+        super().__init__()
         self.clear_calls = 0
         self.removed_ids = []
 

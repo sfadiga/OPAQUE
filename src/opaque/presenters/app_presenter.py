@@ -8,7 +8,6 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-import logging
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtWidgets import QApplication
@@ -16,7 +15,7 @@ from PySide6.QtWidgets import QApplication
 
 from opaque.services.service import ServiceLocator
 from opaque.services.theme_service import ThemeService
-from opaque.services.notification_service import NotificationLevel
+from opaque.services.notification_service import NotificationLevel, NotificationService
 from opaque.presenters.presenter import BasePresenter
 
 from opaque.models.app_model import ApplicationModel
@@ -26,8 +25,6 @@ from opaque.view.app_view import ApplicationView
 if TYPE_CHECKING:
     from opaque.view.application import BaseApplication
 
-logger = logging.getLogger(__name__)
-
 
 class ApplicationPresenter(BasePresenter):
 
@@ -35,7 +32,7 @@ class ApplicationPresenter(BasePresenter):
         super().__init__(model, view, app)
 
         # --- Theme Management ---
-        self.theme_service: ThemeService = ServiceLocator.get_service("themes")
+        self.theme_service: ThemeService = ServiceLocator.get(ThemeService)
 
         # Fill the choices from the themes that are really installed. The list
         # depends on which optional packages are present, so it cannot be
@@ -86,17 +83,14 @@ class ApplicationPresenter(BasePresenter):
         message = self.tr(
             "The new language is used the next time the application starts.")
 
-        service = ServiceLocator.get_service("notification")
-        if service is not None and hasattr(service, "add_notification"):
-            service.add_notification(
-                level=NotificationLevel.INFO,
-                title=title,
-                message=message,
-                source="Settings",
-                persistent=True,
-            )
-        else:
-            logger.info("%s: %s", title, message)
+        service = ServiceLocator.get(NotificationService)
+        service.add_notification(
+            level=NotificationLevel.INFO,
+            title=title,
+            message=message,
+            source="Settings",
+            persistent=True,
+        )
 
     def bind_events(self) -> None:
         pass

@@ -8,6 +8,7 @@ from opaque.presenters.notification_presenter import (
     NOTIFICATION_SETTINGS_ID,
     NotificationPresenter,
 )
+from opaque.services.logger_service import LoggerService
 from opaque.services.notification_service import NotificationService
 from opaque.services.service import ServiceLocator
 from opaque.services.settings_service import SettingsService
@@ -22,6 +23,10 @@ def services(tmp_path, qapp):
     notifications = NotificationService()
     notifications.initialize()
     ServiceLocator.register_service(notifications)
+    logger_service = LoggerService(
+        log_directory=str(tmp_path / "logs"), application_name="test")
+    logger_service.initialize()
+    ServiceLocator.register_service(logger_service)
     yield settings
     ServiceLocator.cleanup_services()
 
@@ -81,6 +86,10 @@ def test_a_stored_value_reaches_the_model_at_start(tmp_path, qapp, qtbot):
     notifications = NotificationService()
     notifications.initialize()
     ServiceLocator.register_service(notifications)
+    logger_service = LoggerService(
+        log_directory=str(tmp_path / "logs"), application_name="test")
+    logger_service.initialize()
+    ServiceLocator.register_service(logger_service)
     try:
         window = QMainWindow()
         qtbot.addWidget(window)
@@ -262,72 +271,46 @@ def test_the_toolbar_count_is_passed_through_when_the_setting_is_on(presenter):
 
 
 def test_the_log_level_setting_reaches_the_logger_service(presenter, qapp):
-    import logging
+    service = ServiceLocator.get(LoggerService)
 
-    from opaque.services.logger_service import LoggerService
+    presenter.settings_page().model.log_level = "ERROR"
+    presenter.apply_settings()
 
-    service = LoggerService(application_name="test")
-    service.initialize()
-    ServiceLocator.register_service(service)
-    try:
-        presenter.settings_page().model.log_level = "ERROR"
-        presenter.apply_settings()
-
-        assert service.get_configuration()["log_level"] == "ERROR"
-    finally:
-        service.cleanup()
+    assert service.get_configuration()["log_level"] == "ERROR"
 
 
 def test_the_warning_notification_setting_reaches_the_logger_service(
         presenter, qapp):
-    from opaque.services.logger_service import LoggerService
+    service = ServiceLocator.get(LoggerService)
 
-    service = LoggerService(application_name="test")
-    service.initialize()
-    ServiceLocator.register_service(service)
-    try:
-        presenter.settings_page().model.notification_on_warning = True
-        presenter.apply_settings()
+    presenter.settings_page().model.notification_on_warning = True
+    presenter.apply_settings()
 
-        assert service.get_configuration()["notify_on_warning"] is True
-    finally:
-        service.cleanup()
+    assert service.get_configuration()["notify_on_warning"] is True
 
 
 def test_a_warning_creates_a_notification_when_the_setting_is_on(services, qapp):
-    from opaque.services.logger_service import LoggerService
+    service = ServiceLocator.get(LoggerService)
+    notifications = ServiceLocator.get(NotificationService)
 
-    service = LoggerService(application_name="test")
-    service.initialize()
-    ServiceLocator.register_service(service)
-    notifications = ServiceLocator.get_service("notification")
-    try:
-        service.set_notification_on_warning(True)
-        before = len(notifications.get_notifications())
+    service.set_notification_on_warning(True)
+    before = len(notifications.get_notifications())
 
-        service.log("WARNING", "the tank is low", source="Test")
+    service.log("WARNING", "the tank is low", source="Test")
 
-        assert len(notifications.get_notifications()) == before + 1
-    finally:
-        service.cleanup()
+    assert len(notifications.get_notifications()) == before + 1
 
 
 def test_a_warning_creates_no_notification_when_the_setting_is_off(services, qapp):
-    from opaque.services.logger_service import LoggerService
+    service = ServiceLocator.get(LoggerService)
+    notifications = ServiceLocator.get(NotificationService)
 
-    service = LoggerService(application_name="test")
-    service.initialize()
-    ServiceLocator.register_service(service)
-    notifications = ServiceLocator.get_service("notification")
-    try:
-        service.set_notification_on_warning(False)
-        before = len(notifications.get_notifications())
+    service.set_notification_on_warning(False)
+    before = len(notifications.get_notifications())
 
-        service.log("WARNING", "the tank is low", source="Test")
+    service.log("WARNING", "the tank is low", source="Test")
 
-        assert len(notifications.get_notifications()) == before
-    finally:
-        service.cleanup()
+    assert len(notifications.get_notifications()) == before
 
 
 def test_the_model_names_a_log_directory_and_not_a_file():

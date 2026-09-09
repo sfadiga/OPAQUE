@@ -420,9 +420,8 @@ class SimplifiedNotificationList(QWidget):
 
     def _remove_item(self, notification_id: str):
         # Notify service to remove
-        service = ServiceLocator.get_service("notification")
-        if service:
-            service.remove_notification(notification_id)
+        service = ServiceLocator.get(NotificationService)
+        service.remove_notification(notification_id)
 
     def _confirm_clear_all(self) -> bool:
         """
@@ -446,6 +445,5 @@ class SimplifiedNotificationList(QWidget):
             return
         if not self._confirm_clear_all():
             return
-        service = ServiceLocator.get_service("notification")
-        if service:
-            service.clear_notifications()
+        service = ServiceLocator.get(NotificationService)
+        service.clear_notifications()

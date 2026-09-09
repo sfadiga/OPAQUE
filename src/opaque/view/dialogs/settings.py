@@ -37,9 +37,10 @@ class SettingsDialog(QDialog):
         self.features: Dict[str, BasePresenter] = {
             p.feature_id: p for p in presenters}
 
-        self.settings_service: SettingsService = ServiceLocator.get_service("settings")
-        if not self.settings_service:
-            raise RuntimeError("SettingsService not found.")
+        # get() raises a LookupError that names the missing service and lists
+        # what is registered, which is more than this check ever said.
+        self.settings_service: SettingsService = ServiceLocator.get(
+            SettingsService)
 
         # Cache for settings field labels for searching
         self._settings_cache: Dict[str, List[str]] = {}

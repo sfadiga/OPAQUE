@@ -36,7 +36,7 @@ class NotificationModel(QObject):
 
     def _connect_to_notification_service(self) -> None:
         """Connect to the notification service"""
-        self._notification_service = ServiceLocator.get_service("notification")
+        self._notification_service = ServiceLocator.get(NotificationService)
         if self._notification_service and hasattr(self._notification_service, 'notification_added'):
             self._notification_service.notification_added.connect(
                 self._on_service_notification_added)

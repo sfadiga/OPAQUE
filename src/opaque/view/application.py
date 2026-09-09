@@ -263,10 +263,8 @@ class BaseApplication(QMainWindow):
         presenter = ApplicationPresenter(model, view, self)
         # add settings presenter directly to registered features so it is not displayed on toolbar
         self._registered_features[presenter.feature_id] = presenter
-        settings_service = ServiceLocator.get_service("settings")
-        if isinstance(settings_service, SettingsService):
-            settings_service.register_model(
-                presenter.feature_id, presenter.model)
+        ServiceLocator.get(SettingsService).register_model(
+            presenter.feature_id, presenter.model)
 
     def _setup_file_menu(self) -> None:
         """Build the File menu. Every action carries a keyboard shortcut."""

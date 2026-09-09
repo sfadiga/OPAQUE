@@ -18,9 +18,11 @@ from PySide6.QtWidgets import QMainWindow, QDockWidget
 from opaque.models.notification_model import NotificationModel
 from opaque.models.notification_settings_model import NotificationSettingsModel
 from opaque.models.logger_model import LoggerModel
+from opaque.services.logger_service import LoggerService
 from opaque.view.widgets.notification_widget import SimplifiedNotificationList, ToastWidget
 from opaque.services.notification_service import NotificationLevel, Notification, NotificationService
 from opaque.services.service import ServiceLocator
+from opaque.services.settings_service import SettingsService
 from opaque.view.layouts.toast_stack import (
     MAX_VISIBLE_TOASTS,
     overflow_count,
@@ -97,11 +99,10 @@ class NotificationPresenter(QObject):
         self._connect_signals()
         
         # Connect to service for direct toast trigger
-        service = ServiceLocator.get_service("notification")
-        if service and isinstance(service, NotificationService):
-            service.notification_added.connect(self._on_service_notification_added)
-            service.notification_removed.connect(self._on_service_notification_removed)
-            service.notifications_cleared.connect(self._on_service_notifications_cleared)
+        service = ServiceLocator.get(NotificationService)
+        service.notification_added.connect(self._on_service_notification_added)
+        service.notification_removed.connect(self._on_service_notification_removed)
+        service.notifications_cleared.connect(self._on_service_notifications_cleared)
 
     def _setup_models(self) -> None:
         """Initialize the models"""
@@ -117,12 +118,11 @@ class NotificationPresenter(QObject):
                 self._logger_model.initialize()
             
             # Register the settings model so its values are saved and drawn.
-            settings_service = ServiceLocator.get_service("settings")
-            if settings_service is not None:
-                settings_service.register_model(
-                    NOTIFICATION_SETTINGS_ID, self._settings_model)
-                settings_service.save_feature_settings(
-                    NOTIFICATION_SETTINGS_ID, self._settings_model)
+            settings_service = ServiceLocator.get(SettingsService)
+            settings_service.register_model(
+                NOTIFICATION_SETTINGS_ID, self._settings_model)
+            settings_service.save_feature_settings(
+                NOTIFICATION_SETTINGS_ID, self._settings_model)
 
             self._settings_page = NotificationSettingsPage(
                 self, self._settings_model)
@@ -239,11 +239,10 @@ class NotificationPresenter(QObject):
                 self._notification_list.clear()
                 
                 # Reload remaining notifications
-                service = ServiceLocator.get_service("notification")
-                if service and isinstance(service, NotificationService):
-                    notifications = service.get_notifications()
-                    for notification in notifications:
-                        self._notification_list.add_notification(notification)
+                service = ServiceLocator.get(NotificationService)
+                notifications = service.get_notifications()
+                for notification in notifications:
+                    self._notification_list.add_notification(notification)
 
     def _show_toast(self, notification: Notification) -> None:
         """Show one toast and keep the stack inside the visible limit."""
@@ -496,9 +495,9 @@ class NotificationPresenter(QObject):
         the field says so in its own description.
         """
         settings = self._settings_model
-        service = ServiceLocator.get_service("logger")
-        if settings is None or service is None:
+        if settings is None:
             return
+        service = ServiceLocator.get(LoggerService)
 
         service.set_log_level(str(settings.log_level))
         service.set_console_logging(bool(settings.console_logging_enabled))

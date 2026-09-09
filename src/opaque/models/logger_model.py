@@ -47,7 +47,7 @@ class LoggerModel(QObject):
 
     def _connect_to_logger_service(self) -> None:
         """Connect to the logger service"""
-        self._logger_service = ServiceLocator.get_service("logger")
+        self._logger_service = ServiceLocator.get(LoggerService)
         if self._logger_service and hasattr(self._logger_service, 'log_entry_added'):
             self._logger_service.log_entry_added.connect(self._on_log_entry_added)
 

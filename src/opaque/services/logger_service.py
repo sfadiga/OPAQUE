@@ -240,36 +240,38 @@ class LoggerService(BaseService):
     def _send_to_notification_service(self, level: str, message: str, source: str) -> None:
         """Send log message to notification service if available"""
         try:
-            notification_service = ServiceLocator.get_service("notification")
-            if notification_service and hasattr(notification_service, 'add_notification'):
-                from opaque.services.notification_service import NotificationLevel
+            from opaque.services.notification_service import (
+                NotificationLevel,
+                NotificationService,
+            )
 
-                # Map log level to notification level
-                level_mapping = {
-                    'DEBUG': NotificationLevel.DEBUG,
-                    'INFO': NotificationLevel.INFO,
-                    'WARNING': NotificationLevel.WARNING,
-                    'ERROR': NotificationLevel.ERROR,
-                    'CRITICAL': NotificationLevel.CRITICAL
-                }
+            notification_service = ServiceLocator.get_optional(
+                NotificationService)
+            if notification_service is None:
+                return
 
-                notif_level = level_mapping.get(level, NotificationLevel.INFO)
-                title = f"{level} from {source}"
+            # Map log level to notification level
+            level_mapping = {
+                'DEBUG': NotificationLevel.DEBUG,
+                'INFO': NotificationLevel.INFO,
+                'WARNING': NotificationLevel.WARNING,
+                'ERROR': NotificationLevel.ERROR,
+                'CRITICAL': NotificationLevel.CRITICAL
+            }
 
-                # Make critical notifications persistent
-                persistent = (level == 'CRITICAL')
+            notif_level = level_mapping.get(level, NotificationLevel.INFO)
+            title = f"{level} from {source}"
 
-                # Cast to the proper type for the method call
-                from typing import cast
-                notif_service = cast('NotificationService',
-                                     notification_service)
-                notif_service.add_notification(
-                    level=notif_level,
-                    title=title,
-                    message=message,
-                    source=source,
-                    persistent=persistent
-                )
+            # Make critical notifications persistent
+            persistent = (level == 'CRITICAL')
+
+            notification_service.add_notification(
+                level=notif_level,
+                title=title,
+                message=message,
+                source=source,
+                persistent=persistent
+            )
         except Exception as e:
             # Don't let notification errors break logging
             print(f"Failed to send notification: {e}")
