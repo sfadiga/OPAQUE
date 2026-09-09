@@ -5,11 +5,16 @@ Base builder class for OPAQUE framework executable creation.
 Licensed under MIT License
 """
 
+import logging
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
+
+from opaque.build_tools.config import BuildConfig
+
+logger = logging.getLogger(__name__)
 
 
 class BuildError(Exception):
@@ -32,19 +37,24 @@ class Builder(ABC):
         self.build_dir = self.work_dir / "build"
 
     @abstractmethod
-    def build(self, entry_point: Union[str, Path], **kwargs: Any) -> Path:
+    def build(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> Path:
         """
-        Build executable from entry point.
+        Build one executable.
 
         Args:
-            entry_point: Path to main Python file
-            **kwargs: Builder-specific options
+            entry_point: The .py file that starts the application.
+            config: Every build option. See BuildConfig.
 
         Returns:
-            Path to built executable
+            The path of the executable that was produced.
 
         Raises:
-            BuildError: If build process fails
+            BuildError: When the backend is not installed, the entry point
+                does not exist, or the backend reports a failure.
         """
         pass
 
@@ -75,7 +85,7 @@ class Builder(ABC):
         cwd = cwd or self.work_dir
 
         try:
-            print(f"Running: {' '.join(cmd)}")
+            logger.info("Running: %s", " ".join(cmd))
             result = subprocess.run(
                 cmd,
                 cwd=cwd,
@@ -139,7 +149,7 @@ class Builder(ABC):
 
         for dir_path in dirs_to_clean:
             if dir_path.exists():
-                print(f"Cleaning {dir_path}")
+                logger.info("Cleaning %s", dir_path)
                 shutil.rmtree(dir_path)
 
     def get_executable_size(self, exe_path: Path) -> int:

@@ -5,12 +5,16 @@ PyInstaller builder for OPAQUE framework applications.
 Licensed under MIT License
 """
 
+import logging
 import platform
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from .builder import Builder, BuildError
+from .config import BuildConfig
+
+logger = logging.getLogger(__name__)
 
 
 class PyInstallerBuilder(Builder):
@@ -20,135 +24,125 @@ class PyInstallerBuilder(Builder):
         """Check if PyInstaller is available."""
         return shutil.which("pyinstaller") is not None
 
-    def build(self, entry_point: Union[str, Path], **kwargs: Any) -> Path:
+    def build(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> Path:
         """
-        Build executable using PyInstaller.
+        Build one executable with PyInstaller.
 
         Args:
-            entry_point: Path to main Python file
-            **kwargs: PyInstaller options:
-                - onefile (bool): Create single executable file
-                - console (bool): Show console window (default: False for GUI apps)
-                - name (str): Name for the executable
-                - icon (str): Path to icon file
-                - distpath (str): Output directory
-                - workpath (str): Build directory
-                - add_data (List[str]): Additional data files to include
-                - hidden_imports (List[str]): Modules to force import
-                - exclude_modules (List[str]): Modules to exclude
-                - upx (bool): Use UPX compression
-                - debug (bool): Enable debug mode
+            entry_point: The .py file that starts the application.
+            config: Every build option. See BuildConfig.
 
         Returns:
-            Path to built executable
+            The path of the executable that was produced.
 
         Raises:
-            BuildError: If build process fails
+            BuildError: When PyInstaller is not installed, the entry point
+                does not exist, or PyInstaller reports a failure.
         """
         if not self.is_available():
             raise BuildError(
-                "PyInstaller is not available. Install with: pip install pyinstaller")
+                "PyInstaller is not installed. Install the build extra: "
+                "uv sync --extra build")
 
+        command = self.build_command(entry_point, config)
+        self._ensure_directories()
+        result = self._run_command(command)
+        logger.info("PyInstaller output:\n%s", result.stdout)
+
+        executable = self._find_executable(config.name, config.onefile)
+        if executable is None or not executable.exists():
+            raise BuildError(
+                f"PyInstaller reported success but no executable named "
+                f"{config.name} was found under {self.output_dir}.")
+
+        size = self.get_executable_size(executable)
+        logger.info("Build successful! Executable: %s (%s)",
+                     executable, self.format_size(size))
+        return executable
+
+    def build_command(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> List[str]:
+        """
+        Return the PyInstaller command line for one build.
+
+        This is separate from build() so a test can check every option
+        without installing PyInstaller and without waiting minutes for a
+        real build.
+
+        Args:
+            entry_point: The .py file that starts the application.
+            config: Every build option.
+
+        Returns:
+            The command, as a list of arguments, with the entry point last.
+
+        Raises:
+            BuildError: When the entry point does not exist.
+        """
         entry_path = Path(entry_point)
         if not entry_path.exists():
             raise BuildError(f"Entry point not found: {entry_path}")
 
-        self._ensure_directories()
+        command: List[str] = ["pyinstaller"]
 
-        # Build command
-        cmd = ["pyinstaller"]
-
-        # Basic options
-        if kwargs.get("onefile", False):
-            cmd.append("--onefile")
+        if config.onefile:
+            command.append("--onefile")
         else:
-            cmd.append("--onedir")
+            command.append("--onedir")
 
-        # Console/GUI mode
-        if not kwargs.get("console", False):
-            cmd.append("--noconsole")
+        if config.console:
+            command.append("--console")
+        else:
+            command.append("--windowed")
 
-        # Name
-        name = kwargs.get("name", entry_path.stem)
-        cmd.extend(["--name", name])
+        command.extend(["--name", config.name])
 
-        # Directories
-        cmd.extend(["--distpath", str(self.output_dir)])
-        cmd.extend(["--workpath", str(self.build_dir)])
-        cmd.extend(["--specpath", str(self.build_dir)])
+        command.extend(["--distpath", str(self.output_dir)])
+        command.extend(["--workpath", str(self.build_dir)])
+        command.extend(["--specpath", str(self.build_dir)])
 
-        # Icon
-        icon = kwargs.get("icon")
-        if icon and Path(icon).exists():
-            cmd.extend(["--icon", str(icon)])
+        if config.icon:
+            command.extend(["--icon", config.icon])
 
-        # Clean previous builds
-        cmd.append("--clean")
+        command.append("--clean")
 
-        # PySide6 specific options
         pyside6_path = self._find_pyside6_path()
         if pyside6_path:
-            cmd.extend(
-                ["--add-binary", f"{pyside6_path}/*{self._get_lib_extension()};PySide6"])
+            command.extend(
+                ["--add-binary",
+                 f"{pyside6_path}/*{self._get_lib_extension()};PySide6"])
 
-        # Hidden imports for PySide6
-        for module in self._get_pyside6_includes():
-            cmd.extend(["--hidden-import", module])
+        for module in self._get_pyside6_includes() + config.hidden_imports:
+            command.extend(["--hidden-import", module])
 
-        # Additional hidden imports
-        for module in kwargs.get("hidden_imports", []):
-            cmd.extend(["--hidden-import", module])
+        for module in self._get_common_excludes() + config.exclude_modules:
+            command.extend(["--exclude-module", module])
 
-        # Exclude modules
-        exclude_modules = self._get_common_excludes() + kwargs.get("exclude_modules", [])
-        for module in exclude_modules:
-            cmd.extend(["--exclude-module", module])
+        for data in config.data_files:
+            command.extend(["--add-data", data])
 
-        # Additional data files
-        for data in kwargs.get("add_data", []):
-            cmd.extend(["--add-data", data])
+        if config.upx:
+            command.append("--upx-dir")
 
-        # UPX compression
-        if kwargs.get("upx", False):
-            cmd.append("--upx-dir")
-
-        # Debug mode
-        if kwargs.get("debug", False):
-            cmd.append("--debug=all")
+        if config.debug:
+            command.append("--debug=all")
         else:
-            cmd.append("--log-level=WARN")
+            command.append("--log-level=WARN")
 
-        # Version info
         version_info_file = self._create_version_info_file(
-            kwargs.get("version_info"))
+            config.version_info)
         if version_info_file:
-            cmd.extend(["--version-file", str(version_info_file)])
+            command.extend(["--version-file", str(version_info_file)])
 
-        # Entry point
-        cmd.append(str(entry_path))
-
-        # Run PyInstaller
-        try:
-            result = self._run_command(cmd)
-            print("PyInstaller output:")
-            print(result.stdout)
-
-            # Find the executable
-            exe_path = self._find_executable(
-                name, kwargs.get("onefile", False))
-
-            if exe_path and exe_path.exists():
-                size = self.get_executable_size(exe_path)
-                print(f"Build successful! Executable: {exe_path}")
-                print(f"Size: {self.format_size(size)}")
-                return exe_path
-            else:
-                raise BuildError("Executable not found after build")
-
-        except BuildError:
-            raise
-        except Exception as e:
-            raise BuildError(f"PyInstaller build failed: {str(e)}") from e
+        command.append(str(entry_path))
+        return command
 
     def _find_executable(self, name: str, onefile: bool) -> Optional[Path]:
         """Find the built executable."""
@@ -174,33 +168,39 @@ class PyInstallerBuilder(Builder):
         else:
             return ".so"
 
-    def create_spec_file(self, entry_point: Union[str, Path], **kwargs: Any) -> Path:
+    def create_spec_file(
+            self,
+            entry_point: Union[str, Path],
+            config: BuildConfig,
+    ) -> Path:
         """
         Create a PyInstaller spec file for advanced customization.
 
         Args:
-            entry_point: Path to main Python file
-            **kwargs: Same options as build method
+            entry_point: The .py file that starts the application.
+            config: Every build option.
 
         Returns:
             Path to created spec file
         """
         entry_path = Path(entry_point)
-        name = kwargs.get("name", entry_path.stem)
-        spec_path = self.build_dir / f"{name}.spec"
+        spec_path = self.build_dir / f"{config.name}.spec"
 
         self._ensure_directories()
 
-        # Generate spec file content
-        spec_content = self._generate_spec_content(entry_path, **kwargs)
+        spec_content = self._generate_spec_content(entry_path, config)
 
         with open(spec_path, 'w', encoding='utf-8') as f:
             f.write(spec_content)
 
-        print(f"Spec file created: {spec_path}")
+        logger.info("Spec file created: %s", spec_path)
         return spec_path
 
-    def _generate_spec_content(self, entry_path: Path, **kwargs: Any) -> str:
+    def _generate_spec_content(
+            self,
+            entry_path: Path,
+            config: BuildConfig,
+    ) -> str:
         """
         Generate PyInstaller spec file content.
 
@@ -208,24 +208,27 @@ class PyInstallerBuilder(Builder):
         no nested f-string, because nesting a same-quote f-string needs
         PEP 701, which is Python 3.12 and above. This module must parse on
         the declared floor, 3.11.
+
+        Every value that reaches the template goes through `repr()` first, so
+        Python writes the literal instead of a bare placeholder. A bare
+        placeholder reads a Windows path's backslashes as escape sequences:
+        `C:\\new\\app.py` comes back as a real newline and a real bell.
         """
-        name = kwargs.get("name", entry_path.stem)
-        onefile = kwargs.get("onefile", False)
-        console = kwargs.get("console", False)
+        name = config.name
+        onefile = config.onefile
+        console = config.console
 
         # Build data files list
-        data_files: List[str] = []
-        for data in kwargs.get("add_data", []):
-            data_files.append(f"('{data}', '.')")
+        data_files = [f"({data!r}, '.')" for data in config.data_files]
         data_files_str = ", ".join(data_files)
 
         # Build hidden imports list
-        hidden_imports = self._get_pyside6_includes() + kwargs.get("hidden_imports", [])
-        hidden_imports_str = ", ".join([f"'{imp}'" for imp in hidden_imports])
+        hidden_imports = self._get_pyside6_includes() + config.hidden_imports
+        hidden_imports_str = ", ".join(repr(imp) for imp in hidden_imports)
 
         # Build excludes list
-        excludes = self._get_common_excludes() + kwargs.get("exclude_modules", [])
-        excludes_str = ", ".join([f"'{exc}'" for exc in excludes])
+        excludes = self._get_common_excludes() + config.exclude_modules
+        excludes_str = ", ".join(repr(exc) for exc in excludes)
 
         # A onefile build hands the binaries, the zipfiles and the datas to
         # EXE. A onedir build hands them to COLLECT instead, and EXE gets
@@ -234,12 +237,11 @@ class PyInstallerBuilder(Builder):
         zip_lines = "a.zipfiles," if onefile else "[],"
         data_lines = "a.datas," if onefile else "[],"
 
-        debug_flag = str(kwargs.get("debug", False)).lower()
-        upx_flag = str(kwargs.get("upx", False)).lower()
+        debug_flag = str(config.debug).lower()
+        upx_flag = str(config.upx).lower()
         console_flag = str(console).lower()
 
-        icon = kwargs.get("icon", "")
-        icon_line = f"    icon='{icon}'," if icon else ""
+        icon_line = f"    icon={config.icon!r}," if config.icon else ""
 
         collect_block = ""
         if not onefile:
@@ -252,9 +254,11 @@ class PyInstallerBuilder(Builder):
                 "    strip=False,\n"
                 f"    upx={upx_flag},\n"
                 "    upx_exclude=[],\n"
-                f"    name='{name}',\n"
+                f"    name={name!r},\n"
                 ")\n"
             )
+
+        entry_path_repr = repr(str(entry_path))
 
         spec_template = f'''# -*- mode: python ; coding: utf-8 -*-
 # PyInstaller spec file for {name}
@@ -263,7 +267,7 @@ class PyInstallerBuilder(Builder):
 block_cipher = None
 
 a = Analysis(
-    ['{entry_path}'],
+    [{entry_path_repr}],
     pathex=[],
     binaries=[],
     datas=[{data_files_str}],
@@ -286,7 +290,7 @@ exe = EXE(
     {bundle_lines}
     {zip_lines}
     {data_lines}
-    name='{name}',
+    name={name!r},
     debug={debug_flag},
     bootloader_ignore_signals=False,
     strip=False,
@@ -322,17 +326,16 @@ exe = EXE(
         
         try:
             result = self._run_command(cmd)
-            print("PyInstaller output:")
-            print(result.stdout)
-            
+            logger.info("PyInstaller output:\n%s", result.stdout)
+
             # Try to find the executable
             name = spec_path.stem
             for onefile in [True, False]:
                 exe_path = self._find_executable(name, onefile)
                 if exe_path and exe_path.exists():
                     size = self.get_executable_size(exe_path)
-                    print(f"Build successful! Executable: {exe_path}")
-                    print(f"Size: {self.format_size(size)}")
+                    logger.info("Build successful! Executable: %s (%s)",
+                                 exe_path, self.format_size(size))
                     return exe_path
                     
             raise BuildError("Executable not found after build")
