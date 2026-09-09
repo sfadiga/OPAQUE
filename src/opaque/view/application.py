@@ -175,8 +175,11 @@ class BaseApplication(QMainWindow):
 
         model = self.notification_presenter.get_notification_model()
         if model is not None:
+            # The presenter decides what the number is, because the
+            # show_notification_count setting belongs to it.
             model.notification_count_changed.connect(
-                lambda count: self.toolbar.set_notification_count(count))
+                lambda count: self.toolbar.set_notification_count(
+                    self.notification_presenter.displayed_count(count)))
 
     def _repaint_after_theme_change(self) -> None:
         """

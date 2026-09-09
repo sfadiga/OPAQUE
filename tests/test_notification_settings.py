@@ -201,3 +201,61 @@ def test_a_toast_that_never_expires_is_left_alone(presenter):
     # A critical toast has no duration, so it must not gain one.
     if not toast.close_timer.isActive():
         assert toast.close_timer.interval() != 1500
+
+
+def test_the_row_limit_drops_the_oldest_row(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    presenter.settings_page().model.max_notification_display = 2
+    presenter.apply_settings()
+
+    first = _add(presenter, NotificationLevel.INFO)
+    _add(presenter, NotificationLevel.INFO)
+    _add(presenter, NotificationLevel.INFO)
+
+    assert len(presenter._notification_list.items) == 2
+    assert first not in presenter._notification_list.items
+
+
+def test_the_row_limit_can_be_raised_again(presenter):
+    from opaque.services.notification_service import NotificationLevel
+
+    model = presenter.settings_page().model
+    model.max_notification_display = 1
+    presenter.apply_settings()
+    _add(presenter, NotificationLevel.INFO)
+    _add(presenter, NotificationLevel.INFO)
+    assert len(presenter._notification_list.items) == 1
+
+    model.max_notification_display = 5
+    presenter.apply_settings()
+    _add(presenter, NotificationLevel.INFO)
+
+    assert len(presenter._notification_list.items) == 2
+
+
+def test_the_dock_moves_to_the_position_the_settings_name(presenter):
+    from PySide6.QtCore import Qt
+
+    presenter.settings_page().model.notification_widget_position = "Left"
+    presenter.apply_settings()
+
+    area = presenter._main_window.dockWidgetArea(presenter._dock_widget)
+    assert area == Qt.DockWidgetArea.LeftDockWidgetArea
+
+
+def test_applying_the_dock_settings_does_not_open_a_closed_panel(presenter):
+    presenter.settings_page().model.notification_widget_position = "Top"
+    presenter.apply_settings()
+
+    assert presenter._dock_widget.isVisible() is False
+
+
+def test_the_toolbar_count_is_hidden_when_the_setting_is_off(presenter):
+    presenter.settings_page().model.show_notification_count = False
+
+    assert presenter.displayed_count(7) == 0
+
+
+def test_the_toolbar_count_is_passed_through_when_the_setting_is_on(presenter):
+    assert presenter.displayed_count(7) == 7

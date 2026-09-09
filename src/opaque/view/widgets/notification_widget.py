@@ -301,6 +301,9 @@ class SimplifiedNotificationList(QWidget):
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.items: Dict[str, NotificationListItem] = {}
+        # 0 means no limit. The notification presenter sets a real limit from
+        # the max_notification_display setting.
+        self._maximum_rows: int = 0
         self._setup_ui()
 
     def _setup_ui(self):
@@ -351,6 +354,7 @@ class SimplifiedNotificationList(QWidget):
         item.removed.connect(self._remove_item)
         self.container_layout.insertWidget(0, item)
         self.items[notification.id] = item
+        self._trim_to_maximum()
         self._update_clear_button()
         self._apply_level_filter()
 
@@ -369,6 +373,24 @@ class SimplifiedNotificationList(QWidget):
             item.deleteLater()
         self.items.clear()
         self._update_clear_button()
+
+    def set_maximum_rows(self, maximum: int) -> None:
+        """
+        Keep at most `maximum` rows, dropping the oldest first.
+
+        0 means no limit. A list that grows without a limit slows the panel
+        down, and nobody reads the thousandth row.
+        """
+        self._maximum_rows = max(0, int(maximum))
+        self._trim_to_maximum()
+
+    def _trim_to_maximum(self) -> None:
+        """Remove the oldest rows until the list fits the limit."""
+        if self._maximum_rows <= 0:
+            return
+        # items is insertion ordered, so the first key is the oldest row.
+        while len(self.items) > self._maximum_rows:
+            self.remove_notification(next(iter(self.items)))
 
     def _update_clear_button(self) -> None:
         """Enable Clear All only when there is something to clear."""

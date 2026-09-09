@@ -66,6 +66,14 @@ class NotificationPresenter(QObject):
     This is a special system presenter that doesn't follow the standard MVP pattern.
     """
 
+    # The four positions the notification_widget_position setting offers.
+    DOCK_AREAS = {
+        "Left": Qt.DockWidgetArea.LeftDockWidgetArea,
+        "Right": Qt.DockWidgetArea.RightDockWidgetArea,
+        "Top": Qt.DockWidgetArea.TopDockWidgetArea,
+        "Bottom": Qt.DockWidgetArea.BottomDockWidgetArea,
+    }
+
     def __init__(self, main_window: Optional[QMainWindow] = None):
         super().__init__()
         self._main_window = main_window
@@ -144,6 +152,10 @@ class NotificationPresenter(QObject):
                 # The dock starts closed. The toolbar button opens it. An empty
                 # panel must not take height from the MDI area at start up.
                 self._dock_widget.hide()
+
+            # Put the stored panel settings in place before the first
+            # notification arrives.
+            self._apply_panel_settings()
 
         except Exception:
             logger.exception("Failed to set up the notification views")
@@ -423,14 +435,66 @@ class NotificationPresenter(QObject):
         """
         return self._settings_page
 
+    def displayed_count(self, count: int) -> int:
+        """
+        Return the unread count the toolbar button must show.
+
+        0 when show_notification_count is off; the toolbar then shows the
+        plain label with no number. The setting was declared and read by
+        nothing.
+        """
+        settings = self._settings_model
+        if settings is not None and not settings.show_notification_count:
+            return 0
+        return count
+
+    def _apply_panel_settings(self) -> None:
+        """
+        Apply the row limit, the dock position and the dock size.
+
+        Called at start and again whenever the settings change. The dock is
+        re-added to move it, which is how Qt moves a dock, and the visibility
+        is put back afterwards: applying a setting must not open a panel the
+        user closed.
+        """
+        settings = self._settings_model
+        if settings is None:
+            return
+
+        if self._notification_list is not None:
+            self._notification_list.set_maximum_rows(
+                int(settings.max_notification_display))
+
+        if self._dock_widget is None or self._main_window is None:
+            return
+
+        area = self.DOCK_AREAS.get(str(settings.notification_widget_position))
+        if area is None:
+            return
+
+        was_visible = self._dock_widget.isVisible()
+        self._main_window.addDockWidget(area, self._dock_widget)
+        self._dock_widget.setVisible(was_visible)
+
+        width = int(settings.notification_widget_width)
+        height = int(settings.notification_widget_height)
+        if area in (Qt.DockWidgetArea.LeftDockWidgetArea,
+                    Qt.DockWidgetArea.RightDockWidgetArea):
+            self._main_window.resizeDocks(
+                [self._dock_widget], [width], Qt.Orientation.Horizontal)
+        else:
+            self._main_window.resizeDocks(
+                [self._dock_widget], [height], Qt.Orientation.Vertical)
+
     def apply_settings(self) -> None:
         """
         Apply every notification setting to the running interface.
 
         Called by the settings dialog through NotificationSettingsPage, and by
         BaseApplication when SettingsService reports a change from anywhere
-        else. Task 7, Task 8 and Task 9 of this plan fill it in.
+        else.
         """
+        self._apply_panel_settings()
 
     def set_log_level(self, level: str) -> None:
         """Set logging level"""
