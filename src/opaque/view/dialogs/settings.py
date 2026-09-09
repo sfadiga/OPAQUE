@@ -24,7 +24,7 @@ from opaque.services.service import ServiceLocator
 from opaque.services.settings_service import SettingsService
 
 from opaque.view.widgets.color_picker import ColorPicker
-from opaque.models.annotations import UIType
+from opaque.models.annotations import Field, UIType
 
 
 class SettingsDialog(QDialog):
@@ -111,8 +111,31 @@ class SettingsDialog(QDialog):
             self.groups_list.setCurrentRow(0)
 
     def _record_pending(self, feature_id: str, field_name: str, value: Any) -> None:
-        """Store one edited value. Nothing reaches the model until Apply."""
+        """
+        Store one edited value. Nothing reaches the model until Apply.
+
+        The value is converted by the field first. A widget hands back
+        whatever type it likes, and a combo box always hands back text, so
+        without this step a float arrived as an int and a typed choice
+        arrived as a string that the model setter then rejected.
+        """
+        field = self._field_for(feature_id, field_name)
+        if field is not None:
+            try:
+                value = field.coerce(value)
+            except (TypeError, ValueError):
+                self.status_label.setText(
+                    self.tr("Value not accepted for: ") + field_name)
+                return
+
         self._pending_values.setdefault(feature_id, {})[field_name] = value
+
+    def _field_for(self, feature_id: str, field_name: str) -> Optional[Field]:
+        """Return one Field declaration, or None when the name is unknown."""
+        presenter = self.features.get(feature_id)
+        if presenter is None:
+            return None
+        return type(presenter.model).get_fields().get(field_name)
 
     def pending_value(self, feature_id: str, field_name: str) -> Any:
         """Return one pending value, or None when the field was not edited."""
@@ -364,14 +387,21 @@ class SettingsDialog(QDialog):
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
                 )
-            elif (hasattr(field, 'ui_type') and field.ui_type == UIType.COMBOBOX) or (hasattr(field, 'choices') and field.choices):
+            elif (field.ui_type in (UIType.COMBOBOX, UIType.DROPDOWN)
+                    or field.choices):
                 widget = QComboBox()
-                if hasattr(field, 'choices') and field.choices:
-                    widget.addItems([str(c) for c in field.choices])
-                widget.setCurrentText(str(current_value))
-                widget.currentTextChanged.connect(
-                    lambda text, fid=feature_id, name=name: self._record_pending(
-                        fid, name, text)
+                # Each item carries the declared choice object as its data,
+                # so the queued value keeps the type the field declared. The
+                # display text alone loses it: "2" is not 2.
+                for choice in (field.choices or []):
+                    widget.addItem(field.display(choice), choice)
+                index = widget.findText(field.display(current_value))
+                if index >= 0:
+                    widget.setCurrentIndex(index)
+                widget.currentIndexChanged.connect(
+                    lambda position, fid=feature_id, name=name,
+                    combo=widget: self._record_pending(
+                        fid, name, combo.itemData(position))
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.COLOR_PICKER:
                 widget = ColorPicker(initial_color=str(current_value))
@@ -380,7 +410,9 @@ class SettingsDialog(QDialog):
                         fid, name, color)
                 )
             else:  # Default to QLineEdit for "text"
-                widget = QLineEdit(str(current_value))
+                # field.display() is the inverse of field.coerce(). A list
+                # shown as str(["a", "b"]) cannot be edited back into a list.
+                widget = QLineEdit(field.display(current_value))
                 widget.textChanged.connect(
                     lambda text, fid=feature_id, name=name: self._record_pending(
                         fid, name, text)
