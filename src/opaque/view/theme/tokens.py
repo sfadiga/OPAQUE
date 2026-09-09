@@ -31,6 +31,14 @@ from opaque.view.theme.contrast import (
 # A window luminance below this value counts as a dark theme.
 _DARK_THEME_LUMINANCE_LIMIT: float = 0.18
 
+# The smallest square, in device independent pixels, that a control the user
+# has to hit may be. It comes from the WCAG target size guidance and the
+# platform guidelines, which agree on this order of size. It was defined five
+# times across the widgets and the accessibility self check, as 24 in some
+# files and 28 in others, so a widget could pass its own rule and fail the
+# check that read the other number.
+MINIMUM_HIT_TARGET: int = 28
+
 
 def _palette() -> QPalette:
     """Return the active application palette, or a default one in a headless test."""

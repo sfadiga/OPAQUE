@@ -96,7 +96,7 @@ class BasePresenter(ABC):
             ) from error
 
     def __hash__(self) -> int:
-        """Prensenter feature_id will be used to identify a prensenter"""
+        """Presenter feature_id will be used to identify a presenter"""
         return hash(self.feature_id)
 
     @property

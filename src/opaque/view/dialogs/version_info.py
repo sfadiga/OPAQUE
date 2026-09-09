@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QIcon, QMouseEvent
 
 from opaque.view.theme import (
+    MINIMUM_HIT_TARGET,
     TypeScale,
     interactive,
     muted_on_surface,
@@ -302,15 +303,12 @@ class VersionStatusWidget(QPushButton):
     static text. Anything the user can act on must be a real control.
     """
 
-    # 24 pixels is the smallest target a pointer can hit reliably.
-    MINIMUM_HEIGHT = 24
-
     def __init__(self, version_info: Optional[Dict[str, Any]] = None, parent=None):
         super().__init__(parent)
         self.version_info = version_info or {}
         self.setFlat(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(self.MINIMUM_HEIGHT)
+        self.setMinimumHeight(MINIMUM_HIT_TARGET)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAccessibleName(self.tr("Version information"))
         self.clicked.connect(self._show_version_info)

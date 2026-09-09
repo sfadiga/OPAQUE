@@ -64,3 +64,15 @@ def test_muted_text_is_dimmer_than_primary_text(light_palette_app):
 def test_plain_grey_would_have_failed(light_palette_app):
     # Proof that the old hardcoded value was the defect, not the idea.
     assert contrast_ratio("#808080", surface()) < TEXT_CONTRAST_MINIMUM
+
+
+def test_the_hit_target_token_exists():
+    from opaque.view.theme import MINIMUM_HIT_TARGET
+
+    assert MINIMUM_HIT_TARGET >= 24
+
+
+def test_the_hit_target_token_is_an_int():
+    from opaque.view.theme import MINIMUM_HIT_TARGET
+
+    assert isinstance(MINIMUM_HIT_TARGET, int)

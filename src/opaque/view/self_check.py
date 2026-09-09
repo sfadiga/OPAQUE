@@ -21,10 +21,9 @@ from typing import List
 
 from PySide6.QtWidgets import QAbstractButton, QLineEdit, QTabBar, QWidget
 
-logger = logging.getLogger(__name__)
+from opaque.view.theme import MINIMUM_HIT_TARGET
 
-# The smallest square a pointer can hit reliably.
-MINIMUM_TARGET = 24
+logger = logging.getLogger(__name__)
 
 # Qt builds these buttons itself, inside QTableWidget and QToolBar, the same
 # way it builds a tab close button. The application never constructs them and
@@ -76,11 +75,11 @@ def check_interface(root: QWidget) -> List[str]:
             continue
 
         cap = button.maximumSize()
-        if cap.width() < MINIMUM_TARGET or cap.height() < MINIMUM_TARGET:
+        if cap.width() < MINIMUM_HIT_TARGET or cap.height() < MINIMUM_HIT_TARGET:
             problems.append(
                 f"{_describe(button)} is capped at "
-                f"{cap.width()}x{cap.height()}, below the {MINIMUM_TARGET} "
-                f"pixel minimum target."
+                f"{cap.width()}x{cap.height()}, below the "
+                f"{MINIMUM_HIT_TARGET} pixel minimum target."
             )
 
         if not _has_a_readable_label(button):

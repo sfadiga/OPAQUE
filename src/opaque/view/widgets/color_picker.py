@@ -13,6 +13,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtCore import Signal, Slot
 
 from opaque.view.theme import (
+    MINIMUM_HIT_TARGET,
     StatusRole,
     interactive,
     outline,
@@ -25,8 +26,7 @@ class ColorPicker(QWidget):
     """A widget for selecting a color."""
     colorChanged = Signal(str)
 
-    # 28 pixels is the smallest square a pointer can hit reliably.
-    BUTTON_SIZE = 28
+    BUTTON_SIZE = MINIMUM_HIT_TARGET
 
     def __init__(self, initial_color: str = "#ffffff", parent=None):
         super().__init__(parent)

@@ -134,7 +134,7 @@ class BaseApplication(QMainWindow):
         # features to be loaded with application
         self._registered_features: Dict[str, BasePresenter] = {}
 
-        # Initialize single instead service
+        # Initialize the single instance service
         self.single_instance_service = SingleInstanceService()
         self.single_instance_service.initialize()
         ServiceLocator.register_service(self.single_instance_service)
@@ -673,10 +673,14 @@ class BaseApplication(QMainWindow):
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Icon.Warning)
         msg.setWindowTitle(self.tr("Application Already Running"))
+        # The name goes in through a placeholder, because lupdate cannot read
+        # an f-string and a translator needs to move the name in the sentence.
         msg.setText(
-            f"Another instance of {self._configuration.get_application_name()} is already running.")
+            self.tr("Another instance of %1 is already running.").replace(
+                "%1", self._configuration.get_application_name()))
         msg.setInformativeText(
-            "Please use the existing instance or close it before starting a new one.")
+            self.tr("Use the instance that is open, or close it before you "
+                    "start a new one."))
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.setWindowFlags(Qt.WindowType.SplashScreen |
                            Qt.WindowType.WindowStaysOnTopHint)

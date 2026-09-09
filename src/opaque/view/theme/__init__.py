@@ -25,6 +25,7 @@ from opaque.view.theme.palettes import build_dark_palette, build_light_palette
 from opaque.view.theme.tokens import (
     interactive,
     is_dark_theme,
+    MINIMUM_HIT_TARGET,
     muted_on_surface,
     on_interactive,
     on_surface,
@@ -44,6 +45,7 @@ __all__ = [
     "build_light_palette",
     "interactive",
     "is_dark_theme",
+    "MINIMUM_HIT_TARGET",
     "muted_on_surface",
     "on_interactive",
     "on_surface",

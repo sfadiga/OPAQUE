@@ -9,7 +9,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from opaque.view.self_check import MINIMUM_TARGET, check_interface
+from opaque.view.self_check import check_interface
+from opaque.view.theme import MINIMUM_HIT_TARGET
 
 
 def _host(qtbot):
@@ -36,7 +37,7 @@ def test_a_small_button_is_reported(qtbot, light_palette_app):
     problems = check_interface(host)
 
     assert len(problems) == 1
-    assert str(MINIMUM_TARGET) in problems[0]
+    assert str(MINIMUM_HIT_TARGET) in problems[0]
 
 
 def test_a_button_with_no_readable_label_is_reported(

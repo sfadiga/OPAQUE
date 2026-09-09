@@ -16,10 +16,10 @@ from opaque.view.dialogs.version_info import (
     VersionStatusWidget,
 )
 from opaque.view.self_check import (
-    MINIMUM_TARGET,
     _has_a_readable_label,
     _is_a_platform_internal_button,
 )
+from opaque.view.theme import MINIMUM_HIT_TARGET
 from opaque.view.widgets.closeable_tab_widget import CloseableTabWidget
 from opaque.view.widgets.color_picker import ColorPicker
 from opaque.view.widgets.console_widget import ConsoleWidget
@@ -81,7 +81,7 @@ def test_no_button_is_capped_below_the_minimum_target(
             if _is_a_tab_bar_button(button) or _is_a_platform_internal_button(button):
                 continue
             cap = button.maximumSize()
-            if cap.width() < MINIMUM_TARGET or cap.height() < MINIMUM_TARGET:
+            if cap.width() < MINIMUM_HIT_TARGET or cap.height() < MINIMUM_HIT_TARGET:
                 label = button.text() or button.accessibleName() or "unnamed"
                 offenders.append(
                     f"{name}: '{label}' capped at "

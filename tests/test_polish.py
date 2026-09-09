@@ -85,6 +85,55 @@ def test_an_unread_template_is_gone(removed):
     assert not Path(removed).exists()
 
 
+HIT_TARGET_USERS = [
+    "opaque.view.self_check",
+    "opaque.view.widgets.color_picker",
+    "opaque.view.widgets.notification_widget",
+    "opaque.view.dialogs.version_info",
+]
+
+
+@pytest.mark.parametrize("module_name", HIT_TARGET_USERS)
+def test_no_module_defines_its_own_hit_target(module_name):
+    import importlib
+    import inspect
+
+    module = importlib.import_module(module_name)
+    source = inspect.getsource(module)
+
+    assert "MINIMUM_HIT_TARGET" in source
+
+
+TYPOS = ["Prensenter", "worskpace", "heigh ", "single instead service",
+         "peparator"]
+
+
+@pytest.mark.parametrize("typo", TYPOS)
+def test_a_shipped_typo_is_gone(typo):
+    import pathlib
+
+    hits = [
+        str(path) for path in pathlib.Path("src").rglob("*.py")
+        if typo in path.read_text(encoding="utf-8")
+    ]
+    assert hits == []
+
+
+def test_every_user_visible_string_in_the_running_message_is_translated():
+    import inspect
+
+    from opaque import shell
+
+    source = inspect.getsource(shell.BaseApplication.show_already_running_message)
+    normalised = " ".join(source.split())
+
+    # Every string the user reads must be inside self.tr(). An f-string
+    # cannot be, because lupdate cannot read it.
+    assert 'f"' not in source
+    assert "setText( self.tr(" in normalised
+    assert "setInformativeText( self.tr(" in normalised
+
+
 def test_no_default_of_none_is_annotated_as_a_value():
     import inspect
     import typing

@@ -21,6 +21,7 @@ from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
 from opaque.services.service import ServiceLocator
 from opaque.services.notification_service import NotificationService, Notification, NotificationLevel
 from opaque.view.theme import (
+    MINIMUM_HIT_TARGET,
     StatusColors,
     StatusRole,
     TypeScale,
@@ -51,8 +52,9 @@ class ToastWidget(QWidget):
     """
     closed = Signal(str)  # notification_id
 
-    # 24 pixels is the smallest close target that a pointer can hit reliably.
-    CLOSE_BUTTON_SIZE = 24
+    # The minimum hit target from opaque.view.theme, aliased here so the
+    # widget's own tests can keep reading it as a class attribute.
+    CLOSE_BUTTON_SIZE = MINIMUM_HIT_TARGET
 
     # How long each level stays on the screen, in milliseconds. A worse level
     # needs more reading time. None means the toast never closes on its own.
@@ -227,8 +229,9 @@ class NotificationListItem(QFrame):
 
     removed = Signal(str)
 
-    # 24 pixels is the smallest close target that a pointer can hit reliably.
-    CLOSE_BUTTON_SIZE = 24
+    # The minimum hit target from opaque.view.theme, aliased here so the
+    # widget's own tests can keep reading it as a class attribute.
+    CLOSE_BUTTON_SIZE = MINIMUM_HIT_TARGET
 
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)

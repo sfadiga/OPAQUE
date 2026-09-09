@@ -133,13 +133,13 @@ class DefaultApplicationConfiguration(AbstractModel):
 
     def get_application_min_size(self) -> Optional[tuple[int, int]]:
         """
-        Return a tuple of width, heigh that sets the minimum size of the application
+        Return a tuple of width, height that sets the minimum size of the application
         """
         return None  # self.application_min_width, self.application_min_height
 
     def get_application_max_size(self) -> Optional[tuple[int, int]]:
         """
-        Return a tuple of width, heigh that sets the maximum size of the application
+        Return a tuple of width, height that sets the maximum size of the application
         """
         return None  # self.application_max_width, self.application_max_height
 
