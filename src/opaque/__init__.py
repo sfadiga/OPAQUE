@@ -42,6 +42,7 @@ from opaque.models.annotations import (
 from opaque.models.abstract_model import AbstractModel
 from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.services.service import BaseService, ServiceLocator
+from opaque.features.context import FeatureContext
 from opaque.view.application import BaseApplication
 from opaque.models.model import BaseModel
 from opaque.view.view import BaseView
@@ -64,6 +65,7 @@ __all__ = [
     "BoolField",
     "ChoiceField",
     "DefaultApplicationConfiguration",
+    "FeatureContext",
     "Field",
     "FloatField",
     "IntField",
