@@ -11,7 +11,7 @@ from opaque.services.service import ServiceLocator
 @pytest.fixture(autouse=True)
 def _restore_the_locator_after_a_real_shutdown(app_window):
     """
-    Heal app_window's own services before this test, and again after it.
+    Heal app_window's own state before this test, and again after it.
 
     Every test below calls the real closeEvent(), which really tears every
     registered service down, and app_window is session scoped and shared
@@ -24,7 +24,13 @@ def _restore_the_locator_after_a_real_shutdown(app_window):
     tests happen to run first. Reading them back off app_window's own
     attributes and re-initialising them is what makes this file's outcome
     independent of what ran before it.
+
+    Each test also plants a throwaway stub straight into
+    app_window._registered_features, which is the same session scoped dict
+    every other file's tests read, so those stubs are removed again too.
     """
+    saved_features = dict(app_window._registered_features)
+
     def _heal():
         for service in (
             app_window.single_instance_service,
@@ -40,6 +46,8 @@ def _restore_the_locator_after_a_real_shutdown(app_window):
     _heal()
     yield
     _heal()
+    app_window._registered_features.clear()
+    app_window._registered_features.update(saved_features)
 
 
 def test_a_presenter_is_cleaned_up_before_the_services(app_window):
