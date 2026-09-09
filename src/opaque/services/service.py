@@ -11,7 +11,7 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Type, TypeVar
 import threading
 
 from PySide6.QtCore import QObject, Signal
@@ -84,6 +84,11 @@ class BaseService(QObject):
         self._initialized = False
 
 
+# Bound to BaseService so ServiceLocator.get() can only be asked for a real
+# service class, and so the answer keeps the type the caller asked for.
+ServiceType = TypeVar("ServiceType", bound="BaseService")
+
+
 class ServiceLocator:
     """
     Service locator pattern implementation for managing application services.
@@ -93,9 +98,79 @@ class ServiceLocator:
     _lock = threading.RLock()
 
     @classmethod
+    def get(cls, service_class: Type[ServiceType]) -> ServiceType:
+        """
+        Return the registered service of this class.
+
+        Use this when the application cannot work without the service, which
+        is the normal case. It raises instead of answering None, because a
+        None that is never checked is how a misspelled service name stayed
+        in the code base for months without one failing test.
+
+        Args:
+            service_class: The service class to look up. Its SERVICE_NAME is
+                the registry key.
+
+        Returns:
+            The registered instance, typed as the class that was asked for.
+
+        Raises:
+            LookupError: When no service is registered under that name.
+            TypeError: When another class is registered under that name.
+        """
+        with cls._lock:
+            found = cls._services.get(service_class.SERVICE_NAME)
+            registered = sorted(cls._services)
+
+        if found is None:
+            raise LookupError(
+                f"No {service_class.__name__} is registered under the name "
+                f"'{service_class.SERVICE_NAME}'. Registered services: "
+                f"{registered}. A service must be initialized and registered "
+                f"before a feature asks for it; BaseApplication.__init__ does "
+                f"that for the framework services.")
+
+        if not isinstance(found, service_class):
+            raise TypeError(
+                f"The name '{service_class.SERVICE_NAME}' is registered by "
+                f"{type(found).__name__}, not by {service_class.__name__}.")
+
+        return found
+
+    @classmethod
+    def get_optional(
+            cls, service_class: Type[ServiceType]) -> Optional[ServiceType]:
+        """
+        Return the registered service of this class, or None.
+
+        Use this only where absence is normal. The console service is the one
+        such case in the framework: it exists only when a console feature has
+        been registered.
+
+        Args:
+            service_class: The service class to look up.
+
+        Returns:
+            The registered instance, or None when it is not registered or
+            another class holds the name.
+        """
+        with cls._lock:
+            found = cls._services.get(service_class.SERVICE_NAME)
+
+        if found is None or not isinstance(found, service_class):
+            return None
+
+        return found
+
+    @classmethod
     def get_service(cls, name: str) -> Optional[BaseService]:
         """
-        Get a registered service by name.
+        Get a registered service by name. Do not use this in new code.
+
+        It answers None for a name nothing registered, and the answer has no
+        useful type. Use ServiceLocator.get(SomeService) instead, or
+        get_optional(SomeService) where absence is normal. This method is
+        removed in Task 4 of this plan, once every call site is converted.
 
         Args:
             name: Service identifier
@@ -126,6 +201,15 @@ class ServiceLocator:
                 raise ValueError(
                     f"Service '{service.name}' must be initialized before being registered"
                 )
+
+            expected = type(service).SERVICE_NAME
+            if expected and service.name != expected:
+                raise ValueError(
+                    f"{type(service).__name__} declares SERVICE_NAME "
+                    f"'{expected}' but is registering as '{service.name}'. "
+                    f"ServiceLocator.get() looks up the declared name, so a "
+                    f"service registered under any other name cannot be "
+                    f"found.")
 
             # Don't call initialize() again - service should already be initialized
             cls._services[service.name] = service
