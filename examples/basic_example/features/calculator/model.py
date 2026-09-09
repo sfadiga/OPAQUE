@@ -4,9 +4,9 @@ Calculator Model - Handles the calculator state and business logic
 from typing import List
 from PySide6.QtGui import QIcon
 
+from opaque.features.context import FeatureContext
 from opaque.models.annotations import IntField, BoolField, StringField, ListField, UIType
 from opaque.models.model import BaseModel
-from opaque.view.application import BaseApplication
 
 
 class CalculatorModel(BaseModel):
@@ -70,8 +70,8 @@ class CalculatorModel(BaseModel):
         binding=True
     )
 
-    def __init__(self, app: BaseApplication):
-        super().__init__(app)
+    def __init__(self, context: FeatureContext):
+        super().__init__(context)
         self.clear_on_next = False
         self.pending_operation = None
         self.pending_value = None

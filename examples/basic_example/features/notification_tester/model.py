@@ -4,9 +4,9 @@ Notification Tester Model
 from typing import Optional
 from PySide6.QtGui import QIcon
 
+from opaque.features.context import FeatureContext
 from opaque.models.model import BaseModel
 from opaque.models.annotations import StringField
-from opaque.view.application import BaseApplication
 
 
 class NotificationTesterModel(BaseModel):
@@ -35,8 +35,8 @@ class NotificationTesterModel(BaseModel):
         binding=True
     )
 
-    def __init__(self, app: BaseApplication):
-        super().__init__(app)
+    def __init__(self, context: FeatureContext):
+        super().__init__(context)
 
     # --- Model Interface --------------------------------
 

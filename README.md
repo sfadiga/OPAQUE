@@ -95,8 +95,8 @@ class GreetingModel(BaseModel):
 class GreetingView(BaseView):
     """A feature view is one MDI sub-window. Build the UI before the presenter exists."""
 
-    def __init__(self, app, parent=None) -> None:
-        super().__init__(app, parent)
+    def __init__(self, context, parent=None) -> None:
+        super().__init__(context, parent)
         self.label = QLabel(self.tr("Hello OPAQUE"))
         content = QWidget()
         layout = QVBoxLayout(content)
@@ -125,14 +125,14 @@ class GreetingPresenter(BasePresenter):
 class QuickStartApplication(BaseApplication):
     """
     The registration order is fixed: model, then view, then presenter, then
-    register_feature. Each of the three takes the application object.
+    register_feature. Each of the three takes the feature context.
     """
 
     def __init__(self) -> None:
         super().__init__(QuickStartConfiguration())
-        model = GreetingModel(self)
-        view = GreetingView(self)
-        self.register_feature(GreetingPresenter(model, view, self))
+        model = GreetingModel(self.context)
+        view = GreetingView(self.context)
+        self.register_feature(GreetingPresenter(model, view, self.context))
 
 
 if __name__ == "__main__":

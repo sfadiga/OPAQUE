@@ -9,15 +9,13 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 from abc import abstractmethod
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
+from opaque.features.context import FeatureContext
 from opaque.view.widgets.mdi_window import OpaqueMdiSubWindow
-
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
 
 
 class BaseView(OpaqueMdiSubWindow):
@@ -26,12 +24,15 @@ class BaseView(OpaqueMdiSubWindow):
     with model support and declarative properties for toolbar integration.
     """
 
-    def __init__(self, app: 'BaseApplication', parent: QWidget | None = None) -> None:
+    def __init__(
+            self,
+            context: FeatureContext,
+            parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent=parent)
-        self._app: 'BaseApplication' = app
-
-        #self._content_widget = None
+        self._context: FeatureContext = context
 
     @property
-    def app(self) -> 'BaseApplication':
-        return self._app
+    def context(self) -> FeatureContext:
+        """The context this feature was built with."""
+        return self._context

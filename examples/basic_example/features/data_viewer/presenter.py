@@ -1,9 +1,7 @@
 """
 Data Viewer Presenter - Coordinates between Model and View
 """
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
+from opaque.features.context import FeatureContext
 from opaque.presenters.presenter import BasePresenter
 from opaque.services.service import ServiceLocator
 from .model import DataViewerModel
@@ -13,11 +11,11 @@ from .view import DataViewerView
 class DataViewerPresenter(BasePresenter):
     """Presenter for the data viewer feature."""
 
-    def __init__(self, model: DataViewerModel, view: DataViewerView, app: 'BaseApplication'):
+    def __init__(self, model: DataViewerModel, view: DataViewerView, context: FeatureContext):
         """
         Initialize the data viewer presenter.
         """
-        super().__init__(model, view, app)
+        super().__init__(model, view, context)
         self._update_view()
         self._log("info", "Data Viewer initialized")
 

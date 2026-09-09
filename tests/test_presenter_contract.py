@@ -54,9 +54,9 @@ class _FakeModel(BaseModel):
 class _RecordingPresenter(BasePresenter):
     """A presenter that records the order of its own lifecycle calls."""
 
-    def __init__(self, model, view, app=None) -> None:
+    def __init__(self, model, view, context=None) -> None:
         self.events: list = []
-        super().__init__(model, view, app)
+        super().__init__(model, view, context)
 
     def bind_events(self) -> None:
         self.events.append("bind_events")

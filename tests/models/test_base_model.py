@@ -52,7 +52,7 @@ def test_the_message_shows_the_code_to_write(qapp):
     assert "def feature_name" in str(error.value)
 
 
-def test_the_app_the_model_was_given_is_readable(qapp):
+def test_the_context_the_model_was_given_is_readable(qapp):
     marker = object()
     model = _NamedModel(marker)
-    assert model.app is marker
+    assert model.context is marker

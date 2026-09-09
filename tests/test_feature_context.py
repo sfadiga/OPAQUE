@@ -38,6 +38,31 @@ class _TestConfiguration(DefaultApplicationConfiguration):
         return "Opaque Tests"
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _warm_up_qmdisubwindow(qapp):
+    """
+    Show and close one QMdiSubWindow before any test in this file runs.
+
+    Building a BaseView and a BasePresenter around it, as the very first
+    QMdiSubWindow of an offscreen-platform Qt session, corrupts the heap
+    inside pytest-qt's post-test app.processEvents() call -- a native crash,
+    not a normal test failure, reproduced with plain PySide6 (no OPAQUE code
+    involved) by running only this file's presenter test in isolation. The
+    crash never happens as part of the full suite, because
+    tests/test_application_shell.py builds a real BaseApplication (and so a
+    real QMdiSubWindow) first, alphabetically, and that is enough to avoid
+    it. CLAUDE.md documents running a single test file as a supported
+    workflow, so this file must not depend on file execution order to stay
+    safe; building and discarding one sub-window here does the same warm-up
+    without relying on it.
+    """
+    from opaque.view.widgets.mdi_window import OpaqueMdiSubWindow
+
+    warm_up = OpaqueMdiSubWindow()
+    warm_up.show()
+    warm_up.close()
+
+
 @pytest.fixture
 def context(tmp_path, qapp):
     """
@@ -111,3 +136,73 @@ def test_the_context_holds_no_reference_to_a_service_instance(context):
         context.service(SettingsService)
 
     assert first is not None
+
+
+def test_a_model_takes_a_context(context):
+    from opaque.models.model import BaseModel
+
+    class _Model(BaseModel):
+        FEATURE_ID = "ctx_model"
+
+        def feature_name(self) -> str:
+            return "Context Model"
+
+    model = _Model(context)
+    assert model.context is context
+
+
+def test_a_model_no_longer_offers_the_whole_application(context):
+    from opaque.models.model import BaseModel
+
+    assert not hasattr(BaseModel, "app")
+
+
+def test_a_view_takes_a_context(context, qtbot):
+    from opaque.view.view import BaseView
+
+    view = BaseView(context)
+    qtbot.addWidget(view)
+    assert view.context is context
+
+
+def test_a_view_no_longer_offers_the_whole_application():
+    from opaque.view.view import BaseView
+
+    assert not hasattr(BaseView, "app")
+
+
+def test_a_presenter_takes_a_context(context, qtbot):
+    from opaque.models.model import BaseModel
+    from opaque.presenters.presenter import BasePresenter
+    from opaque.view.view import BaseView
+
+    class _Model(BaseModel):
+        FEATURE_ID = "ctx_presenter"
+
+        def feature_name(self) -> str:
+            return "Context Presenter"
+
+    class _Presenter(BasePresenter):
+        def bind_events(self) -> None:
+            pass
+
+        def update(self, field_name, new_value, old_value=None, model=None):
+            pass
+
+        def on_view_show(self) -> None:
+            pass
+
+    view = BaseView(context)
+    qtbot.addWidget(view)
+    presenter = _Presenter(_Model(context), view, context)
+
+    assert presenter.context is context
+
+
+def test_the_presenter_constructor_asks_for_a_context():
+    import inspect
+
+    from opaque.presenters.presenter import BasePresenter
+
+    parameters = list(inspect.signature(BasePresenter.__init__).parameters)
+    assert parameters == ["self", "model", "view", "context"]

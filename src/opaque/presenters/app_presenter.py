@@ -8,7 +8,7 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtWidgets import QApplication
 
@@ -16,20 +16,22 @@ from PySide6.QtWidgets import QApplication
 from opaque.services.service import ServiceLocator
 from opaque.services.theme_service import ThemeService
 from opaque.services.notification_service import NotificationLevel, NotificationService
+from opaque.features.context import FeatureContext
 from opaque.presenters.presenter import BasePresenter
 
 from opaque.models.app_model import ApplicationModel
 from opaque.view.app_view import ApplicationView
 
 
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
-
-
 class ApplicationPresenter(BasePresenter):
 
-    def __init__(self, model: ApplicationModel, view: ApplicationView, app: 'BaseApplication'):
-        super().__init__(model, view, app)
+    def __init__(
+            self,
+            model: ApplicationModel,
+            view: ApplicationView,
+            context: FeatureContext,
+    ):
+        super().__init__(model, view, context)
 
         # --- Theme Management ---
         self.theme_service: ThemeService = ServiceLocator.get(ThemeService)

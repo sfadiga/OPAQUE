@@ -5,8 +5,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QTextEdit, QSpinBox, QPushButton, QListWidget
 )
+from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
-from opaque.view.application import BaseApplication
 from opaque.view.widgets import CloseableTabWidget
 
 
@@ -106,8 +106,8 @@ class ListWidget(QWidget):
 
 
 class TabManagerView(BaseView):
-    def __init__(self, app: BaseApplication, parent=None):
-        super().__init__(app, parent)
+    def __init__(self, context: FeatureContext, parent=None):
+        super().__init__(context, parent)
         
         layout = QVBoxLayout()
         

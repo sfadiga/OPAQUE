@@ -101,8 +101,8 @@ class TestConfiguration(DefaultApplicationConfiguration):
 class StubModel(BaseModel):
     """A feature model with no settings and no workspace data."""
 
-    def __init__(self, app, name: str):
-        super().__init__(app)
+    def __init__(self, context, name: str):
+        super().__init__(context)
         self._name = name
 
     def feature_id(self) -> str:
@@ -130,17 +130,17 @@ class StubModel(BaseModel):
 class StubView(BaseView):
     """A feature window holding one label."""
 
-    def __init__(self, app):
-        super().__init__(app)
+    def __init__(self, context):
+        super().__init__(context)
         self.setWidget(QLabel("stub"))
 
 
 class StubPresenter(BasePresenter):
     """A presenter that records the calls the framework makes on it."""
 
-    def __init__(self, model, view, app):
+    def __init__(self, model, view, context):
         self.cleanup_calls = 0
-        super().__init__(model, view, app)
+        super().__init__(model, view, context)
 
     def bind_events(self) -> None:
         pass
@@ -185,7 +185,7 @@ def app_window(qapp, tmp_path_factory):
 def make_feature(app_window):
     """Return a factory that registers one feature under a unique name."""
     def _make(name: str) -> StubPresenter:
-        model = StubModel(app_window, name)
-        view = StubView(app_window)
-        return StubPresenter(model, view, app_window)
+        model = StubModel(app_window.context, name)
+        view = StubView(app_window.context)
+        return StubPresenter(model, view, app_window.context)
     return _make

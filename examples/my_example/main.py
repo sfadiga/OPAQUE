@@ -60,9 +60,9 @@ if __name__ == "__main__":
         from features.todo_list.presenter import TodoListPresenter
 
         # Simplified constructor calls - no need for manual feature_id management
-        todo_model = TodoListModel(main_window)
-        todo_view = TodoListView(main_window)
-        todo_presenter = TodoListPresenter(todo_model, todo_view, main_window)
+        todo_model = TodoListModel(main_window.context)
+        todo_view = TodoListView(main_window.context)
+        todo_presenter = TodoListPresenter(todo_model, todo_view, main_window.context)
         main_window.register_feature(todo_presenter)
 
         if not main_window.try_acquire_lock():

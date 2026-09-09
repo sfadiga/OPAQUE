@@ -9,25 +9,29 @@
 # If not, see <https://opensource.org/licenses/MIT>.
 """
 
-from typing import TYPE_CHECKING
-
 from PySide6.QtGui import QIcon
 
+from opaque.features.context import FeatureContext
 from opaque.models.abstract_model import AbstractModel
-
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
 
 
 class BaseModel(AbstractModel):
+    """
+    The model of one feature.
 
-    def __init__(self, app: 'BaseApplication') -> None:
+    It takes a FeatureContext, not the application. A model that held the
+    whole application could reach the toolbar, the MDI area and the service
+    registry, and one of them did reach a private attribute.
+    """
+
+    def __init__(self, context: FeatureContext) -> None:
         super().__init__()
-        self._app: 'BaseApplication' = app
+        self._context: FeatureContext = context
 
     @property
-    def app(self) -> 'BaseApplication':
-        return self._app
+    def context(self) -> FeatureContext:
+        """The context this feature was built with."""
+        return self._context
 
     # --- FEATURE API ---
     # A name is identity, so a subclass must declare it. An icon and a

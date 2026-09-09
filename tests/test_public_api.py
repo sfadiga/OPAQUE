@@ -20,6 +20,7 @@ EXPECTED = [
     "BoolField",
     "ChoiceField",
     "DefaultApplicationConfiguration",
+    "FeatureContext",
     "Field",
     "FloatField",
     "IntField",

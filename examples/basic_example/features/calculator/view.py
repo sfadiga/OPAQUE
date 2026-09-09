@@ -10,8 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QIcon
 
+from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
-from opaque.view.application import BaseApplication
 
 
 class CalculatorView(BaseView):
@@ -27,8 +27,8 @@ class CalculatorView(BaseView):
     toggle_sign_clicked = Signal()
     clear_history_clicked = Signal()
 
-    def __init__(self, app: BaseApplication, parent: Optional[QWidget] = None):
-        super().__init__(app, parent)
+    def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
+        super().__init__(context, parent)
         self._setup_ui()
 
     def _setup_ui(self):

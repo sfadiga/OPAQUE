@@ -8,6 +8,7 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
+from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
 
 
@@ -18,5 +19,5 @@ class ApplicationView(BaseView):
     integrate the application settings into the settings dialog.
     """
 
-    def __init__(self, feature_id: str):
-        super().__init__(feature_id)
+    def __init__(self, context: FeatureContext):
+        super().__init__(context)

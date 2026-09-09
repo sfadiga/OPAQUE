@@ -6,13 +6,12 @@ Licensed under MIT License
 """
 
 import logging
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QIcon
 
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
+from opaque.features.context import FeatureContext
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +57,9 @@ class ConsoleModel(QObject):
         """Return the one stable identity of the console feature."""
         return cls.FEATURE_ID
 
-    def __init__(self, app: 'BaseApplication'):
+    def __init__(self, context: FeatureContext):
         super().__init__()
-        self._app = app
+        self._context = context
         self._observers = []
 
         # Configuration settings
@@ -88,8 +87,8 @@ class ConsoleModel(QObject):
 
     # BaseModel interface methods
     @property
-    def app(self) -> 'BaseApplication':
-        return self._app
+    def context(self) -> FeatureContext:
+        return self._context
 
     def attach(self, observer) -> None:
         """Attach an observer."""

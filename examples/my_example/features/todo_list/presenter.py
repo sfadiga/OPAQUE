@@ -8,14 +8,11 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
-#from typing import TYPE_CHECKING
 from typing import Any
 
+from opaque.features.context import FeatureContext
 from opaque.models.model import BaseModel
 from opaque.presenters.presenter import BasePresenter
-
-#if TYPE_CHECKING:
-from opaque.view.application import BaseApplication
 from opaque.view.view import BaseView
 
 from .model import TodoListModel
@@ -24,8 +21,8 @@ from .view import TodoListView
 
 class TodoListPresenter(BasePresenter):
     """Presenter for the logging feature."""
-    def __init__(self, model: TodoListModel, view: TodoListView, app: BaseApplication) -> None:
-        super().__init__(model, view, app)
+    def __init__(self, model: TodoListModel, view: TodoListView, context: FeatureContext) -> None:
+        super().__init__(model, view, context)
 
     def bind_events(self) -> None:
         self.view.item_added.connect(self._add_to_list)

@@ -13,9 +13,9 @@ from PySide6.QtGui import QIcon
 
 
 from typing import List
+from opaque.features.context import FeatureContext
 from opaque.models.model import BaseModel
 from opaque.models.annotations import ListField, BoolField
-from opaque.view.application import BaseApplication
 
 
 class TodoListModel(BaseModel):
@@ -29,8 +29,8 @@ class TodoListModel(BaseModel):
 
     add_time_stamp = BoolField(default=True, description="Add timestamp to each item", required=True, settings=True)
 
-    def __init__(self, app: BaseApplication) -> None:
-        super().__init__(app)
+    def __init__(self, context: FeatureContext) -> None:
+        super().__init__(context)
 
 
     def add_todo_list(self, value: str):

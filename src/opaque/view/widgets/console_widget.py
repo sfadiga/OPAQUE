@@ -476,8 +476,8 @@ class ConsoleWidget(QWidget):
 class ConsoleView(BaseView):
     """Console view that integrates with the OPAQUE framework."""
 
-    def __init__(self, app, parent: Optional[QWidget] = None):
-        super().__init__(app, parent)
+    def __init__(self, context, parent: Optional[QWidget] = None):
+        super().__init__(context, parent)
         self.setWindowTitle(self.tr("Console"))
 
         # Create console widget as the main content

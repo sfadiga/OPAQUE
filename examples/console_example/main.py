@@ -74,8 +74,8 @@ class ConsoleExampleApp(BaseApplication):
         """Set up the internal console feature."""
         try:
             # Create console components
-            console_model = ConsoleModel(self)
-            self.console_presenter = ConsolePresenter(console_model, self)
+            console_model = ConsoleModel(self.context)
+            self.console_presenter = ConsolePresenter(console_model, self.context)
 
             # Register the console feature with MDI area (this also adds toolbar button)
             self.register_feature(self.console_presenter)

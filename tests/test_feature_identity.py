@@ -88,7 +88,7 @@ def test_the_presenter_constructor_takes_no_identity_argument():
 
     parameters = list(
         inspect.signature(BasePresenter.__init__).parameters)
-    assert parameters == ["self", "model", "view", "app"]
+    assert parameters == ["self", "model", "view", "context"]
 
 
 def test_the_workspace_block_is_keyed_on_the_identity(app_window, tmp_path):

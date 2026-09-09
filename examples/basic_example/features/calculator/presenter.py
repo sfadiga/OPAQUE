@@ -1,11 +1,9 @@
 """
 Calculator Presenter - Coordinates between Model and View
 """
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
-
+from opaque.features.context import FeatureContext
 from opaque.presenters.presenter import BasePresenter
+from opaque.services.notification_service import NotificationLevel, NotificationService
 from opaque.services.service import ServiceLocator
 
 
@@ -18,11 +16,11 @@ class CalculatorPresenter(BasePresenter):
     model_class = CalculatorModel
     view_class = CalculatorView
 
-    def __init__(self, model: CalculatorModel, view: CalculatorView, app: 'BaseApplication'):
+    def __init__(self, model: CalculatorModel, view: CalculatorView, context: FeatureContext):
         """
         Initialize the calculator presenter.
         """
-        super().__init__(model, view, app)
+        super().__init__(model, view, context)
 
     def bind_events(self):
         """Bind view events to presenter methods (required by BasePresenter)."""
@@ -47,14 +45,19 @@ class CalculatorPresenter(BasePresenter):
         elif field_name == "current_value":
             if new_value == "Error":
                 self.view.set_status("Error in calculation")
-                self.app.notification_presenter.notify_error("Calculator", "Calculation error occurred")
+                self._notify_error("Calculator", "Calculation error occurred")
                 self._log("error", "Calculation error")
             else:
                 self.view.set_status(f"Result: {new_value}")
         elif field_name == "error":
             self.view.set_status(f"Error: {new_value}")
-            self.app.notification_presenter.notify_error("Calculator", f"Error: {new_value}")
+            self._notify_error("Calculator", f"Error: {new_value}")
             self._log("error", f"Calculation error: {new_value}")
+
+    def _notify_error(self, title: str, message: str) -> None:
+        """Raise an error notification through the registered service."""
+        self.context.service(NotificationService).add_notification(
+            level=NotificationLevel.ERROR, title=title, message=message)
 
     def _update_view(self):
         """Update view with current model state."""

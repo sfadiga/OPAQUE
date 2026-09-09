@@ -14,7 +14,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QStandardItemModel, QStandardItem 
 from PySide6.QtWidgets import QLineEdit, QWidget, QPushButton, QTableView, QVBoxLayout, QFrame
 
-from opaque.view.application import BaseApplication
+from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
 
 
@@ -23,8 +23,8 @@ class TodoListView(BaseView):
 
     item_added = Signal(str)
 
-    def __init__(self, app: BaseApplication, parent: QWidget | None = None) -> None:
-        super().__init__(app, parent)
+    def __init__(self, context: FeatureContext, parent: QWidget | None = None) -> None:
+        super().__init__(context, parent)
 
         # Create and set the central widget
         self.item_edit = QLineEdit()

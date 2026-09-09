@@ -97,38 +97,38 @@ class MyExampleApplication(BaseApplication):
         from features.calculator.presenter import CalculatorPresenter
         
         # Create model and view with simplified constructors
-        calc_model = CalculatorModel(self)
-        calc_view = CalculatorView(self)
-        calc_presenter = CalculatorPresenter(calc_model, calc_view, self)
+        calc_model = CalculatorModel(self.context)
+        calc_view = CalculatorView(self.context)
+        calc_presenter = CalculatorPresenter(calc_model, calc_view, self.context)
         self.register_feature(calc_presenter)
 
         # Register data viewer feature
         from features.data_viewer.model import DataViewerModel
         from features.data_viewer.view import DataViewerView
         from features.data_viewer.presenter import DataViewerPresenter
-        
-        data_model = DataViewerModel(self)
-        data_view = DataViewerView(self)
-        data_presenter = DataViewerPresenter(data_model, data_view, self)
+
+        data_model = DataViewerModel(self.context)
+        data_view = DataViewerView(self.context)
+        data_presenter = DataViewerPresenter(data_model, data_view, self.context)
         self.register_feature(data_presenter)
 
         # Register logging feature
         from features.logging.model import LoggingModel
         from features.logging.view import LoggingView
         from features.logging.presenter import LoggingPresenter
-        
-        log_model = LoggingModel(self)
-        log_view = LoggingView(self)
-        log_presenter = LoggingPresenter(log_model, log_view, self)
+
+        log_model = LoggingModel(self.context)
+        log_view = LoggingView(self.context)
+        log_presenter = LoggingPresenter(log_model, log_view, self.context)
         self.register_feature(log_presenter)
 
         # Register Console Feature
         try:
             from opaque.presenters.console_presenter import ConsolePresenter
             from opaque.models.console_model import ConsoleModel
-            
-            console_model = ConsoleModel(self)
-            console_presenter = ConsolePresenter(console_model, self)
+
+            console_model = ConsoleModel(self.context)
+            console_presenter = ConsolePresenter(console_model, self.context)
             self.register_feature(console_presenter)
             console_presenter.initialize() # Capture stdout/stderr
         except ImportError as e:
@@ -139,10 +139,10 @@ class MyExampleApplication(BaseApplication):
             from features.tab_manager.model import TabManagerModel
             from features.tab_manager.view import TabManagerView
             from features.tab_manager.presenter import TabManagerPresenter
-            
-            tab_model = TabManagerModel(self)
-            tab_view = TabManagerView(self)
-            tab_presenter = TabManagerPresenter(tab_model, tab_view, self)
+
+            tab_model = TabManagerModel(self.context)
+            tab_view = TabManagerView(self.context)
+            tab_presenter = TabManagerPresenter(tab_model, tab_view, self.context)
             self.register_feature(tab_presenter)
         except ImportError as e:
             print(f"Could not load Tab Manager feature: {e}")
@@ -152,10 +152,10 @@ class MyExampleApplication(BaseApplication):
             from features.notification_tester.model import NotificationTesterModel
             from features.notification_tester.view import NotificationTesterView
             from features.notification_tester.presenter import NotificationTesterPresenter
-            
-            notif_model = NotificationTesterModel(self)
-            notif_view = NotificationTesterView(self)
-            notif_presenter = NotificationTesterPresenter(notif_model, notif_view, self)
+
+            notif_model = NotificationTesterModel(self.context)
+            notif_view = NotificationTesterView(self.context)
+            notif_presenter = NotificationTesterPresenter(notif_model, notif_view, self.context)
             self.register_feature(notif_presenter)
         except ImportError as e:
             print(f"Could not load Notification Tester feature: {e}")

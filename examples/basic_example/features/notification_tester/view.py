@@ -8,8 +8,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal, Qt
 
+from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
-from opaque.view.application import BaseApplication
 
 
 class NotificationTesterView(BaseView):
@@ -23,8 +23,8 @@ class NotificationTesterView(BaseView):
     clear_notifications_clicked = Signal()
     level_changed = Signal(str)
 
-    def __init__(self, app: BaseApplication, parent: Optional[QWidget] = None):
-        super().__init__(app, parent)
+    def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
+        super().__init__(context, parent)
         self._setup_ui()
 
     def _setup_ui(self):

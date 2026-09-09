@@ -6,7 +6,7 @@ Licensed under MIT License
 """
 
 import logging
-from typing import Dict, Any, TYPE_CHECKING
+from typing import Dict, Any
 from PySide6.QtWidgets import QMessageBox
 
 from opaque.presenters.presenter import BasePresenter
@@ -14,9 +14,7 @@ from opaque.models.console_model import ConsoleModel, ConsoleOutputItem
 from opaque.view.widgets.console_widget import ConsoleView
 from opaque.services.service import ServiceLocator
 from opaque.services.console_service import ConsoleService
-
-if TYPE_CHECKING:
-    from opaque.view.application import BaseApplication
+from opaque.features.context import FeatureContext
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +22,12 @@ logger = logging.getLogger(__name__)
 class ConsolePresenter(BasePresenter):
     """Presenter for managing the console feature."""
 
-    def __init__(self, model: ConsoleModel, app: 'BaseApplication'):
-        # Create view with app parameter
-        view = ConsoleView(app)
+    def __init__(self, model: ConsoleModel, context: FeatureContext):
+        # Create view with the context
+        view = ConsoleView(context)
 
         # Initialize base class - need to pass model as Any since ConsoleModel doesn't inherit from BaseModel
-        super().__init__(model, view, app)  # type: ignore
+        super().__init__(model, view, context)  # type: ignore
 
         self._initialized = False
 

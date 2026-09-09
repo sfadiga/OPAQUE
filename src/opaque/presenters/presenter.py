@@ -15,6 +15,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, TYPE_CHECKING
 
+from opaque.features.context import FeatureContext
 from opaque.models.model import BaseModel
 
 if TYPE_CHECKING:
@@ -22,7 +23,6 @@ if TYPE_CHECKING:
     # at module level closes a cycle: view.py -> widgets -> toolbar.py ->
     # presenter.py, which then re-imports view.py before BaseView exists.
     from opaque.view.view import BaseView
-    from opaque.view.application import BaseApplication
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class BasePresenter(ABC):
             self,
             model: BaseModel,
             view: BaseView,
-            app: 'BaseApplication',
+            context: FeatureContext,
     ) -> None:
         """
         Initialize the presenter.
@@ -46,10 +46,13 @@ class BasePresenter(ABC):
         The identity comes from the model and from nowhere else. It used to be
         an optional argument that fell back to the presenter class name, so
         renaming a class lost the saved settings and the saved workspace.
+
+        The context is what the feature is allowed to know about the
+        application.
         """
         self._feature_id: str = model.feature_id()
 
-        self._app: 'BaseApplication' = app
+        self._context: FeatureContext = context
         # a presenter must have be associated with a view and a model
         # if there is a need for a presenter without one of those
         # just pass a dummy implementation of the BaseView / BaseModel
@@ -117,9 +120,9 @@ class BasePresenter(ABC):
         return self._view
 
     @property
-    def app(self) -> 'BaseApplication':
-        """Get the application instance."""
-        return self._app
+    def context(self) -> FeatureContext:
+        """The context this feature was built with."""
+        return self._context
 
     @abstractmethod
     def bind_events(self) -> None:

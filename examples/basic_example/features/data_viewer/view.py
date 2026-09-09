@@ -7,8 +7,8 @@ from PySide6.QtWidgets import (
     QInputDialog, QMessageBox, QHeaderView
 )
 from PySide6.QtCore import Signal, QDateTime
+from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
-from opaque.view.application import BaseApplication
 from typing import Any, Dict, List, Optional
 
 
@@ -23,9 +23,9 @@ class DataViewerView(BaseView):
     export_clicked = Signal()
     import_clicked = Signal()
 
-    def __init__(self, app: BaseApplication, parent: Optional[QWidget] = None):
+    def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
         """Initialize the view."""
-        super().__init__(app, parent)
+        super().__init__(context, parent)
         self.init_ui()
 
     def feature_id(self) -> str:
