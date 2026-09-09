@@ -196,9 +196,11 @@ class SettingsDialog(QDialog):
 
         self._pending_values.clear()
 
-        for feature_id, presenter in self.features.items():
-            self.settings_service.save_feature_settings(
-                feature_id, presenter.model)
+        # One write for every feature. This loop used to write the whole file
+        # once per feature.
+        self.settings_service.save_all_feature_settings()
+
+        for presenter in self.features.values():
             presenter.apply_settings()
 
         if rejected:

@@ -274,3 +274,76 @@ def test_a_non_ascii_value_survives_export_and_import(tmp_path):
         other.cleanup()
     finally:
         service.cleanup()
+
+
+def test_the_file_is_read_once_however_many_models_register(tmp_path,
+                                                            monkeypatch):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"a": {}, "b": {}}), encoding="utf-8")
+
+    service = SettingsService(path)
+    service.initialize()
+
+    reads = []
+    real = service.load_settings_file
+    monkeypatch.setattr(
+        service, "load_settings_file",
+        lambda: (reads.append(True), real())[1])
+
+    try:
+        for name in ("a", "b", "c"):
+            service.register_model(name, TypedSettingsModel())
+        assert reads == []
+    finally:
+        service.cleanup()
+
+
+def test_registering_a_model_still_fills_it_from_the_file(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"demo": {"count": 4}}), encoding="utf-8")
+
+    service = SettingsService(path)
+    service.initialize()
+    model = TypedSettingsModel()
+    try:
+        service.register_model("demo", model)
+        assert model.count == 4
+    finally:
+        service.cleanup()
+
+
+def test_building_the_service_touches_no_disk(tmp_path):
+    folder = tmp_path / "not_yet"
+    SettingsService(folder / "settings.json")
+
+    assert not folder.exists()
+
+
+def test_initialize_creates_the_folder(tmp_path):
+    folder = tmp_path / "later"
+    service = SettingsService(folder / "settings.json")
+    service.initialize()
+    try:
+        assert folder.exists()
+    finally:
+        service.cleanup()
+
+
+def test_saving_every_feature_writes_the_file_once(tmp_path, monkeypatch):
+    service = SettingsService(tmp_path / "settings.json")
+    service.initialize()
+    try:
+        service.register_model("a", TypedSettingsModel())
+        service.register_model("b", TypedSettingsModel())
+
+        writes = []
+        real = service.save_settings_file
+        monkeypatch.setattr(
+            service, "save_settings_file",
+            lambda: (writes.append(True), real())[1])
+
+        service.save_all_feature_settings()
+
+        assert len(writes) == 1
+    finally:
+        service.cleanup()

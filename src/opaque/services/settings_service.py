@@ -81,13 +81,16 @@ class SettingsService(BaseService):
             settings_file = Path.home() / ".opaque" / "settings.json"
 
         self.settings_file = settings_file
-        self.settings_file.parent.mkdir(parents=True, exist_ok=True)
 
         self._settings: Dict[str, Dict[str, Any]] = {}
         # Store feature models for annotation support
         self._feature_models: Dict[str, Any] = {}
 
     def initialize(self) -> None:
+        # The folder is made here and not in __init__: building an object
+        # must not touch the disk, and a test that only reads the path used
+        # to leave a folder behind.
+        self.settings_file.parent.mkdir(parents=True, exist_ok=True)
         self.load_settings_file()
         return super().initialize()
 
@@ -104,9 +107,8 @@ class SettingsService(BaseService):
         """
         self._feature_models[feature_id] = model
 
-        # Fill the model from what was already loaded. initialize() reads the
-        # file once; re-reading it here made every registration touch the disk.
-        self.load_settings_file()
+        # initialize() has already read the file. Reading it again here made
+        # start up touch the disk once per feature.
         for key, value in self._settings.get(feature_id, {}).items():
             self._apply_stored_value(model, key, value)
 
@@ -297,6 +299,23 @@ class SettingsService(BaseService):
             self._settings[feature_id] = {}
         self._settings[feature_id].update(settings_data)
         self.save_settings_file()
+
+    def save_all_feature_settings(self) -> bool:
+        """
+        Collect every registered model and write the file once.
+
+        The settings dialog used to call save_feature_settings() per feature,
+        and each call wrote the whole JSON file, so an application with ten
+        features wrote the file ten times per Apply.
+
+        Returns:
+            True when the file was written.
+        """
+        for feature_id, model in self._feature_models.items():
+            settings_data = self._collect_annotated_settings(model)
+            self._settings.setdefault(feature_id, {}).update(settings_data)
+
+        return self.save_settings_file()
 
     def load_all_settings(self) -> None:
         """Load all settings from file and update models."""
