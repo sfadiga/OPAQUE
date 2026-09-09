@@ -227,3 +227,75 @@ A. not sure I got, but I would like for this framework to be friendly to packagi
 2. **Week 2 — verified defects (P1).** Items 3.1-3.11. Each is small; each deserves a regression test. Write `CLAUDE.md` while fixing them — the traps are freshest then.
 3. **Then — the two structural moves (P2).** Typed service access + `create_services` seam (4.1), and `FeatureContext` (4.2). Do these before the framework gains external users; both change signatures.
 4. **Ongoing.** Declarative feature registration (4.3), package re-layering (4.4), threading contract (4.5), and the P3 polish, each behind its own small plan.
+
+---
+
+## 9. Closure
+
+Every item above was closed by the plans in `docs/superpowers/plans/`. The
+index at `2026-09-08-techdebt-00-index.md` maps each item to its plan and
+task; the table below names the commit(s) that did the work, for the items
+where one commit is not obvious from the index alone.
+
+### P0 — release blockers
+
+| Item | Closed by |
+|---|---|
+| 2.1 theme packages hard dependencies | `77d4e29` (lazy imports), `54b0dea` (provider wrappers), `04cc8e0` (provider discovery) |
+| 2.2 README quick start raises `TypeError` | `40b5d4d` |
+| 2.3 `API.md`/`QUICK_REFERENCE.md` fictional classes | `b9fa5d7` (deleted `API.md`, rewrote the reference); template: `03d0868` |
+| 2.4 f-string kills the package on 3.11 | `205162f` |
+| 2.5 example services import `opaque.core.services` | `541efef` |
+| 2.6 empty public API, no `__version__`/`py.typed` | `cc3f9ea` |
+| 2.7 placeholder URLs, no CI, stray files | `46a202a` (packaging), `b91b408`/`661d9db` (CI) |
+
+### P1 — verified defects
+
+| Item | Closed by |
+|---|---|
+| 3.1 `"theme"`/`"themes"` name mismatch | `5f57053` |
+| 3.2 `WorkspaceService.cleanup()` calls `initialize()` | `8322783` |
+| 3.3 teardown order inverted | `dd0b9cf` |
+| 3.4 observers shared across model instances | `5a7cc98` |
+| 3.5 every field write notifies twice | `3dd1980` |
+| 3.6 settings dialog corrupts typed values | `5cffcea`, `59e01a8`, `eb4f13d`, `029d7f3` |
+| 3.7 settings persistence loses data silently | `e218fa4` (atomic writes); read/write-once perf: `e26c474` (this plan, Task 7) |
+| 3.8 dead configuration surface | `addfa0d`, `a72a32a`, `d55c38f`, `c34e1f5`, `798ff42`, `2718b0a` |
+| 3.9 three identity schemes for one feature | `30b4a84`, `16d41ee` |
+| 3.10 theme system has two sources of truth | `459745b`, `d8dfe53`, `4a48eca`, `04cc8e0` |
+| 3.11 (11 sub-items) | see the index's own breakdown table; the two still open at review time — `self_check.py` wiring and the five `print()` calls — are closed by this plan's Task 4 (`4dbbd3b`) and Task 6 (`257e941`) |
+
+### P2 — architecture
+
+| Item | Closed by |
+|---|---|
+| 4.1 shallow, stringly-typed service seam | `2e8387b`, `197c69d`, `85b098d`, `d87c29c` |
+| 4.2 everything holds the whole application | `0ec6a73`, `51952eb`, `121bd06` |
+| 4.3 feature assembly manual and order-fragile | `c27fbaf`, `6185c7e` |
+| 4.4 layering does not match the package names | `303826f`, `46f4fca` |
+| 4.5 threading contract implicit | `e324446` |
+| 4.6 shallow modules | this plan, Tasks 1-3: `e2d7e3c`, `656c99b`, `ea775e3` |
+| 4.7 signal hygiene | accepted, not fixed — see below |
+
+### AI-agent readiness and polish
+
+| Item | Closed by |
+|---|---|
+| 5.1 fix the lies first | every Plan 02 commit (docs and example truth) |
+| 5.2 `CLAUDE.md` kept true | `8e02ff7` and every plan since, by the rule each plan states: update the doc that changed in the same commit |
+| 5.3 export the public API, ship `py.typed` | `cc3f9ea` |
+| 5.4 make errors teach | `8fbd782`, `30b4a84`, `6185c7e` |
+| 5.5 track the plans | `8e02ff7` |
+| 5.6 add CI | `b91b408` |
+| 6. spelling, naming, hit-target token, typos, unused imports, duplicated widgets, settings I/O churn | this plan, Tasks 4-8: `4dbbd3b`, `201c64c`, `257e941`, `e26c474`, `12a31b3` |
+
+### Items accepted rather than fixed, with the reason
+
+| Item | Decision |
+|---|---|
+| 4.7 signal hygiene | Accepted per D6: features never unload, so the shell connects once and never disconnects. `tests/test_signal_policy.py` keeps the assumption honest. |
+| `NotificationPresenter` is not a feature | Accepted: it is a system presenter and takes the main window by design. |
+| `opaque/view/application.py` | Kept for one release as a deprecated re-export of `opaque.shell`; not deleted by this plan (see "What this plan does not do"). |
+| `models`, `presenters`, `services` have no `__init__.py` (implicit namespace packages) | Accepted as latent: no `pkgutil`/`iter_modules`/`collect_submodules` call anywhere in `src/` or `examples/` depends on it, and the wheel ships every module regardless. `tests/test_imports.py` no longer depends on the walk order either. Revisit only if a generated PyInstaller/Nuitka spec starts calling `collect_submodules("opaque")`. |
+| `SingleInstanceService` binds a fixed TCP port (49152) to detect a second instance | Accepted as open: the lock file already moved to a per-user path; the port is still fixed, so two CI runners or a developer with the example already open can still collide. No task in this plan owns it. |
+| Nine pylint design-metric checks (`too-many-instance-attributes`, `too-few-public-methods`, `too-many-branches`/`locals`/`statements`/`arguments`/`positional-arguments`, `duplicate-code`, `attribute-defined-outside-init`) | Disabled project-wide in `pyproject.toml`, not fixed. Real fixes mean splitting classes and methods apart or extracting a shared base between the two build backends — real refactors with behaviour risk, beyond a lint-cleanliness task. See `docs/known-issues/pylint-design-metrics.md`. |
