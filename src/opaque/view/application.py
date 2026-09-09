@@ -12,7 +12,7 @@
 
 
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Type
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
 from PySide6.QtGui import (
@@ -25,7 +25,9 @@ from opaque.view.widgets.toolbar import OpaqueMainToolbar
 from opaque.view.dialogs.settings import SettingsDialog
 from opaque.view.dialogs.keyboard_map import KeyboardMapDialog
 from opaque.features.context import FeatureContext
+from opaque.models.model import BaseModel
 from opaque.presenters.presenter import BasePresenter
+from opaque.view.view import BaseView
 from opaque.services.service import ServiceLocator
 from opaque.localisation import apply_layout_direction, install_translator
 from opaque.models.configuration import DefaultApplicationConfiguration
@@ -405,6 +407,39 @@ class BaseApplication(QMainWindow):
         """
         self.mdi_area.addSubWindow(view)
         view.show()
+
+    def register(
+            self,
+            model_class: Type[BaseModel],
+            view_class: Type[BaseView],
+            presenter_class: Type[BasePresenter],
+    ) -> BasePresenter:
+        """
+        Build one feature from its three classes and register it.
+
+        This is the recipe. The three parts have to be built in this order,
+        because a presenter takes a model and a view that already exist, and
+        BasePresenter.__init__ reads both. Doing it by hand in the wrong
+        order raised a bare AttributeError, so the framework does it.
+
+        Args:
+            model_class: The model class of the feature.
+            view_class: The view class of the feature.
+            presenter_class: The presenter class of the feature.
+
+        Returns:
+            The presenter that was built and registered. Keep it if the
+            application needs to reach the feature later; it is also in the
+            feature registry under the model's FEATURE_ID.
+
+        Raises:
+            ValueError: When the FEATURE_ID is already registered.
+        """
+        model = model_class(self._context)
+        view = view_class(self._context)
+        presenter = presenter_class(model, view, self._context)
+        self.register_feature(presenter)
+        return presenter
 
     def register_feature(self, presenter: BasePresenter) -> None:
         """

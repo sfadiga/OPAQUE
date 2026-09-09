@@ -124,15 +124,13 @@ class GreetingPresenter(BasePresenter):
 
 class QuickStartApplication(BaseApplication):
     """
-    The registration order is fixed: model, then view, then presenter, then
-    register_feature. Each of the three takes the feature context.
+    register() builds the three parts, in order, and registers them: model,
+    then view, then presenter. Each of the three takes the feature context.
     """
 
     def __init__(self) -> None:
         super().__init__(QuickStartConfiguration())
-        model = GreetingModel(self.context)
-        view = GreetingView(self.context)
-        self.register_feature(GreetingPresenter(model, view, self.context))
+        self.register(GreetingModel, GreetingView, GreetingPresenter)
 
 
 if __name__ == "__main__":

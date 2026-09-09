@@ -59,11 +59,8 @@ if __name__ == "__main__":
         from features.todo_list.view import TodoListView
         from features.todo_list.presenter import TodoListPresenter
 
-        # Simplified constructor calls - no need for manual feature_id management
-        todo_model = TodoListModel(main_window.context)
-        todo_view = TodoListView(main_window.context)
-        todo_presenter = TodoListPresenter(todo_model, todo_view, main_window.context)
-        main_window.register_feature(todo_presenter)
+        # One call builds the three parts, in order, and registers them.
+        main_window.register(TodoListModel, TodoListView, TodoListPresenter)
 
         if not main_window.try_acquire_lock():
             main_window.show_already_running_message()

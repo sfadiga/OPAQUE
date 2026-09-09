@@ -95,34 +95,27 @@ class MyExampleApplication(BaseApplication):
         from features.calculator.model import CalculatorModel
         from features.calculator.view import CalculatorView
         from features.calculator.presenter import CalculatorPresenter
-        
-        # Create model and view with simplified constructors
-        calc_model = CalculatorModel(self.context)
-        calc_view = CalculatorView(self.context)
-        calc_presenter = CalculatorPresenter(calc_model, calc_view, self.context)
-        self.register_feature(calc_presenter)
+
+        self.register(CalculatorModel, CalculatorView, CalculatorPresenter)
 
         # Register data viewer feature
         from features.data_viewer.model import DataViewerModel
         from features.data_viewer.view import DataViewerView
         from features.data_viewer.presenter import DataViewerPresenter
 
-        data_model = DataViewerModel(self.context)
-        data_view = DataViewerView(self.context)
-        data_presenter = DataViewerPresenter(data_model, data_view, self.context)
-        self.register_feature(data_presenter)
+        self.register(DataViewerModel, DataViewerView, DataViewerPresenter)
 
         # Register logging feature
         from features.logging.model import LoggingModel
         from features.logging.view import LoggingView
         from features.logging.presenter import LoggingPresenter
 
-        log_model = LoggingModel(self.context)
-        log_view = LoggingView(self.context)
-        log_presenter = LoggingPresenter(log_model, log_view, self.context)
-        self.register_feature(log_presenter)
+        self.register(LoggingModel, LoggingView, LoggingPresenter)
 
         # Register Console Feature
+        # ConsolePresenter takes (model, context), not (model, view, context):
+        # it builds its own view internally, so it cannot use the shared
+        # three-class recipe and keeps the manual construction.
         try:
             from opaque.presenters.console_presenter import ConsolePresenter
             from opaque.models.console_model import ConsoleModel
@@ -140,10 +133,7 @@ class MyExampleApplication(BaseApplication):
             from features.tab_manager.view import TabManagerView
             from features.tab_manager.presenter import TabManagerPresenter
 
-            tab_model = TabManagerModel(self.context)
-            tab_view = TabManagerView(self.context)
-            tab_presenter = TabManagerPresenter(tab_model, tab_view, self.context)
-            self.register_feature(tab_presenter)
+            self.register(TabManagerModel, TabManagerView, TabManagerPresenter)
         except ImportError as e:
             print(f"Could not load Tab Manager feature: {e}")
 
@@ -153,10 +143,9 @@ class MyExampleApplication(BaseApplication):
             from features.notification_tester.view import NotificationTesterView
             from features.notification_tester.presenter import NotificationTesterPresenter
 
-            notif_model = NotificationTesterModel(self.context)
-            notif_view = NotificationTesterView(self.context)
-            notif_presenter = NotificationTesterPresenter(notif_model, notif_view, self.context)
-            self.register_feature(notif_presenter)
+            self.register(
+                NotificationTesterModel, NotificationTesterView,
+                NotificationTesterPresenter)
         except ImportError as e:
             print(f"Could not load Notification Tester feature: {e}")
 

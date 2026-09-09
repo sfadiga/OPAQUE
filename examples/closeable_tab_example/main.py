@@ -284,12 +284,9 @@ class CloseableTabApplication(BaseApplication):
     def __init__(self):
         super().__init__(CloseableTabConfig())
         
-        # Initialize and register the feature
-        self.tab_model = TabExampleModel(self.context)
-        self.tab_view = TabExampleView(self.context)
-        self.tab_presenter = TabExamplePresenter(self.tab_model, self.tab_view, self.context)
-        
-        self.register_feature(self.tab_presenter)
+        # One call builds the three parts, in order, and registers them.
+        self.tab_presenter = self.register(
+            TabExampleModel, TabExampleView, TabExamplePresenter)
         
         # Setup extra menus for the example
         self._setup_example_menu()
