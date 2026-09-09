@@ -346,3 +346,47 @@ def test_a_value_the_field_refuses_is_reported_and_not_queued(typed_dialog):
 
     assert typed_dialog.pending_value("typed", "count") is None
     assert typed_dialog.status_label.text() != ""
+
+
+def test_restore_defaults_shows_the_defaults_in_the_form(dialog):
+    dialog._presenter.model.count = 7
+    dialog._on_group_selected()
+    assert _widget_for(dialog, "Count").value() == 7
+
+    dialog._restore_defaults()
+
+    assert _widget_for(dialog, "Count").value() == 2
+
+
+def test_an_edit_survives_a_redraw(dialog):
+    _widget_for(dialog, "Count").setValue(6)
+
+    dialog._on_group_selected()
+
+    assert _widget_for(dialog, "Count").value() == 6
+    assert dialog.pending_value("demo", "count") == 6
+
+
+def test_a_text_edit_survives_a_redraw(dialog):
+    _widget_for(dialog, "Label").setText("edited")
+
+    dialog._on_group_selected()
+
+    assert _widget_for(dialog, "Label").text() == "edited"
+
+
+def test_a_check_box_edit_survives_a_redraw(dialog):
+    _widget_for(dialog, "Enabled").setChecked(False)
+
+    dialog._on_group_selected()
+
+    assert _widget_for(dialog, "Enabled").isChecked() is False
+
+
+def test_a_redraw_after_reject_shows_the_model_again(dialog):
+    _widget_for(dialog, "Count").setValue(6)
+    dialog.reject()
+
+    dialog._on_group_selected()
+
+    assert _widget_for(dialog, "Count").value() == 2

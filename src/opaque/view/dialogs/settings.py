@@ -141,6 +141,21 @@ class SettingsDialog(QDialog):
         """Return one pending value, or None when the field was not edited."""
         return self._pending_values.get(feature_id, {}).get(field_name)
 
+    def _effective_value(
+            self, feature_id: str, field_name: str, model: Any) -> Any:
+        """
+        Return the value the form must show for one field.
+
+        A queued edit wins over the stored value. Restore Defaults queues
+        without writing, and switching group redraws the form, so a redraw
+        that read only the model threw away everything the user had done and
+        made Restore Defaults look like it had failed.
+        """
+        pending = self._pending_values.get(feature_id, {})
+        if field_name in pending:
+            return pending[field_name]
+        return getattr(model, field_name)
+
     def has_pending_changes(self) -> bool:
         """Return True while at least one edit is waiting to be committed."""
         return any(self._pending_values.values())
@@ -348,7 +363,7 @@ class SettingsDialog(QDialog):
             if not hasattr(field, 'is_setting') or not field.is_setting:
                 continue
 
-            current_value = getattr(target_model, name)
+            current_value = self._effective_value(feature_id, name, target_model)
             # The description comes from a model field at run time. The model
             # that declares the field must call tr() on its own literal.
             label_text = field.description or name
