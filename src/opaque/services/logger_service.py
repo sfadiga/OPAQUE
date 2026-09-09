@@ -61,6 +61,7 @@ class LoggerService(BaseService):
         self._backup_count = 5
         self._console_logging_enabled = True
         self._file_logging_enabled = True
+        self._notify_on_warning = False
         self._notify_on_error = True
         self._notify_on_critical = True
 
@@ -182,6 +183,7 @@ class LoggerService(BaseService):
         if should_notify is None:
             # Auto-determine based on configuration and level
             should_notify = (
+                (level_upper == 'WARNING' and self._notify_on_warning) or
                 (level_upper == 'ERROR' and self._notify_on_error) or
                 (level_upper == 'CRITICAL' and self._notify_on_critical)
             )
@@ -299,6 +301,10 @@ class LoggerService(BaseService):
             elif enabled and not self._file_handler:
                 self._setup_file_logging()
 
+    def set_notification_on_warning(self, enabled: bool) -> None:
+        """Enable or disable notifications for warning messages"""
+        self._notify_on_warning = enabled
+
     def set_notification_on_error(self, enabled: bool) -> None:
         """Enable or disable notifications for error messages"""
         self._notify_on_error = enabled
@@ -340,6 +346,7 @@ class LoggerService(BaseService):
             'backup_count': self._backup_count,
             'console_logging_enabled': self._console_logging_enabled,
             'file_logging_enabled': self._file_logging_enabled,
+            'notify_on_warning': self._notify_on_warning,
             'notify_on_error': self._notify_on_error,
             'notify_on_critical': self._notify_on_critical,
             'log_file_path': self.get_log_file_path(),

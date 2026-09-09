@@ -37,7 +37,10 @@ from opaque.services.notification_service import NotificationService
 from opaque.services.logger_service import LoggerService
 
 from opaque.presenters.app_presenter import ApplicationPresenter
-from opaque.presenters.notification_presenter import NotificationPresenter
+from opaque.presenters.notification_presenter import (
+    NOTIFICATION_SETTINGS_ID,
+    NotificationPresenter,
+)
 from opaque.models.app_model import ApplicationModel
 from opaque.view.app_view import ApplicationView
 
@@ -129,9 +132,15 @@ class BaseApplication(QMainWindow):
         self.notification_service.initialize()
         ServiceLocator.register_service(self.notification_service)
 
-        # Initialize logger service
+        # Initialize logger service. The log directory is a stored setting,
+        # and the service takes it at construction, so it is read here from
+        # the settings service that was created just above.
+        stored_notification_settings = self.settings_service.get_all_settings(
+        ).get(NOTIFICATION_SETTINGS_ID, {})
         self.logger_service = LoggerService(
-            application_name=configuration.get_application_name())
+            application_name=configuration.get_application_name(),
+            log_directory=stored_notification_settings.get(
+                "log_directory") or None)
         self.logger_service.initialize()
         ServiceLocator.register_service(self.logger_service)
 

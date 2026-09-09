@@ -108,9 +108,10 @@ class NotificationSettingsModel(AbstractModel):
         settings=True
     )
 
-    log_file_path = StringField(
+    log_directory = StringField(
         default="",
-        description="Custom log file path (empty for default)",
+        description="Folder for the log files, empty for the default. "
+                    "Applies at the next start",
         settings=True
     )
 
@@ -215,7 +216,7 @@ class NotificationSettingsModel(AbstractModel):
             "level": str(self.log_level),
             "console_enabled": bool(self.console_logging_enabled),
             "file_enabled": bool(self.file_logging_enabled),
-            "file_path": str(self.log_file_path) if self.log_file_path else None,
+            "directory": str(self.log_directory) if self.log_directory else None,
             "notification_on_warning": bool(self.notification_on_warning),
             "notification_on_error": bool(self.notification_on_error),
             "notification_on_critical": bool(self.notification_on_critical),

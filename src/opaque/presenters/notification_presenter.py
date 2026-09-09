@@ -486,6 +486,30 @@ class NotificationPresenter(QObject):
             self._main_window.resizeDocks(
                 [self._dock_widget], [height], Qt.Orientation.Vertical)
 
+    def _apply_logger_settings(self) -> None:
+        """
+        Apply the logging settings to the logger service.
+
+        Six of the notification settings describe logging, and all six were
+        declared and read by nothing. log_directory is not here: the service
+        takes it at construction, so BaseApplication passes it at start, and
+        the field says so in its own description.
+        """
+        settings = self._settings_model
+        service = ServiceLocator.get_service("logger")
+        if settings is None or service is None:
+            return
+
+        service.set_log_level(str(settings.log_level))
+        service.set_console_logging(bool(settings.console_logging_enabled))
+        service.set_file_logging(bool(settings.file_logging_enabled))
+        service.set_notification_on_warning(
+            bool(settings.notification_on_warning))
+        service.set_notification_on_error(
+            bool(settings.notification_on_error))
+        service.set_notification_on_critical(
+            bool(settings.notification_on_critical))
+
     def apply_settings(self) -> None:
         """
         Apply every notification setting to the running interface.
@@ -495,6 +519,7 @@ class NotificationPresenter(QObject):
         else.
         """
         self._apply_panel_settings()
+        self._apply_logger_settings()
 
     def set_log_level(self, level: str) -> None:
         """Set logging level"""
