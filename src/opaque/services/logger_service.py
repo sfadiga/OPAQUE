@@ -42,6 +42,19 @@ class LoggerService(BaseService):
         'CRITICAL': logging.CRITICAL
     }
 
+    # The framework logs to logging.getLogger(__name__) in every module, and
+    # every one of those names is below "opaque". Configuring that logger is
+    # what makes the framework's own records reach the application log file.
+    # The handlers used to sit on "opaque_app", which is not a parent of any
+    # of them, so every framework warning went to the stdlib root logger and
+    # was lost.
+    LOGGER_NAME: str = "opaque"
+
+    # The name the service's own log() calls use. It is a child of
+    # LOGGER_NAME, so it reaches the same handlers and stays recognisable in
+    # the file.
+    APPLICATION_LOGGER_NAME: str = "opaque.app"
+
     def __init__(self, log_directory: Optional[str] = None, application_name: Optional[str] = None):
         super().__init__("logger")
         self._log_directory = log_directory or "logs"
@@ -77,16 +90,26 @@ class LoggerService(BaseService):
             for handler in self._logger.handlers[:]:
                 handler.close()
                 self._logger.removeHandler(handler)
+            # Put the logger tree back the way it was found, so a second
+            # LoggerService built later in the same process is not left
+            # talking to a silenced logger.
+            self._logger.propagate = True
         super().cleanup()
 
     def _setup_logger(self) -> None:
         """Set up the logger with file and console handlers"""
-        # Create the main logger
-        self._logger = logging.getLogger("opaque_app")
+        # Configure the whole opaque logger tree, so every module of the
+        # framework writes into the same session file.
+        self._logger = logging.getLogger(self.LOGGER_NAME)
         self._logger.setLevel(self._log_level)
 
         # Clear any existing handlers
         self._logger.handlers.clear()
+
+        # Do not hand the records to the stdlib root logger as well. A host
+        # application that configures its own root handler would otherwise
+        # print every framework line twice.
+        self._logger.propagate = False
 
         # Set up file logging
         if self._file_logging_enabled:
@@ -171,8 +194,10 @@ class LoggerService(BaseService):
         level_upper = level.upper()
         log_level = self.LEVEL_MAPPING.get(level_upper, logging.INFO)
 
-        # Log the message
-        self._logger.log(log_level, f"[{source}] {message}")
+        # Log through the child logger, so the file says where the record
+        # came from and the handlers on LOGGER_NAME still receive it.
+        logging.getLogger(self.APPLICATION_LOGGER_NAME).log(
+            log_level, "[%s] %s", source, message)
 
         # Emit signal for any listeners
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
