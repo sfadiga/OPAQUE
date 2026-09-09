@@ -13,9 +13,10 @@ import logging
 import os
 import socket
 import atexit
+import tempfile
 import time
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QStandardPaths, Signal
 
 from opaque.services.service import BaseService
 
@@ -42,7 +43,14 @@ class SingleInstanceService(BaseService):
         super().__init__("single_instance")
         self.app_name = app_name
         self.port = port
-        self.lock_file_path = os.path.join(".", f"{app_name}.lock")
+        # The lock goes into the per user temporary folder, not into the
+        # working directory. A packaged application started from a read only
+        # folder cannot write there, and a user who starts the application
+        # from two folders used to get two locks and no protection at all.
+        temporary = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.TempLocation)
+        self.lock_file_path = os.path.join(
+            temporary or tempfile.gettempdir(), f"{app_name}.lock")
         self.lock_file = None
         self.socket = None
         self.lock_acquired = False

@@ -167,26 +167,14 @@ package-lock.json
 *~
 .~*
 
-# Single-instance runtime lock file the application writes on start up.
-# The name comes from the application name, which a user of this framework
-# chooses, so the pattern has to stay a glob.
-*.lock
-# uv.lock is not a runtime lock. It is the dependency lock file, and it is
-# committed because uv owns the environment. This exception must stay after
-# the glob above: in .gitignore the last matching pattern wins. A later plan
-# moves the runtime lock out of the working directory, and once no lock file
-# is ever written next to the source, the glob and this exception can both go.
-!uv.lock
-
 # Build artifacts
 src/*.egg-info/
 src/opaque_framework.egg-info/
 .pytest_cache/
 
-# Run time output that belongs next to the user, not next to the source.
-# `*.lock`, `*.wks` and `.venv` are already ignored earlier in this file,
-# and `*.lock` covers the single instance lock whatever the app is called.
-/logs/
+# The logs and the single instance lock now live under the per user
+# application data and temporary folders. See LoggerService and
+# SingleInstanceService.
 *.egg-link
 
 # Local git worktrees used for isolated plan execution.

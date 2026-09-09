@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, TYPE_CHECKING
 from logging.handlers import RotatingFileHandler
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import QStandardPaths, Signal
 
 from opaque.services.service import BaseService, ServiceLocator
 
@@ -57,7 +57,10 @@ class LoggerService(BaseService):
 
     def __init__(self, log_directory: Optional[str] = None, application_name: Optional[str] = None):
         super().__init__("logger")
-        self._log_directory = log_directory or "logs"
+        # "logs" was relative to the working directory, so a packaged
+        # application could not write it. The per user application data
+        # folder always can, and one place holds every session.
+        self._log_directory = log_directory or self._default_log_directory()
         self._application_name = application_name or "application"
         self._logger: Optional[logging.Logger] = None
         self._file_handler: Optional[RotatingFileHandler] = None
@@ -77,6 +80,22 @@ class LoggerService(BaseService):
         self._notify_on_warning = False
         self._notify_on_error = True
         self._notify_on_critical = True
+
+    @staticmethod
+    def _default_log_directory() -> str:
+        """
+        Return the per user folder that receives the log files.
+
+        QStandardPaths answers with a folder Qt guarantees is writable for
+        this user and this application. An empty answer, which happens on a
+        system with no such location, falls back to a folder beside the
+        user's home.
+        """
+        location = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppDataLocation)
+        if not location:
+            return str(Path.home() / ".opaque" / "logs")
+        return str(Path(location) / "logs")
 
     def initialize(self) -> None:
         """Initialize the logging service"""
