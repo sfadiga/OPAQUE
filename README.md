@@ -157,7 +157,7 @@ uv run python examples/quickstart/main.py
 | You write | The framework needs |
 |---|---|
 | A configuration | The five `get_application_*` accessors. They are abstract; field declarations do not satisfy them. |
-| A model | `feature_name()`, `feature_icon()`, `feature_description()`. |
+| A model | `FEATURE_ID`, `feature_name()`, `feature_icon()`, `feature_description()`. |
 | A view | A widget tree, built in `__init__`, handed to `setWidget()`. |
 | A presenter | `bind_events()`, `update()`, `on_view_show()`. All three are abstract. `on_view_close()` has a working default; override it only to save state. |
 | Registration | Model, then view, then presenter, then `register_feature(presenter)`. In that order. |

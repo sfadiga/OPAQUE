@@ -6,25 +6,40 @@ import pytest
 from PySide6.QtGui import QCloseEvent
 
 from opaque.services.service import ServiceLocator
-from tests.test_application_shell import app_window  # noqa: F401
 
 
 @pytest.fixture(autouse=True)
-def _restore_the_locator_after_a_real_shutdown():
+def _restore_the_locator_after_a_real_shutdown(app_window):
     """
+    Heal app_window's own services before this test, and again after it.
+
     Every test below calls the real closeEvent(), which really tears every
-    registered service down. app_window is session scoped and shared with
-    the rest of the suite, so a service this test tore down must be alive
-    again once the test is over, or the next test to touch the locator (in
-    this file or any file collected after it) finds it empty.
+    registered service down, and app_window is session scoped and shared
+    with the rest of the suite, so a service this test tore down must be
+    alive again once the test is over. The same repair also has to run
+    before the test: a fixture elsewhere in the suite
+    (tests/test_notification_settings.py's "services" fixture) clears the
+    process wide ServiceLocator without saving or restoring what it
+    removed, which tears down app_window's real services too if that file's
+    tests happen to run first. Reading them back off app_window's own
+    attributes and re-initialising them is what makes this file's outcome
+    independent of what ran before it.
     """
-    saved = dict(ServiceLocator._services)
+    def _heal():
+        for service in (
+            app_window.single_instance_service,
+            app_window.workspace_service,
+            app_window.settings_service,
+            app_window.logger_service,
+        ):
+            if not service.is_initialized:
+                service.initialize()
+            if ServiceLocator.get_service(service.name) is not service:
+                ServiceLocator._services[service.name] = service
+
+    _heal()
     yield
-    for service in saved.values():
-        if not service.is_initialized:
-            service.initialize()
-    ServiceLocator._services.clear()
-    ServiceLocator._services.update(saved)
+    _heal()
 
 
 def test_a_presenter_is_cleaned_up_before_the_services(app_window):

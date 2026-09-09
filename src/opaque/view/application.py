@@ -209,18 +209,16 @@ class BaseApplication(QMainWindow):
         and import_settings(). Until now they wrote the file and the model and
         left the interface showing the old values.
 
-        The registry is searched instead of indexed, because a feature has
-        three identity keys today and the registry key is not the settings
-        key. Plan 06 makes this one lookup.
         """
         if feature_id == NOTIFICATION_SETTINGS_ID:
             self.notification_presenter.apply_settings()
             return
 
-        for presenter in self._registered_features.values():
-            if presenter.feature_id == feature_id:
-                presenter.apply_settings()
-                return
+        # One key now: the registry, the settings block and the workspace
+        # block all use FEATURE_ID, so this is a lookup and not a search.
+        presenter = self._registered_features.get(feature_id)
+        if presenter is not None:
+            presenter.apply_settings()
 
     def _repaint_after_theme_change(self) -> None:
         """

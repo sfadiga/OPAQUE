@@ -74,3 +74,54 @@ def test_two_features_with_the_same_identity_are_refused(app_window):
         app_window.register_feature(presenter)
 
     assert presenter.model.feature_id() in str(error.value)
+
+
+def test_the_presenter_identity_comes_from_the_model(app_window):
+    for presenter in app_window._registered_features.values():
+        assert presenter.feature_id == presenter.model.feature_id()
+
+
+def test_the_presenter_constructor_takes_no_identity_argument():
+    import inspect
+
+    from opaque.presenters.presenter import BasePresenter
+
+    parameters = list(
+        inspect.signature(BasePresenter.__init__).parameters)
+    assert parameters == ["self", "model", "view", "app"]
+
+
+def test_the_workspace_block_is_keyed_on_the_identity(app_window, tmp_path):
+    import json
+
+    path = tmp_path / "bench.wks"
+    app_window.workspace_service.save_workspace(str(path))
+
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    for key in saved:
+        assert key in app_window._registered_features
+
+
+def test_a_saved_workspace_loads_back_into_the_same_feature(app_window,
+                                                            tmp_path):
+    path = tmp_path / "bench.wks"
+    app_window.workspace_service.save_workspace(str(path))
+
+    assert app_window.workspace_service.load_workspace(str(path)) is not None
+
+
+def test_the_settings_block_is_keyed_on_the_identity(app_window):
+    stored = app_window.settings_service.get_all_settings()
+    assert "application" in stored
+
+
+def test_a_settings_change_is_delivered_by_one_lookup(app_window,
+                                                      monkeypatch):
+    presenter = app_window._registered_features["application"]
+    calls = []
+    monkeypatch.setattr(
+        presenter, "apply_settings", lambda: calls.append(True))
+
+    app_window.settings_service.settings_changed.emit("application", {})
+
+    assert calls == [True]

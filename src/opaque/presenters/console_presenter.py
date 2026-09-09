@@ -29,7 +29,7 @@ class ConsolePresenter(BasePresenter):
         view = ConsoleView(app)
 
         # Initialize base class - need to pass model as Any since ConsoleModel doesn't inherit from BaseModel
-        super().__init__(model, view, app, "console")  # type: ignore
+        super().__init__(model, view, app)
 
         self._initialized = False
 

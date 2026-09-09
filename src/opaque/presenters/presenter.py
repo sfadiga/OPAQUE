@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from opaque.models.model import BaseModel
 
@@ -39,18 +39,15 @@ class BasePresenter(ABC):
             model: BaseModel,
             view: BaseView,
             app: 'BaseApplication',
-            feature_id: Optional[str] = None
     ) -> None:
         """
         Initialize the presenter.
-        """
 
-        # Auto-generate feature_id if not provided
-        if feature_id is None:
-            # Use the presenter class name as the feature_id
-            self._feature_id = self.__class__.__name__
-        else:
-            self._feature_id = feature_id
+        The identity comes from the model and from nowhere else. It used to be
+        an optional argument that fell back to the presenter class name, so
+        renaming a class lost the saved settings and the saved workspace.
+        """
+        self._feature_id: str = model.feature_id()
 
         self._app: 'BaseApplication' = app
         # a presenter must have be associated with a view and a model
@@ -101,7 +98,12 @@ class BasePresenter(ABC):
 
     @property
     def feature_id(self) -> str:
-        """Get the feature id"""
+        """
+        The identity of this feature, declared by the model as FEATURE_ID.
+
+        It keys the feature registry, the settings block and the workspace
+        block. All three are the same key.
+        """
         return self._feature_id
 
     @property
@@ -187,31 +189,39 @@ class BasePresenter(ABC):
 
     def save_workspace(self, workspace_object: dict) -> None:
         """
-        Save the current worskpace state.
-        Override this to implement state persistence.
+        Save the current workspace state.
+
+        The block is keyed on feature_id, the same key the settings file uses.
+        It used to be keyed on the presenter class name, so renaming a class
+        lost every saved workspace.
+
+        Override this to add more state.
         """
-        state = self.view.get_geometry_state()
-        workspace_object[self.__class__.__name__] = {"window_state": state}
-        fields = type(self.model).get_fields()
-        for name, field in fields.items():
+        block: dict = {"window_state": self.view.get_geometry_state()}
+        for name, field in type(self.model).get_fields().items():
             if field.is_workspace:
-                workspace_object[self.__class__.__name__][name] = getattr(
-                    self.model, name)
+                block[name] = getattr(self.model, name)
+        workspace_object[self.feature_id] = block
 
     def load_workspace(self, workspace_object: dict) -> None:
         """
-        Restore a previously workspace saved state.
-        Override this to implement state restoration.
+        Restore a previously saved workspace state.
+
+        Override this to restore more state.
         """
-        if self.__class__.__name__ in workspace_object:
-            if "window_state" in workspace_object[self.__class__.__name__]:
-                state = workspace_object[self.__class__.__name__]["window_state"]
-                self.view.set_geometry_state(state)
-            if workspace_object[self.__class__.__name__]:
-                for key, value in workspace_object[self.__class__.__name__].items():
-                    if hasattr(self.model, key):
-                        setattr(self.model, key, value)
-                        self.update(key, value)
+        block = workspace_object.get(self.feature_id)
+        if not block:
+            return
+
+        if "window_state" in block:
+            self.view.set_geometry_state(block["window_state"])
+
+        fields = type(self.model).get_fields()
+        for key, value in block.items():
+            if key == "window_state" or key not in fields:
+                continue
+            setattr(self.model, key, fields[key].coerce(value))
+            self.update(key, value)
 
     def cleanup(self) -> None:
         """
