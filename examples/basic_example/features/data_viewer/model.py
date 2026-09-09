@@ -13,6 +13,8 @@ from opaque.view.application import BaseApplication
 class DataViewerModel(BaseModel):
     """Model for the data viewer feature."""
 
+    FEATURE_ID = "data_viewer"
+
     # --- Feature Interface ---
     FEATURE_NAME = "Data Viewer"
     FEATURE_TITLE = "Data Viewer"

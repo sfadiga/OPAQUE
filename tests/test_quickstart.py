@@ -56,7 +56,7 @@ def test_the_quickstart_application_builds(qapp, isolated_locator, tmp_path, mon
         module = importlib.import_module("main")
         window = module.QuickStartApplication()
         try:
-            assert "Greeting" in window._registered_features
+            assert "greeting" in window._registered_features
         finally:
             window.close()
             window.deleteLater()

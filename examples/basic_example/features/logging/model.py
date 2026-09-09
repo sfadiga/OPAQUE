@@ -17,6 +17,7 @@ from opaque.models.annotations import BoolField, IntField, StringField
 class LoggingModel(BaseModel):
     """Settings for the Logging feature"""
 
+    FEATURE_ID = "logging"
     FEATURE_NAME = "Logging"
     FEATURE_ICON = "utilities-terminal"
     FEATURE_TOOLTIP = "Shows application logs and messages."

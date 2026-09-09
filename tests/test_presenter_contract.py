@@ -40,6 +40,8 @@ class _FakeView(QObject):
 class _FakeModel(BaseModel):
     """A model with one field and the required feature name."""
 
+    FEATURE_ID = "contract"
+
     value = IntField(default=0)
 
     def feature_name(self) -> str:

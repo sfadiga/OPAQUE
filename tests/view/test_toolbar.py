@@ -32,6 +32,8 @@ class FakeView(QObject):
 
 
 class FakeModel:
+    FEATURE_ID = "toolbar_test"
+
     def __init__(self, name: str):
         self._name = name
 

@@ -12,6 +12,8 @@ from opaque.view.application import BaseApplication
 class NotificationTesterModel(BaseModel):
     """Model for the notification tester feature."""
 
+    FEATURE_ID = "notification_tester"
+
     # --- Feature Interface ---
     FEATURE_NAME = "Notification Tester"
     FEATURE_TITLE = "Notification System Test"

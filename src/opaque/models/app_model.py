@@ -20,6 +20,7 @@ class ApplicationModel(BaseModel):
     Base model for application-wide settings.
     Developers can subclass this to add their own global settings.
     """
+    FEATURE_ID = "application"
     FEATURE_NAME = "Application"
 
     # The default must be a name that ThemeService.get_available_themes()

@@ -31,8 +31,8 @@ from opaque.view.layouts.toast_stack import (
 logger = logging.getLogger(__name__)
 
 # The settings.json key and the dialog page identity of the notification
-# settings. It is a constant because two modules need the same string.
-NOTIFICATION_SETTINGS_ID = "notification_settings"
+# settings. It reads the model, so there is one declaration of the string.
+NOTIFICATION_SETTINGS_ID = NotificationSettingsModel.FEATURE_ID
 
 
 class NotificationSettingsPage:

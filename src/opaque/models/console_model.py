@@ -49,6 +49,15 @@ class ConsoleModel(QObject):
     output_added = Signal(object)
     output_cleared = Signal()  # Emitted when output is cleared
 
+    # ConsoleModel duck types the model interface instead of extending
+    # AbstractModel, so it declares its own identity.
+    FEATURE_ID = "console"
+
+    @classmethod
+    def feature_id(cls) -> str:
+        """Return the one stable identity of the console feature."""
+        return cls.FEATURE_ID
+
     def __init__(self, app: 'BaseApplication'):
         super().__init__()
         self._app = app

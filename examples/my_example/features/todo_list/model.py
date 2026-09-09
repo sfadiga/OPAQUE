@@ -19,6 +19,7 @@ from opaque.view.application import BaseApplication
 
 
 class TodoListModel(BaseModel):
+    FEATURE_ID = "todo_list"
 
     todo_list = ListField(default=[],
                             description="To do List",

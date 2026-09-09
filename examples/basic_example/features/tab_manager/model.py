@@ -4,6 +4,8 @@ from opaque.models.model import BaseModel
 from PySide6.QtWidgets import QApplication, QStyle
 
 class TabManagerModel(BaseModel):
+    FEATURE_ID = "tab_manager"
+
     def feature_name(self) -> str:
         return "Tab Manager"
 

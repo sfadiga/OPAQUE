@@ -22,6 +22,8 @@ from opaque.view.dialogs.settings import SettingsDialog
 
 
 class DemoModel(AbstractModel):
+    FEATURE_ID = "demo"
+
     enabled = BoolField(default=True, description="Enabled", settings=True)
     count = IntField(default=2, min_value=0, max_value=10,
                      description="Count", settings=True)
@@ -239,6 +241,8 @@ def test_clearing_the_search_clears_the_status(dialog):
 
 class TypedModel(AbstractModel):
     """One field of every kind that the dialog can draw."""
+
+    FEATURE_ID = "typed"
 
     ratio = FloatField(default=2.5, description="Ratio", settings=True)
     level = ChoiceField(default=2, choices=[1, 2, 3],

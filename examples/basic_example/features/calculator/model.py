@@ -12,6 +12,8 @@ from opaque.view.application import BaseApplication
 class CalculatorModel(BaseModel):
     """Model for the calculator feature using annotations for persistence."""
 
+    FEATURE_ID = "calculator"
+
     # --- Feature Interface ---
     FEATURE_NAME = "Calculator"
     FEATURE_TITLE = "Calculator"

@@ -137,6 +137,8 @@ class ListWidget(QWidget):
 # --- MVP Components ---
 
 class TabExampleModel(BaseModel):
+    FEATURE_ID = "closeable_tab"
+
     def feature_name(self) -> str:
         return "Tab Manager"
 

@@ -63,18 +63,19 @@ def test_the_example_application_builds(qapp, isolated_locator, tmp_path, monkey
             # Exact key membership, not a substring of a stringified list.
             # A substring match passed even when most features failed to
             # register, because one surviving key was enough.
-            assert "Calculator" in registered, sorted(registered)
+            assert "calculator" in registered, sorted(registered)
             # The example is the documentation, so its feature set is the
             # contract. Adding a feature to the example means updating this
-            # set, and that is the point.
+            # set, and that is the point. The keys are each feature's
+            # declared FEATURE_ID, not its display title.
             expected = {
-                "ApplicationPresenter",
-                "Calculator",
-                "Console",
-                "Data Viewer",
-                "Logging",
-                "Notification Tester",
-                "Tab Manager",
+                "application",
+                "calculator",
+                "console",
+                "data_viewer",
+                "logging",
+                "notification_tester",
+                "tab_manager",
             }
             assert set(registered) == expected, sorted(registered)
         finally:

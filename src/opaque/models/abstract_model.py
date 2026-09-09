@@ -113,6 +113,37 @@ class AbstractModel(ABC, metaclass=ModelMeta):
 
     _version = "1.0.0"
 
+    # The one stable identity of this feature. A subclass must declare it.
+    # Empty means undeclared, which feature_id() reports.
+    FEATURE_ID: str = ""
+
+    @classmethod
+    def feature_id(cls) -> str:
+        """
+        Return the one stable identity of this feature.
+
+        It is the key of the feature registry, of the block in settings.json
+        and of the block in a workspace file. It must not change once an
+        application has shipped, because a stored file is keyed on it.
+
+        feature_name() is a different thing: a display title, translated, free
+        to change. Using the title as a key meant that translating the
+        interface moved the key.
+
+        Raises:
+            NotImplementedError: When the subclass declares no FEATURE_ID.
+        """
+        if not cls.FEATURE_ID:
+            raise NotImplementedError(
+                f"{cls.__name__} must declare FEATURE_ID. Write:\n"
+                f"    class {cls.__name__}(BaseModel):\n"
+                f"        FEATURE_ID = 'my_feature'\n"
+                f"It is the key of the feature registry, of settings.json and "
+                f"of the workspace file, so keep it short, keep it in ASCII, "
+                f"and never change it once your application has shipped. The "
+                f"display title is feature_name(), which is free to change.")
+        return cls.FEATURE_ID
+
     def __init__(self) -> None:
         """Initialize the base model with change tracking and observer support."""
         # Flag indicating if model has unsaved changes

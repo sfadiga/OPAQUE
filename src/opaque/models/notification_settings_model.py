@@ -24,6 +24,8 @@ class NotificationSettingsModel(AbstractModel):
     NotificationPresenter; see its apply_settings().
     """
 
+    FEATURE_ID = "notification_settings"
+
     # General notification settings
     notifications_enabled = BoolField(
         default=True,

@@ -80,6 +80,8 @@ class QuickStartConfiguration(DefaultApplicationConfiguration):
 class GreetingModel(BaseModel):
     """A feature model. feature_name() is the text the toolbar shows."""
 
+    FEATURE_ID = "greeting"
+
     def feature_name(self) -> str:
         return "Greeting"
 

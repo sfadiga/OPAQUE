@@ -392,11 +392,17 @@ class BaseApplication(QMainWindow):
             ValueError: When another feature is already registered under the
                 same name.
         """
-        feature_name = presenter.model.feature_name()
-        if feature_name in self._registered_features:
-            raise ValueError(f"Feature '{feature_name}' is already registered")
+        feature_id = presenter.model.feature_id()
+        if feature_id in self._registered_features:
+            other = self._registered_features[feature_id]
+            raise ValueError(
+                f"The feature id '{feature_id}' is already registered by "
+                f"{type(other.model).__name__}. Two features cannot share "
+                f"one FEATURE_ID: it keys the registry, settings.json and "
+                f"the workspace file. Give {type(presenter.model).__name__} "
+                f"its own FEATURE_ID.")
 
-        self._registered_features[feature_name] = presenter
+        self._registered_features[feature_id] = presenter
         self.workspace_service.register_feature(presenter)
         self.settings_service.register_model(
             presenter.feature_id, presenter.model)
