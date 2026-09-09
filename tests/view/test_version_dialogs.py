@@ -76,3 +76,56 @@ def test_the_version_status_widget_has_an_accessible_name(
     qtbot.addWidget(widget)
     assert widget.accessibleName() != ""
     assert "1.0" in widget.text()
+
+
+def test_the_version_schema_holds_every_key_the_dialog_shows():
+    import dataclasses
+
+    from opaque.view.version_info_schema import VersionInfo
+
+    names = {entry.name for entry in dataclasses.fields(VersionInfo)}
+    for expected in ("version", "build_date", "commit_hash"):
+        assert expected in names
+
+
+def test_the_schema_can_be_built_from_a_dictionary():
+    from opaque.view.version_info_schema import VersionInfo
+
+    info = VersionInfo.from_dict({"version": "1.2.3"})
+
+    assert info.version == "1.2.3"
+
+
+def test_a_missing_key_gives_the_documented_placeholder():
+    from opaque.view.version_info_schema import VersionInfo
+
+    info = VersionInfo.from_dict({})
+
+    assert info.version == "Unknown"
+    assert info.company == ""
+
+
+def test_an_unknown_key_is_ignored_and_not_written():
+    from opaque.view.version_info_schema import VersionInfo
+
+    info = VersionInfo.from_dict({"versoin": "1.2.3"})
+
+    assert info.version == "Unknown"
+    assert not hasattr(info, "versoin")
+
+
+def test_a_none_value_is_treated_as_a_missing_key():
+    from opaque.view.version_info_schema import VersionInfo
+
+    info = VersionInfo.from_dict({"version": None})
+
+    assert info.version == "Unknown"
+
+
+def test_the_dialog_reads_the_schema_and_not_a_dictionary():
+    import inspect
+
+    from opaque.view.dialogs import version_info
+
+    source = inspect.getsource(version_info)
+    assert "VersionInfo.from_dict(" in source

@@ -21,6 +21,7 @@ from opaque.view.theme import (
     outline,
     surface_variant,
 )
+from opaque.view.version_info_schema import VersionInfo
 
 
 class VersionInfoDialog(QDialog):
@@ -84,10 +85,11 @@ class VersionInfoDialog(QDialog):
         main_group = QGroupBox(self.tr("Application Version"))
         main_layout = QGridLayout(main_group)
 
+        info = VersionInfo.from_dict(self.version_info)
+
         # Version
-        version = self.version_info.get("version", "Unknown")
         main_layout.addWidget(QLabel(self.tr("Version:")), 0, 0)
-        version_label = QLabel(version)
+        version_label = QLabel(info.version)
         version_font = version_label.font()
         version_font.setPointSize(version_font.pointSize() + 2)
         version_font.setBold(True)
@@ -95,30 +97,25 @@ class VersionInfoDialog(QDialog):
         main_layout.addWidget(version_label, 0, 1)
 
         # Product name
-        product_name = self.version_info.get(
-            "product_name", "OPAQUE Framework Application")
         main_layout.addWidget(QLabel(self.tr("Product:")), 1, 0)
-        main_layout.addWidget(QLabel(product_name), 1, 1)
+        main_layout.addWidget(QLabel(info.product_name), 1, 1)
 
         # Company
-        company = self.version_info.get("company", "")
-        if company:
+        if info.company:
             main_layout.addWidget(QLabel(self.tr("Company:")), 2, 0)
-            main_layout.addWidget(QLabel(company), 2, 1)
+            main_layout.addWidget(QLabel(info.company), 2, 1)
 
         # Description
-        description = self.version_info.get("description", "")
-        if description:
+        if info.description:
             main_layout.addWidget(QLabel(self.tr("Description:")), 3, 0)
-            desc_label = QLabel(description)
+            desc_label = QLabel(info.description)
             desc_label.setWordWrap(True)
             main_layout.addWidget(desc_label, 3, 1)
 
         # Copyright
-        copyright_info = self.version_info.get("copyright", "")
-        if copyright_info:
+        if info.copyright:
             main_layout.addWidget(QLabel(self.tr("Copyright:")), 4, 0)
-            main_layout.addWidget(QLabel(copyright_info), 4, 1)
+            main_layout.addWidget(QLabel(info.copyright), 4, 1)
 
         layout.addWidget(main_group)
         layout.addStretch()
@@ -136,36 +133,34 @@ class VersionInfoDialog(QDialog):
         build_layout = QGridLayout(build_group)
 
         row = 0
+        info = VersionInfo.from_dict(self.version_info)
 
         # Build date
-        build_date = self.version_info.get("build_date", "")
-        if build_date:
+        if info.build_date:
             build_layout.addWidget(QLabel(self.tr("Build Date:")), row, 0)
-            build_layout.addWidget(QLabel(build_date), row, 1)
+            build_layout.addWidget(QLabel(info.build_date), row, 1)
             row += 1
 
         # Build number
-        build_number = self.version_info.get("build_number", "")
-        if build_number:
+        if info.build_number:
             build_layout.addWidget(QLabel(self.tr("Build Number:")), row, 0)
-            build_layout.addWidget(QLabel(build_number), row, 1)
+            build_layout.addWidget(QLabel(info.build_number), row, 1)
             row += 1
 
         # Commit hash
-        commit_hash = self.version_info.get("commit_hash", "")
-        if commit_hash:
+        if info.commit_hash:
             build_layout.addWidget(QLabel(self.tr("Commit Hash:")), row, 0)
             commit_label = QLabel(
-                commit_hash[:16] + "..." if len(commit_hash) > 16 else commit_hash)
-            commit_label.setToolTip(commit_hash)
+                info.commit_hash[:16] + "..." if len(info.commit_hash) > 16
+                else info.commit_hash)
+            commit_label.setToolTip(info.commit_hash)
             build_layout.addWidget(commit_label, row, 1)
             row += 1
 
         # Build tools
-        build_tool = self.version_info.get("build_tool", "")
-        if build_tool:
+        if info.build_tool:
             build_layout.addWidget(QLabel(self.tr("Build Tool:")), row, 0)
-            build_layout.addWidget(QLabel(build_tool), row, 1)
+            build_layout.addWidget(QLabel(info.build_tool), row, 1)
             row += 1
 
         # Framework version
@@ -250,41 +245,33 @@ class VersionInfoDialog(QDialog):
         """Copy version information to clipboard."""
         info_lines = []
 
+        info = VersionInfo.from_dict(self.version_info)
+
         # Basic info
         info_lines.append("=== Version Information ===")
-        version = self.version_info.get("version", "Unknown")
-        product_name = self.version_info.get(
-            "product_name", "OPAQUE Framework Application")
-        info_lines.append(f"Product: {product_name}")
-        info_lines.append(f"Version: {version}")
+        info_lines.append(f"Product: {info.product_name}")
+        info_lines.append(f"Version: {info.version}")
 
-        company = self.version_info.get("company", "")
-        if company:
-            info_lines.append(f"Company: {company}")
+        if info.company:
+            info_lines.append(f"Company: {info.company}")
 
-        description = self.version_info.get("description", "")
-        if description:
-            info_lines.append(f"Description: {description}")
+        if info.description:
+            info_lines.append(f"Description: {info.description}")
 
-        copyright_info = self.version_info.get("copyright", "")
-        if copyright_info:
-            info_lines.append(f"Copyright: {copyright_info}")
+        if info.copyright:
+            info_lines.append(f"Copyright: {info.copyright}")
 
         info_lines.append("")
 
         # Build info
-        build_date = self.version_info.get("build_date", "")
-        build_number = self.version_info.get("build_number", "")
-        commit_hash = self.version_info.get("commit_hash", "")
-
-        if any([build_date, build_number, commit_hash]):
+        if any([info.build_date, info.build_number, info.commit_hash]):
             info_lines.append("=== Build Information ===")
-            if build_date:
-                info_lines.append(f"Build Date: {build_date}")
-            if build_number:
-                info_lines.append(f"Build Number: {build_number}")
-            if commit_hash:
-                info_lines.append(f"Commit Hash: {commit_hash}")
+            if info.build_date:
+                info_lines.append(f"Build Date: {info.build_date}")
+            if info.build_number:
+                info_lines.append(f"Build Number: {info.build_number}")
+            if info.commit_hash:
+                info_lines.append(f"Commit Hash: {info.commit_hash}")
             info_lines.append("")
 
         # System info
@@ -350,26 +337,23 @@ class VersionStatusWidget(QPushButton):
 
     def _update_display(self):
         """Update the status display."""
-        version = self.version_info.get("version", "Unknown")
-        build_number = self.version_info.get("build_number", "")
+        info = VersionInfo.from_dict(self.version_info)
 
-        text = f"v{version}"
-        if build_number:
-            text += f" (Build {build_number})"
+        text = f"v{info.version}"
+        if info.build_number:
+            text += f" (Build {info.build_number})"
 
         self.setText(text)
 
         # Set tooltip with more info
-        tooltip_lines = [f"Version: {version}"]
+        tooltip_lines = [f"Version: {info.version}"]
 
-        build_date = self.version_info.get("build_date", "")
-        if build_date:
-            tooltip_lines.append(f"Build Date: {build_date}")
+        if info.build_date:
+            tooltip_lines.append(f"Build Date: {info.build_date}")
 
-        commit_hash = self.version_info.get("commit_hash", "")
-        if commit_hash:
-            short_hash = commit_hash[:8] if len(
-                commit_hash) > 8 else commit_hash
+        if info.commit_hash:
+            short_hash = info.commit_hash[:8] if len(
+                info.commit_hash) > 8 else info.commit_hash
             tooltip_lines.append(f"Commit: {short_hash}")
 
         self.setToolTip("\n".join(tooltip_lines))
@@ -420,9 +404,9 @@ class AboutDialog(QDialog):
         # Title and version
         title_layout = QVBoxLayout()
 
-        product_name = self.version_info.get(
-            "product_name", "OPAQUE Framework Application")
-        title_label = QLabel(product_name)
+        info = VersionInfo.from_dict(self.version_info)
+
+        title_label = QLabel(info.product_name)
         title_font = title_label.font()
         title_font.setPointSize(title_font.pointSize() + 4)
         title_font.setBold(True)
@@ -430,8 +414,7 @@ class AboutDialog(QDialog):
         title_label.setAlignment(Qt.AlignCenter)
         title_layout.addWidget(title_label)
 
-        version = self.version_info.get("version", "Unknown")
-        version_label = QLabel(f"Version {version}")
+        version_label = QLabel(f"Version {info.version}")
         version_font = version_label.font()
         version_font.setPointSize(version_font.pointSize() + 1)
         version_label.setFont(version_font)
@@ -442,17 +425,15 @@ class AboutDialog(QDialog):
         layout.addLayout(header_layout)
 
         # Description
-        description = self.version_info.get("description", "")
-        if description:
-            desc_label = QLabel(description)
+        if info.description:
+            desc_label = QLabel(info.description)
             desc_label.setWordWrap(True)
             desc_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(desc_label)
 
         # Copyright
-        copyright_info = self.version_info.get("copyright", "")
-        if copyright_info:
-            copyright_label = QLabel(copyright_info)
+        if info.copyright:
+            copyright_label = QLabel(info.copyright)
             copyright_label.setAlignment(Qt.AlignCenter)
             layout.addWidget(copyright_label)
 
