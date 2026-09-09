@@ -87,12 +87,57 @@ class Field:
         """Convert value from a serializable format."""
         return value
 
+    def coerce(self, value: Any) -> Any:
+        """
+        Convert a raw widget value into the type this field stores.
+
+        The settings dialog builds a widget from ui_type and reads back
+        whatever that widget produces, which is not always the type the field
+        holds: a combo box gives display text, a line edit gives a string.
+        The dialog calls this before it queues a value, so a round trip
+        through the dialog can no longer change a type.
+
+        The base implementation maps a value back onto the declared choice
+        object, because a combo box only ever hands back text. A subclass
+        calls super().coerce(value) first and then converts.
+
+        None passes through unchanged: an unset value stays unset.
+
+        Raises:
+            ValueError: When the value is not one of the declared choices.
+        """
+        if value is None:
+            return None
+
+        if self.choices:
+            for choice in self.choices:
+                if choice == value or str(choice) == str(value):
+                    return choice
+            raise ValueError(
+                f"{value!r} is not one of the allowed choices for "
+                f"'{self.name}': {self.choices}")
+
+        return value
+
+    def display(self, value: Any) -> str:
+        """
+        Return the value as the text a line edit or a combo box shows.
+
+        The inverse of coerce for the text widgets. Override it when str()
+        gives something the user cannot edit back into the same value.
+        """
+        return "" if value is None else str(value)
+
 
 class StringField(Field):
     """Field for string values."""
 
     def __init__(self, ui_type: UIType = UIType.TEXT, **kwargs: Any):
         super().__init__(ui_type=ui_type, **kwargs)
+
+    def coerce(self, value: Any) -> Any:
+        value = super().coerce(value)
+        return None if value is None else str(value)
 
 
 class IntField(Field):
@@ -101,26 +146,65 @@ class IntField(Field):
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.SPINBOX, **kwargs)
 
+    def coerce(self, value: Any) -> Any:
+        value = super().coerce(value)
+        return None if value is None else int(value)
+
 
 class FloatField(Field):
     """Field for float values."""
 
     def __init__(self, **kwargs: Any):
-        super().__init__(ui_type=UIType.SPINBOX, **kwargs)
+        # A float needs a widget with a fraction. It used to declare
+        # UIType.SPINBOX, so the dialog drew a QSpinBox and truncated every
+        # value it read back.
+        super().__init__(ui_type=UIType.DOUBLE_SPINBOX, **kwargs)
+
+    def coerce(self, value: Any) -> Any:
+        value = super().coerce(value)
+        return None if value is None else float(value)
 
 
 class BoolField(Field):
     """Field for boolean values."""
 
+    # The strings a check box or a settings file can hold for True.
+    TRUE_WORDS = ("1", "true", "yes", "on")
+
     def __init__(self, **kwargs: Any):
         super().__init__(ui_type=UIType.CHECKBOX, **kwargs)
 
+    def coerce(self, value: Any) -> Any:
+        value = super().coerce(value)
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value.strip().lower() in self.TRUE_WORDS
+        return bool(value)
+
 
 class ListField(Field):
-    """Field for list values."""
+    """Field for list values. Shown and edited as comma separated text."""
 
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
+
+    def coerce(self, value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        text = str(value).strip()
+        if not text:
+            return []
+        return [item.strip() for item in text.split(",")]
+
+    def display(self, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, (list, tuple)):
+            return ", ".join(str(item) for item in value)
+        return str(value)
 
 
 class ChoiceField(Field):
