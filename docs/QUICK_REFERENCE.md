@@ -16,7 +16,7 @@ from opaque import BaseApplication, BaseModel, BasePresenter, BaseView, FeatureC
 |---|---|---|---|
 | `BaseApplication` | `opaque.shell` | `QMainWindow` shell: service registry, feature registry, toolbar, MDI area | `__init__` that calls `super().__init__(configuration)` then registers features |
 | `BaseModel` | `opaque.models.model` | State plus feature identity | `FEATURE_ID`, `feature_name()`, `feature_icon()`, `feature_description()` |
-| `BaseView` | `opaque.view.view` | One MDI sub-window | the widget tree |
+| `BaseView` | `opaque.view.view` | One MDI sub-window | `setup_ui()`, the widget tree, called at the end of `__init__` |
 | `BasePresenter` | `opaque.presenters.presenter` | The wiring | `bind_events()`, `update()`, `on_view_show()`, `on_view_close()` |
 | `FeatureContext` | `opaque.features.context` | Everything a feature may know about its application | nothing; the shell builds it |
 | `DefaultApplicationConfiguration` | `opaque.models.configuration` | Application metadata | five `get_application_*` accessors |

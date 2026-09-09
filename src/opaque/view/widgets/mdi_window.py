@@ -67,14 +67,14 @@ class OpaqueMdiSubWindow(QMdiSubWindow):
         start_open: bool = False,
         closeable: bool = False,
         minimum_size: Tuple[int, int] = (300, 200),
-        fixed_size: Tuple[int, int] = None,
+        fixed_size: Optional[Tuple[int, int]] = None,
         parent: Optional[QWidget] = None,
         flags: Qt.WindowType = Qt.WindowType.Widget,
     ) -> None:
         super().__init__(parent, flags)
 
         # if not None sets the window to fixe size
-        self._fixed_size: Tuple[int, int] = fixed_size
+        self._fixed_size: Optional[Tuple[int, int]] = fixed_size
 
         # if true close event will do real close
         self._closeable: bool = closeable

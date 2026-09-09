@@ -59,6 +59,11 @@ SKIPPED_FILES: dict[str, str] = {
         "Design plan for opaque.view.version_info_schema and a "
         "opaque.view.widgets.close_button split, not built yet."
     ),
+    "2026-09-07-opaque-ui-11-opportunities.md": (
+        "Historical plan that fixed opaque.view.layouts.flow.FlowLayout "
+        "before Plan 10 Task 1 deleted that module for having no "
+        "production caller. The import was real when this plan ran."
+    ),
 }
 
 _CODE_BLOCK = re.compile(r"```(?:python|py)\n(.*?)```", re.DOTALL)

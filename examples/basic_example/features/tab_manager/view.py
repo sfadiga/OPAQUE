@@ -108,7 +108,8 @@ class ListWidget(QWidget):
 class TabManagerView(BaseView):
     def __init__(self, context: FeatureContext, parent=None):
         super().__init__(context, parent)
-        
+
+    def setup_ui(self) -> None:
         layout = QVBoxLayout()
         
         # Info label

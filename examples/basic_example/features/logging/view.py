@@ -20,6 +20,7 @@ class LoggingView(BaseView):
     def __init__(self, context: FeatureContext):
         super().__init__(context)
 
+    def setup_ui(self) -> None:
         # Create and set the central widget
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)

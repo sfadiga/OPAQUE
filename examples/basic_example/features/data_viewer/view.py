@@ -26,14 +26,12 @@ class DataViewerView(BaseView):
     def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
         """Initialize the view."""
         super().__init__(context, parent)
-        self.init_ui()
 
     def feature_id(self) -> str:
         """Return the feature ID."""
         return "data_viewer"
 
-
-    def init_ui(self):
+    def setup_ui(self) -> None:
         """Initialize the UI components."""
         # Create main layout
         layout = QVBoxLayout()

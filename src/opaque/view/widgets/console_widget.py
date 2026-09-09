@@ -478,6 +478,8 @@ class ConsoleView(BaseView):
 
     def __init__(self, context, parent: Optional[QWidget] = None):
         super().__init__(context, parent)
+
+    def setup_ui(self) -> None:
         self.setWindowTitle(self.tr("Console"))
 
         # Create console widget as the main content

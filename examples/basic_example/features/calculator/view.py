@@ -29,9 +29,8 @@ class CalculatorView(BaseView):
 
     def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
         super().__init__(context, parent)
-        self._setup_ui()
 
-    def _setup_ui(self):
+    def setup_ui(self) -> None:
         """Setup the calculator UI."""
         layout = QVBoxLayout()
 

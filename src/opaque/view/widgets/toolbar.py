@@ -67,31 +67,18 @@ class OpaqueMainToolbar(QToolBar):
 
         self.addWidget(button)
         # --- Connect signals and slots ---
-        self.connect_slot_to_button_click(presenter.view.open_close, button)
+        button.clicked.connect(presenter.view.open_close)
         # 2. Window is shown -> Highlight button
-        self.connect_signal_to_set_active(presenter.view.window_opened.connect, button)
+        presenter.view.window_opened.connect(lambda: self._set_active(button))
         # 3. Window is focused -> Highlight button
-        self.connect_signal_to_set_active(presenter.view.window_focused.connect, button)
+        presenter.view.window_focused.connect(lambda: self._set_active(button))
         # 4. Window is unfocused -> Highlight button
-        # self.connect_signal_to_set_inactive(presenter.view.window_unfocused.connect, button)
+        # presenter.view.window_unfocused.connect(lambda: self._set_inactive(button))
         # 5. Window is closed -> Un-highlight button
-        self.connect_signal_to_set_inactive(presenter.view.window_closed.connect, button)
+        presenter.view.window_closed.connect(lambda: self._set_inactive(button))
 
         # button is returned as a reference so signals/slots can be associated with
         return button
-
-    def add_separator(self):
-        "wrapper to be used in when a peparator is required"
-        self.addSeparator()
-
-    def connect_slot_to_button_click(self, open_close_slot: Callable, button: QToolButton):
-        button.clicked.connect(open_close_slot)
-
-    def connect_signal_to_set_active(self, activate_signal: Callable, button: QToolButton):
-        activate_signal(lambda: self._set_active(button))
-
-    def connect_signal_to_set_inactive(self, deactivate_signal: Callable, button: QToolButton):
-        deactivate_signal(lambda: self._set_inactive(button))
 
     def add_notification_button(self, callback: Callable) -> QToolButton:
         """

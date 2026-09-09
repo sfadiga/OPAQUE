@@ -61,6 +61,8 @@ class TemplateView(BaseView):
 
     def __init__(self, context: FeatureContext, parent=None) -> None:
         super().__init__(context, parent)
+
+    def setup_ui(self) -> None:
         self.label = QLabel(self.tr("Your application starts here."))
         self.setWidget(self.label)
 

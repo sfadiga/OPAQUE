@@ -20,7 +20,7 @@ from opaque.features.context import FeatureContext
 from opaque.presenters.presenter import BasePresenter
 
 from opaque.models.app_model import ApplicationModel
-from opaque.view.app_view import ApplicationView
+from opaque.view.view import BaseView
 
 
 class ApplicationPresenter(BasePresenter):
@@ -28,7 +28,7 @@ class ApplicationPresenter(BasePresenter):
     def __init__(
             self,
             model: ApplicationModel,
-            view: ApplicationView,
+            view: BaseView,
             context: FeatureContext,
     ):
         super().__init__(model, view, context)

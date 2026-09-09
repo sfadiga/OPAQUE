@@ -52,7 +52,6 @@ from opaque.presenters.notification_presenter import (
     NotificationPresenter,
 )
 from opaque.models.app_model import ApplicationModel
-from opaque.view.app_view import ApplicationView
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +274,11 @@ class BaseApplication(QMainWindow):
     def _init_application_settings(self) -> None:
         """Initialize application settings using the model from application_settings_model()"""
         model = ApplicationModel(self._context)
-        view = ApplicationView(self._context)  # dummy only for settings
+        # The application settings have no window of their own. They need a
+        # view only because BasePresenter takes one, so this is a plain
+        # BaseView that is never shown. ApplicationView was a subclass that
+        # added nothing and annotated its one parameter as a string.
+        view = BaseView(self._context)
         presenter = ApplicationPresenter(model, view, self._context)
         # add settings presenter directly to registered features so it is not displayed on toolbar
         self._registered_features[presenter.feature_id] = presenter
