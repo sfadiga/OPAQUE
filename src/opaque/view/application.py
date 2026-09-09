@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMain
 from PySide6.QtGui import (
     QAction, QIcon, QCloseEvent, QDragEnterEvent, QDropEvent, QKeySequence,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QLocale, Qt
 
 from opaque.view.widgets.mdi_window import OpaqueMdiArea
 from opaque.view.widgets.toolbar import OpaqueMainToolbar
@@ -32,7 +32,7 @@ from opaque.models.configuration import DefaultApplicationConfiguration
 from opaque.services.single_instance_service import SingleInstanceService
 from opaque.services.workspace_service import WorkspaceService
 from opaque.services.theme_service import ThemeService
-from opaque.services.settings_service import SettingsService
+from opaque.services.settings_service import SettingsService, stored_language
 from opaque.services.notification_service import NotificationService
 from opaque.services.logger_service import LoggerService
 
@@ -71,14 +71,21 @@ class BaseApplication(QMainWindow):
 
         super().__init__(parent)
 
+        # The stored language decides the locale, and it is read from the file
+        # because the settings service does not exist yet.
+        self._language_at_start: str = stored_language(
+            configuration.get_settings_file_path())
+        locale = (QLocale(self._language_at_start)
+                  if self._language_at_start else QLocale.system())
+
         # Make this window accessible to views via QApplication
         app = QApplication.instance()
         if app:
             app.main_window = self  # type: ignore
             # The translator must be installed before any widget is built.
             # A widget reads its strings once, when it is created.
-            install_translator(app)
-            apply_layout_direction(app)
+            install_translator(app, locale=locale)
+            apply_layout_direction(app, locale=locale)
 
         # Application internal configuration, not its settings
         self._configuration = configuration

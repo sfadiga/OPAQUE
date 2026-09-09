@@ -8,6 +8,7 @@
 # You should have received a copy of the MIT License along with this program.
 # If not, see <https://opensource.org/licenses/MIT>.
 """
+import logging
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtWidgets import QApplication
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import QApplication
 
 from opaque.services.service import ServiceLocator
 from opaque.services.theme_service import ThemeService
+from opaque.services.notification_service import NotificationLevel
 from opaque.presenters.presenter import BasePresenter
 
 from opaque.models.app_model import ApplicationModel
@@ -23,6 +25,8 @@ from opaque.view.app_view import ApplicationView
 
 if TYPE_CHECKING:
     from opaque.view.application import BaseApplication
+
+logger = logging.getLogger(__name__)
 
 
 class ApplicationPresenter(BasePresenter):
@@ -42,6 +46,11 @@ class ApplicationPresenter(BasePresenter):
 
         self._apply_current_theme()
 
+        # The language cannot change while the process runs: every widget
+        # already read its strings. Remember what was loaded, so a change can
+        # be reported instead of looking as if it did nothing.
+        self._language_at_start: str = str(self.model.language)
+
     def _apply_current_theme(self) -> None:
         """
         Apply the theme the model holds, falling back to the default.
@@ -58,8 +67,36 @@ class ApplicationPresenter(BasePresenter):
         self.theme_service.apply_theme(wanted)
 
     def apply_settings(self) -> None:
-        """Apply the theme when settings are changed."""
+        """Apply the theme, and report a language change."""
         self._apply_current_theme()
+        self._report_language_change()
+
+    def _report_language_change(self) -> None:
+        """
+        Tell the user that the new language arrives at the next start.
+
+        Qt reads every string when a widget is built, so a running window
+        cannot change language. Saying nothing made the setting look broken.
+        """
+        wanted = str(self.model.language)
+        if wanted == self._language_at_start:
+            return
+
+        title = self.tr("Language changed")
+        message = self.tr(
+            "The new language is used the next time the application starts.")
+
+        service = ServiceLocator.get_service("notification")
+        if service is not None and hasattr(service, "add_notification"):
+            service.add_notification(
+                level=NotificationLevel.INFO,
+                title=title,
+                message=message,
+                source="Settings",
+                persistent=True,
+            )
+        else:
+            logger.info("%s: %s", title, message)
 
     def bind_events(self) -> None:
         pass

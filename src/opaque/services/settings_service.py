@@ -23,6 +23,44 @@ from opaque.services.service import BaseService
 logger = logging.getLogger(__name__)
 
 
+def stored_language(settings_file: Path) -> str:
+    """
+    Read the stored interface language straight from the settings file.
+
+    The translator has to be installed before the first widget is built,
+    because a widget reads its strings once, when it is created. That is
+    before SettingsService exists, so this reads the one value that is needed
+    that early.
+
+    Every feature block is searched, because the block key is the feature
+    identity and this must not depend on which feature holds the application
+    settings.
+
+    Args:
+        settings_file: The settings file to read.
+
+    Returns:
+        The language code, or an empty string when the file, the block or the
+        key is absent, unreadable or not text.
+    """
+    try:
+        with open(settings_file, 'r', encoding='utf-8') as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return ""
+
+    if not isinstance(data, dict):
+        return ""
+
+    for block in data.values():
+        if isinstance(block, dict):
+            value = block.get("language")
+            if isinstance(value, str) and value:
+                return value
+
+    return ""
+
+
 class SettingsService(BaseService):
     """Manages application settings persistence."""
 
