@@ -185,6 +185,89 @@ def test_a_file_holds_no_commented_out_code(path):
     assert offenders == []
 
 
+def test_no_framework_module_calls_print():
+    import pathlib
+
+    # build_tools/cli.py is a command line entry point: printing to the
+    # terminal is its normal interface, not a framework failure report.
+    excluded = {str(pathlib.Path("src/opaque/build_tools/cli.py"))}
+
+    offenders = []
+    for path in pathlib.Path("src/opaque").rglob("*.py"):
+        if str(path) in excluded:
+            continue
+        for number, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), start=1):
+            stripped = line.strip()
+            if stripped.startswith("print(") or " print(" in stripped:
+                offenders.append(f"{path}:{number}")
+
+    assert offenders == []
+
+
+def test_the_close_button_has_one_definition():
+    import pathlib
+
+    offenders = [
+        str(path) for path in pathlib.Path("src/opaque").rglob("*.py")
+        if "×" in path.read_text(encoding="utf-8")
+        and path.name != "close_button.py"
+    ]
+
+    assert offenders == []
+
+
+def test_the_close_button_is_big_enough_to_hit(qtbot):
+    from opaque.view.theme import MINIMUM_HIT_TARGET
+    from opaque.view.widgets.close_button import CloseButton
+
+    button = CloseButton()
+    qtbot.addWidget(button)
+
+    assert button.minimumWidth() >= MINIMUM_HIT_TARGET
+    assert button.minimumHeight() >= MINIMUM_HIT_TARGET
+
+
+def test_the_close_button_reaches_a_screen_reader(qtbot):
+    from opaque.view.widgets.close_button import CloseButton
+
+    button = CloseButton()
+    qtbot.addWidget(button)
+
+    assert button.accessibleName()
+
+
+def test_the_confirm_dialog_mechanics_have_one_definition():
+    """
+    CloseableTabWidget and NotificationListItem each keep their own
+    overridable _confirm_* method, because tests replace those methods by
+    name so the question box never opens in a test run. What used to be
+    duplicated is the QMessageBox.question(...) call itself; that now has
+    exactly one definition, in opaque.view.widgets.confirm.
+    """
+    import pathlib
+
+    offenders = [
+        str(path) for path in pathlib.Path("src/opaque").rglob("*.py")
+        if "QMessageBox.question(" in path.read_text(encoding="utf-8")
+        and path.name != "confirm.py"
+    ]
+
+    assert offenders == []
+
+
+def test_no_connected_handler_has_an_empty_body():
+    import inspect
+    import re
+
+    from opaque.presenters import notification_presenter
+
+    source = inspect.getsource(notification_presenter)
+    # A handler with nothing but a docstring and pass is either dead wiring
+    # or an unfinished job. Both have to be resolved, not left connected.
+    assert not re.search(r"def _on_[a-z_]+\([^)]*\)[^:]*:\s*\n(\s*\"\"\"[^\"]*\"\"\"\s*\n)?\s*pass\s*\n", source)
+
+
 def test_no_default_of_none_is_annotated_as_a_value():
     import inspect
     import typing

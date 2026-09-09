@@ -163,20 +163,7 @@ class NotificationPresenter(QObject):
     def _connect_signals(self) -> None:
         """Connect model and view signals"""
         try:
-            if self._notification_model:
-                # Connect notification model signals
-                self._notification_model.notifications_changed.connect(
-                    self._on_notifications_changed
-                )
-                self._notification_model.notification_count_changed.connect(
-                    self._on_notification_count_changed
-                )
-
             if self._logger_model:
-                # Connect logger model signals
-                self._logger_model.log_entry_added.connect(
-                    self._on_log_entry_added
-                )
                 self._logger_model.configuration_changed.connect(
                     self._on_logger_configuration_changed
                 )
@@ -323,25 +310,9 @@ class NotificationPresenter(QObject):
         for toast, position in zip(newest_first, positions):
             toast.move(position)
 
-    # Model event handlers
-    def _on_notifications_changed(self) -> None:
-        """Handle notifications changed in model"""
-        # Logic moved to _on_service_notification_added mostly
-        pass
-
-    def _on_notification_count_changed(self, count: int) -> None:
-        """Handle notification count changed"""
-        # Could be used to update main window title bar or status
-        pass
-
-    def _on_log_entry_added(self, level: str, message: str, source: str, timestamp: str) -> None:
-        """Handle log entry added from logger model"""
-        # Log entries are automatically forwarded to notifications by the logger service
-        pass
-
     def _on_logger_configuration_changed(self) -> None:
-        """Handle logger configuration changed"""
-        pass
+        """Re-apply the logger settings to the running logger service."""
+        self._apply_logger_settings()
 
     # Public API for other presenters/components
     def show_notifications(self) -> None:

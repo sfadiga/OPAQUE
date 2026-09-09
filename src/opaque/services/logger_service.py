@@ -22,6 +22,8 @@ from opaque.services.service import BaseService, ServiceLocator
 if TYPE_CHECKING:
     from opaque.services.notification_service import NotificationService
 
+logger = logging.getLogger(__name__)
+
 
 class LoggerService(BaseService):
     """
@@ -176,8 +178,8 @@ class LoggerService(BaseService):
             if self._logger:
                 self._logger.addHandler(self._file_handler)
 
-        except Exception as e:
-            print(f"Failed to set up file logging: {e}")
+        except OSError:
+            logger.exception("Failed to set up file logging")
 
     def _setup_console_logging(self) -> None:
         """Set up console handler"""
@@ -196,8 +198,8 @@ class LoggerService(BaseService):
             if self._logger:
                 self._logger.addHandler(self._console_handler)
 
-        except Exception as e:
-            print(f"Failed to set up console logging: {e}")
+        except OSError:
+            logger.exception("Failed to set up console logging")
 
     def log(self, level: str, message: str, source: str = "System", notify: Optional[bool] = None) -> None:
         """
@@ -272,9 +274,10 @@ class LoggerService(BaseService):
                 source=source,
                 persistent=persistent
             )
-        except Exception as e:
+        except (LookupError, AttributeError, TypeError):
             # Don't let notification errors break logging
-            print(f"Failed to send notification: {e}")
+            logger.exception(
+                "Failed to send the log record to the notification service")
 
     def debug(self, message: str, source: str = "System", notify: bool = False) -> None:
         """Log a debug message"""

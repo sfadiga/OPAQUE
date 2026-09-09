@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal
 
+from opaque.view.widgets.confirm import confirm_destructive_action
+
 logger = logging.getLogger(__name__)
 
 
@@ -209,14 +211,11 @@ class CloseableTabWidget(QWidget):
         A test replaces this method, so the question box never opens in a test
         run. Keep the question in this method and nothing else.
         """
-        answer = QMessageBox.question(
+        return confirm_destructive_action(
             self,
             self.tr("Close this tab?"),
             self.tr("The tab and everything in it will be removed."),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
         )
-        return answer == QMessageBox.StandardButton.Yes
 
     def remove_tab(self, index: int, confirm: bool = True) -> bool:
         """

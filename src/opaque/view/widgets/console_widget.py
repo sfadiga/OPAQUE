@@ -18,6 +18,7 @@ from PySide6.QtGui import (
 
 from opaque.view.view import BaseView
 from opaque.models.console_model import ConsoleOutputItem
+from opaque.view.widgets.close_button import CloseButton
 from opaque.view.theme import (
     StatusRole,
     TypeScale,
@@ -238,8 +239,7 @@ class ConsoleWidget(QWidget):
         self.case_sensitive_checkbox = QCheckBox(self.tr("Case sensitive"))
         layout.addWidget(self.case_sensitive_checkbox)
 
-        self.close_search_button = QPushButton("×")
-        self.close_search_button.setFixedSize(28, 28)
+        self.close_search_button = CloseButton()
         self.close_search_button.setAccessibleName(self.tr("Close search"))
         self.close_search_button.setToolTip(self.tr("Close search (Escape)"))
         self.close_search_button.clicked.connect(self.hide_search)

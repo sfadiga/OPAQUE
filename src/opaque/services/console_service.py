@@ -5,6 +5,7 @@ Console service for capturing and redirecting stdout/stderr output.
 Licensed under MIT License
 """
 
+import logging
 import sys
 import io
 from typing import TextIO, Optional, Callable, Dict, Any
@@ -13,6 +14,8 @@ from queue import Queue, Empty
 from PySide6.QtCore import Signal, QTimer
 
 from opaque.services.service import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class StreamRedirector(io.TextIOBase):
@@ -185,14 +188,17 @@ class ConsoleService(BaseService):
                 for handler in self._output_handlers:
                     try:
                         handler(output_item)
-                    except Exception as e:
-                        # Don't let handler errors break the service
-                        print(f"Console handler error: {e}")
+                    except Exception:  # pylint: disable=broad-except
+                        # Never print here. This method drains the captured
+                        # stdout queue, so a print would go back into the
+                        # queue that is already failing, and the report
+                        # would vanish into itself.
+                        logger.exception("Console handler error")
 
             except Empty:
                 break
-            except Exception as e:
-                print(f"Console processing error: {e}")
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("Console processing error")
                 break
 
     def write_to_console(self, text: str, stream_type: str = 'stdout'):

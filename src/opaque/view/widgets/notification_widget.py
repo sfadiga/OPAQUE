@@ -13,12 +13,14 @@ from typing import Optional, Dict
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,
-    QLabel, QFrame, QScrollArea, QGraphicsOpacityEffect, QMessageBox
+    QLabel, QFrame, QScrollArea, QGraphicsOpacityEffect
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation
 
 from opaque.services.service import ServiceLocator
 from opaque.services.notification_service import NotificationService, Notification, NotificationLevel
+from opaque.view.widgets.close_button import CloseButton
+from opaque.view.widgets.confirm import confirm_destructive_action
 from opaque.view.theme import (
     MINIMUM_HIT_TARGET,
     StatusColors,
@@ -43,6 +45,32 @@ _STATUS_BY_LEVEL = {
 def status_role_for_level(level: NotificationLevel) -> StatusRole:
     """Return the status role that shows this notification level."""
     return _STATUS_BY_LEVEL.get(level, StatusRole.NEUTRAL)
+
+
+def _build_notification_header_row(notification: Notification):
+    """
+    Build the header row every notification widget shows.
+
+    ToastWidget and NotificationListItem each built this same three-part row
+    (the level as text, the title, then a stretch) before this helper
+    existed, then went on to style the two labels differently and add their
+    own trailing widgets (a timestamp, a close button). Returns the layout
+    and the two labels, so each caller can still style them its own way and
+    add whatever comes after the stretch.
+    """
+    header = QHBoxLayout()
+
+    level_label = QLabel(notification.level.value.upper())
+    level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+    header.addWidget(level_label)
+
+    title_label = QLabel(notification.title)
+    title_label.setFont(TypeScale.emphasis(TypeScale.body()))
+    header.addWidget(title_label)
+
+    header.addStretch()
+
+    return header, level_label, title_label
 
 
 class ToastWidget(QWidget):
@@ -106,24 +134,12 @@ class ToastWidget(QWidget):
         
         colors = self._get_level_colors()
 
-        title_layout = QHBoxLayout()
-
-        self.level_label = QLabel(self.notification.level.value.upper())
-        self.level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+        title_layout, self.level_label, self.title_label = (
+            _build_notification_header_row(self.notification))
         self.level_label.setStyleSheet(f"color: {colors.foreground};")
-
-        self.title_label = QLabel(self.notification.title)
-        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
         self.title_label.setStyleSheet(f"color: {colors.foreground};")
 
-        title_layout.addWidget(self.level_label)
-        title_layout.addWidget(self.title_label)
-        title_layout.addStretch()
-
-        self.close_button = QPushButton("×")
-        self.close_button.setFixedSize(
-            self.CLOSE_BUTTON_SIZE, self.CLOSE_BUTTON_SIZE)
-        self.close_button.setFlat(True)
+        self.close_button = CloseButton()
         self.close_button.setAccessibleName(self.tr("Close notification"))
         self.close_button.setToolTip(self.tr("Close this notification"))
         self.close_button.setStyleSheet(
@@ -245,24 +261,15 @@ class NotificationListItem(QFrame):
         layout.setSpacing(2)
         layout.setContentsMargins(8, 8, 8, 8)
 
-        header = QHBoxLayout()
-
         # The level is written as text, not only painted as a colour. Colour
         # alone is not readable for a user with a colour vision deficiency.
-        self.level_label = QLabel(self.notification.level.value.upper())
-        self.level_label.setFont(TypeScale.emphasis(TypeScale.caption()))
+        header, self.level_label, self.title_label = (
+            _build_notification_header_row(self.notification))
         self.level_label.setStyleSheet(
             f"color: {self.status.foreground};"
             f"background-color: {self.status.background};"
             f"border-radius: 3px; padding: 1px 5px;"
         )
-        header.addWidget(self.level_label)
-
-        self.title_label = QLabel(self.notification.title)
-        self.title_label.setFont(TypeScale.emphasis(TypeScale.body()))
-        header.addWidget(self.title_label)
-
-        header.addStretch()
 
         self.time_label = QLabel(
             self.notification.timestamp.strftime("%H:%M:%S"))
@@ -270,10 +277,7 @@ class NotificationListItem(QFrame):
         self.time_label.setStyleSheet(f"color: {self.timestamp_colour};")
         header.addWidget(self.time_label)
 
-        self.close_button = QPushButton("×")
-        self.close_button.setFixedSize(
-            self.CLOSE_BUTTON_SIZE, self.CLOSE_BUTTON_SIZE)
-        self.close_button.setFlat(True)
+        self.close_button = CloseButton()
         self.close_button.setAccessibleName(self.tr("Dismiss notification"))
         self.close_button.setToolTip(self.tr("Dismiss this notification"))
         self.close_button.clicked.connect(
@@ -432,14 +436,11 @@ class SimplifiedNotificationList(QWidget):
         A test replaces this method, so the question box never opens in a test
         run. Keep the question in this method and nothing else.
         """
-        answer = QMessageBox.question(
+        return confirm_destructive_action(
             self,
             self.tr("Clear all notifications?"),
             self.tr("All notifications will be removed. This cannot be undone."),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
         )
-        return answer == QMessageBox.StandardButton.Yes
 
     def _clear_all(self) -> None:
         """Clear every notification, after the user confirms it."""
