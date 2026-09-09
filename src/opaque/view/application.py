@@ -506,13 +506,26 @@ class BaseApplication(QMainWindow):
             self.settings_service.load_all_settings()
 
     def closeEvent(self, event: QCloseEvent):
-        """Handle application close event to clean up services"""
-        # Clean up all services
-        ServiceLocator.cleanup_services()
+        """
+        Release the features first, then the services.
 
-        # Clean up active presenters
-        for presenter in self._registered_features.values():
-            presenter.cleanup()
+        The order matters. A presenter saves its state on the way down, and it
+        asks the settings service or the workspace service to do it. Cleaning
+        the services up first handed every presenter a service that had
+        already released everything, so the last thing the user did was the
+        most likely thing to be lost.
+
+        One presenter that raises must not stop the others, and must not stop
+        the services from being released, so each one is guarded.
+        """
+        for feature_id, presenter in list(self._registered_features.items()):
+            try:
+                presenter.cleanup()
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    "The feature %s failed to clean up", feature_id)
+
+        ServiceLocator.cleanup_services()
 
         super().closeEvent(event)
 
