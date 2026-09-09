@@ -190,6 +190,31 @@ class BaseApplication(QMainWindow):
                 lambda count: self.toolbar.set_notification_count(
                     self.notification_presenter.displayed_count(count)))
 
+        self.settings_service.settings_changed.connect(
+            lambda feature_id, _values: self._on_settings_changed(feature_id))
+
+    def _on_settings_changed(self, feature_id: str) -> None:
+        """
+        Tell one presenter that its settings changed outside the dialog.
+
+        The settings dialog calls apply_settings() itself. This path covers
+        every other writer: update_feature_settings(), reset_feature_settings()
+        and import_settings(). Until now they wrote the file and the model and
+        left the interface showing the old values.
+
+        The registry is searched instead of indexed, because a feature has
+        three identity keys today and the registry key is not the settings
+        key. Plan 06 makes this one lookup.
+        """
+        if feature_id == NOTIFICATION_SETTINGS_ID:
+            self.notification_presenter.apply_settings()
+            return
+
+        for presenter in self._registered_features.values():
+            if presenter.feature_id == feature_id:
+                presenter.apply_settings()
+                return
+
     def _repaint_after_theme_change(self) -> None:
         """
         Give every widget in the shell a chance to repaint after a theme change.

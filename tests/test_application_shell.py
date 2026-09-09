@@ -425,3 +425,39 @@ def test_a_widget_without_apply_theme_does_not_break_the_walk(app_window):
     # Nothing to assert on the widget itself. The test passes when the walk
     # completes, which proves the walk does not require the method.
     assert plain.parent() is app_window
+
+
+def test_a_settings_change_from_the_service_reaches_the_presenter(
+        app_window, monkeypatch):
+    presenter = next(iter(app_window._registered_features.values()))
+    calls = []
+    monkeypatch.setattr(
+        presenter, "apply_settings", lambda: calls.append(True))
+
+    app_window.settings_service.settings_changed.emit(
+        presenter.feature_id, {})
+
+    assert calls == [True]
+
+
+def test_a_settings_change_for_an_unknown_feature_is_ignored(app_window):
+    # Nothing to assert but the absence of a failure: an unknown identity
+    # must not raise inside a signal handler.
+    app_window.settings_service.settings_changed.emit("no-such-feature", {})
+
+
+def test_a_settings_change_reaches_the_notification_presenter(
+        app_window, monkeypatch):
+    from opaque.presenters.notification_presenter import (
+        NOTIFICATION_SETTINGS_ID,
+    )
+
+    calls = []
+    monkeypatch.setattr(
+        app_window.notification_presenter, "apply_settings",
+        lambda: calls.append(True))
+
+    app_window.settings_service.settings_changed.emit(
+        NOTIFICATION_SETTINGS_ID, {})
+
+    assert calls == [True]
