@@ -152,7 +152,11 @@ class IntField(Field):
 
 
 class FloatField(Field):
-    """Field for float values."""
+    """Field for float values.
+
+    Declare decimals=N to show N decimal places in the settings dialog;
+    the keyword lands in extra_config.
+    """
 
     def __init__(self, ui_type: UIType = UIType.DOUBLE_SPINBOX,
                  **kwargs: Any):

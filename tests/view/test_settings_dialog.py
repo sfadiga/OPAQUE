@@ -599,6 +599,15 @@ class PrecisionModel(AbstractModel):
     tiny = FloatField(default=1e-7, description="Tiny", settings=True)
     declared = FloatField(default=0.5, decimals=9,
                           description="Declared", settings=True)
+    half_significant = FloatField(default=1.5e-7,
+                                  description="HalfSignificant",
+                                  settings=True)
+    floor_value = FloatField(default=1e-20, description="FloorValue",
+                             settings=True)
+    narrow = FloatField(default=1e-7, decimals=2, description="Narrow",
+                        settings=True)
+    not_a_number = FloatField(default=float("nan"),
+                              description="NotANumber", settings=True)
 
     def feature_name(self) -> str:
         return "Precision"
@@ -627,6 +636,30 @@ def test_a_tiny_float_is_not_rounded_to_zero(precision_dialog):
 def test_a_declared_decimals_widens_the_widget(precision_dialog):
     widget = _widget_for(precision_dialog, "Declared")
     assert widget.decimals() == 9
+
+
+def test_widening_preserves_every_significant_digit(precision_dialog):
+    """1.5e-7 widened only to its leading digit displayed 0.0000002, and
+    the first edit wrote the rounded 2e-7 back."""
+    widget = _widget_for(precision_dialog, "HalfSignificant")
+    assert widget.decimals() == 8
+    assert widget.value() == 1.5e-7
+
+
+def test_widening_is_capped_at_fifteen_places(precision_dialog):
+    widget = _widget_for(precision_dialog, "FloorValue")
+    assert widget.decimals() == 15
+
+
+def test_widening_wins_over_a_smaller_declared_value(precision_dialog):
+    widget = _widget_for(precision_dialog, "Narrow")
+    assert widget.decimals() == 7
+
+
+def test_a_non_finite_value_does_not_crash_the_dialog_and_keeps_six_places(
+        precision_dialog):
+    widget = _widget_for(precision_dialog, "NotANumber")
+    assert widget.decimals() == 6
 
 
 def test_the_default_stays_at_six_decimals(typed_dialog):

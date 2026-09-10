@@ -11,6 +11,7 @@
 
 
 import math
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Protocol
 
 from PySide6.QtGui import QIcon
@@ -35,14 +36,15 @@ def _decimal_places(field: Any, current_value: Any) -> int:
     Return the decimal places the double spinbox must show.
 
     The default is six. A field may declare more with decimals=N (the
-    keyword lands in Field.extra_config), and a stored value smaller
-    than the shown precision widens the result, so the box can never
-    display 1e-7 as 0.000000 and write the rounded 0.0 back on the
-    first edit. Qt caps a QDoubleSpinBox at 15 useful places.
+    keyword lands in Field.extra_config), and the widget widens to the
+    places the stored value actually uses, so an edit writes the same
+    value back. The cap is 15 places, the useful precision of a double;
+    a finer value still collapses at that limit.
     """
-    decimals = int(field.extra_config.get("decimals", 6))
-    if current_value:
-        needed = -math.floor(math.log10(abs(float(current_value))))
+    decimals = min(int(field.extra_config.get("decimals", 6)), 15)
+    value = float(current_value) if current_value is not None else 0.0
+    if math.isfinite(value) and value:
+        needed = max(0, -int(Decimal(repr(value)).as_tuple().exponent))
         decimals = max(decimals, min(needed, 15))
     return decimals
 
