@@ -467,6 +467,50 @@ def rich_dialog(qtbot, service):
     return widget
 
 
+class BlankModel(AbstractModel):
+    """Numeric settings fields that declare no default value."""
+
+    FEATURE_ID = "blank"
+
+    level = IntField(description="Level", settings=True,
+                     min_value=0, max_value=10, ui_type=UIType.SLIDER)
+    count = IntField(description="Count", settings=True)
+    ratio = FloatField(description="Ratio", settings=True)
+
+    def feature_name(self) -> str:
+        return "Blank"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+def test_a_numeric_field_without_a_default_still_builds_the_form(qtbot, service):
+    """An unset value is None, and int(None)/float(None) raised TypeError."""
+    presenter = DemoPresenter(BlankModel())
+    presenter.feature_id = "blank"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+
+    assert _widget_of_type(widget, QSlider) is not None
+    assert _widget_of_type(widget, QSpinBox) is not None
+    assert _widget_of_type(widget, QDoubleSpinBox) is not None
+
+
+def test_a_list_field_holding_legacy_text_is_split_on_commas(qtbot, service):
+    """ListField.coerce accepts comma text for old files; the editor must
+    receive the coerced list, not the raw string exploded one character at
+    a time."""
+    presenter = DemoPresenter(TypedModel())
+    presenter.feature_id = "typed"
+    presenter.model.tags = "a, b"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+
+    editor = _widget_of_type(widget, ListEditor)
+    assert editor.items() == ["a", "b"]
+
+
 def test_a_textarea_field_builds_a_plain_text_edit(rich_dialog):
     editor = _widget_of_type(rich_dialog, QPlainTextEdit)
     assert editor is not None
