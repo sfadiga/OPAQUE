@@ -12,6 +12,7 @@ from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QIcon
 
 from opaque.features.context import FeatureContext
+from opaque.models.annotations import Field
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,19 @@ class ConsoleModel(QObject):
     def feature_id(cls) -> str:
         """Return the one stable identity of the console feature."""
         return cls.FEATURE_ID
+
+    @classmethod
+    def get_fields(cls) -> Dict[str, Field]:
+        """
+        Return no declared fields.
+
+        SettingsDialog reads this on every registered feature, including one
+        that duck-types the model interface. The console configuration here
+        is plain properties, not annotated Field settings, so there is
+        nothing to declare; an empty dict lets the dialog list the Console
+        group with a blank page instead of raising AttributeError.
+        """
+        return {}
 
     def __init__(self, context: FeatureContext):
         super().__init__()

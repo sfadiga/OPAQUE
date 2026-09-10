@@ -18,6 +18,7 @@ from opaque.models.annotations import (
     BoolField, ChoiceField, FloatField, IntField, ListField, StringField,
     UIType,
 )
+from opaque.models.console_model import ConsoleModel
 from opaque.services.service import ServiceLocator
 from opaque.services.settings_service import SettingsService
 from opaque.view.dialogs.settings import SettingsDialog
@@ -115,6 +116,39 @@ def test_apply_clears_the_pending_edits(dialog):
     line_edit.setText("changed")
     dialog._apply_settings()
     assert dialog.has_pending_changes() is False
+
+
+class _ConsolePresenterDouble:
+    """
+    A presenter double that only carries what SettingsPage needs.
+
+    ConsolePresenter builds its view internally and captures stdout, which a
+    settings-dialog test must not exercise, so this double stands in for it.
+    """
+
+    def __init__(self, model):
+        self.feature_id = model.feature_id()
+        self.model = model
+
+    def apply_settings(self) -> None:
+        pass
+
+
+def test_a_model_with_no_declared_settings_fields_does_not_crash_the_dialog(
+        qtbot, service):
+    """
+    ConsoleModel duck-types the model interface instead of extending
+    AbstractModel (see its class docstring), but it never implemented
+    get_fields(). SettingsDialog calls type(model).get_fields() on every
+    registered feature while building its search cache, so registering the
+    console feature made the whole Settings dialog fail to open, hiding
+    every other feature's settings too (for example the application theme).
+    """
+    presenter = _ConsolePresenterDouble(ConsoleModel(context=None))
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+
+    assert widget.groups_list.count() == 1
 
 
 def test_reject_leaves_the_model_untouched(dialog):
