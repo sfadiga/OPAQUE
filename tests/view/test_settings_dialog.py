@@ -589,3 +589,46 @@ def test_a_float_slider_falls_back_to_a_double_spinbox(open_slider_dialog):
 
 def test_a_bounded_int_slider_is_still_a_slider(rich_dialog):
     assert isinstance(_widget_for(rich_dialog, "Volume"), QSlider)
+
+
+class PrecisionModel(AbstractModel):
+    """Floats finer than the default six decimal places."""
+
+    FEATURE_ID = "precision"
+
+    tiny = FloatField(default=1e-7, description="Tiny", settings=True)
+    declared = FloatField(default=0.5, decimals=9,
+                          description="Declared", settings=True)
+
+    def feature_name(self) -> str:
+        return "Precision"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+@pytest.fixture
+def precision_dialog(qtbot, service):
+    presenter = DemoPresenter(PrecisionModel())
+    presenter.feature_id = "precision"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    return widget
+
+
+def test_a_tiny_float_is_not_rounded_to_zero(precision_dialog):
+    """setDecimals(6) displayed 1e-7 as 0.000000, and the first user
+    interaction wrote the rounded 0.0 back into the model."""
+    widget = _widget_for(precision_dialog, "Tiny")
+    assert widget.value() == 1e-7
+
+
+def test_a_declared_decimals_widens_the_widget(precision_dialog):
+    widget = _widget_for(precision_dialog, "Declared")
+    assert widget.decimals() == 9
+
+
+def test_the_default_stays_at_six_decimals(typed_dialog):
+    widget = _widget_for(typed_dialog, "Ratio")
+    assert widget.decimals() == 6

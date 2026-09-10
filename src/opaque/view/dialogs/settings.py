@@ -10,6 +10,7 @@
 """
 
 
+import math
 from typing import Any, Dict, List, Optional, Protocol
 
 from PySide6.QtGui import QIcon
@@ -27,6 +28,23 @@ from opaque.view.widgets.color_picker import ColorPicker
 from opaque.view.widgets.file_selector import FileSelector
 from opaque.view.widgets.list_editor import ListEditor
 from opaque.models.annotations import Field, FloatField, UIType
+
+
+def _decimal_places(field: Any, current_value: Any) -> int:
+    """
+    Return the decimal places the double spinbox must show.
+
+    The default is six. A field may declare more with decimals=N (the
+    keyword lands in Field.extra_config), and a stored value smaller
+    than the shown precision widens the result, so the box can never
+    display 1e-7 as 0.000000 and write the rounded 0.0 back on the
+    first edit. Qt caps a QDoubleSpinBox at 15 useful places.
+    """
+    decimals = int(field.extra_config.get("decimals", 6))
+    if current_value:
+        needed = -math.floor(math.log10(abs(float(current_value))))
+        decimals = max(decimals, min(needed, 15))
+    return decimals
 
 
 class _FeatureModel(Protocol):
@@ -474,7 +492,7 @@ class SettingsDialog(QDialog):
                 widget = QDoubleSpinBox()
                 # Same reason as the QSpinBox above: Qt's default is 0-99.
                 widget.setRange(-1.0e15, 1.0e15)
-                widget.setDecimals(6)
+                widget.setDecimals(_decimal_places(field, current_value))
                 if hasattr(field, 'min_value') and field.min_value is not None:
                     widget.setMinimum(field.min_value)
                 if hasattr(field, 'max_value') and field.max_value is not None:
