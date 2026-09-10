@@ -562,8 +562,9 @@ class BaseApplication(QMainWindow):
 
         # A feature window that closes is only hidden, so the feature is still
         # there. Removing it from the registry here would take away its
-        # Settings page and would stop closeEvent from calling its cleanup().
-        # Features are released in closeEvent, never on a window close.
+        # Settings page and would stop closeEvent from running its close
+        # sequence via release_features(). Features are released in
+        # closeEvent, never on a window close.
 
         self.add_feature_window(presenter.view)
 
@@ -692,6 +693,9 @@ class BaseApplication(QMainWindow):
         skipped its on_view_close() hook and silently lost the state the
         hook saves. One presenter that raises must not stop the others,
         so each one is guarded.
+
+        A hook may still talk to the shell, for example show a window; the
+        window simply dies with the application.
         """
         for feature_id, presenter in list(self._registered_features.items()):
             try:
