@@ -28,8 +28,6 @@ class BusyOverlay(QWidget):
         super().__init__(parent)
         self.setAccessibleName(self.tr("Busy"))
         self.setAutoFillBackground(True)
-        self.setStyleSheet(
-            f"BusyOverlay {{ background-color: {surface_variant()}; }}")
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -38,7 +36,6 @@ class BusyOverlay(QWidget):
         self.message_label.setFont(TypeScale.body())
         self.message_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.message_label.setWordWrap(True)
-        self.message_label.setStyleSheet(f"color: {on_surface()};")
         layout.addWidget(self.message_label)
 
         # A busy bar, not a percentage. The framework cannot know how long an
@@ -51,8 +48,19 @@ class BusyOverlay(QWidget):
         self.progress.setAccessibleName(self.tr("Work in progress"))
         layout.addWidget(self.progress, alignment=Qt.AlignmentFlag.AlignCenter)
 
+        self.apply_theme()
         self.hide()
         parent.installEventFilter(self)
+
+    def apply_theme(self) -> None:
+        """Re-read the theme tokens. The shell calls this after a theme change.
+
+        A token is a string, not a live binding, so a stylesheet built in the
+        constructor keeps its colours for ever without this hook.
+        """
+        self.setStyleSheet(
+            f"BusyOverlay {{ background-color: {surface_variant()}; }}")
+        self.message_label.setStyleSheet(f"color: {on_surface()};")
 
     def start(self, message: str) -> None:
         """

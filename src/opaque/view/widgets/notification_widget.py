@@ -252,9 +252,19 @@ class NotificationListItem(QFrame):
     def __init__(self, notification: Notification, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.notification = notification
-        self.status = status_colors(status_role_for_level(notification.level))
-        self.timestamp_colour = muted_on_surface()
         self._setup_ui()
+        self.apply_theme()
+
+    def apply_theme(self) -> None:
+        """Re-read the theme tokens. The shell calls this after a theme change."""
+        self.status = status_colors(status_role_for_level(self.notification.level))
+        self.timestamp_colour = muted_on_surface()
+        self.level_label.setStyleSheet(
+            f"color: {self.status.foreground};"
+            f"background-color: {self.status.background};"
+            f"border-radius: 3px; padding: 1px 5px;"
+        )
+        self.time_label.setStyleSheet(f"color: {self.timestamp_colour};")
 
     def _setup_ui(self) -> None:
         self.setFrameStyle(QFrame.Shape.StyledPanel)
@@ -266,16 +276,10 @@ class NotificationListItem(QFrame):
         # alone is not readable for a user with a colour vision deficiency.
         header, self.level_label, self.title_label = (
             _build_notification_header_row(self.notification))
-        self.level_label.setStyleSheet(
-            f"color: {self.status.foreground};"
-            f"background-color: {self.status.background};"
-            f"border-radius: 3px; padding: 1px 5px;"
-        )
 
         self.time_label = QLabel(
             self.notification.timestamp.strftime("%H:%M:%S"))
         self.time_label.setFont(TypeScale.caption())
-        self.time_label.setStyleSheet(f"color: {self.timestamp_colour};")
         header.addWidget(self.time_label)
 
         self.close_button = CloseButton()

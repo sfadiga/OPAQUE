@@ -139,3 +139,19 @@ def test_a_notification_added_while_filtering_obeys_the_filter(
 
     item = list(widget.items.values())[0]
     assert not item.isVisibleTo(widget)
+
+
+def test_the_list_item_repaints_after_a_theme_change(qtbot, make_notification):
+    from PySide6.QtWidgets import QApplication
+    from opaque.view.theme import build_dark_palette, build_light_palette
+    from opaque.view.widgets.notification_widget import NotificationListItem
+
+    QApplication.setPalette(build_light_palette())
+    item = NotificationListItem(make_notification())
+    qtbot.addWidget(item)
+    before = item.level_label.styleSheet()
+
+    QApplication.setPalette(build_dark_palette())
+    item.apply_theme()
+
+    assert item.level_label.styleSheet() != before

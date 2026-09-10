@@ -65,3 +65,21 @@ def test_the_overlay_tracks_a_live_resize(qtbot, light_palette_app):
     overlay.start("Working")
     host.resize(640, 480)
     assert overlay.size() == host.size()
+
+
+def test_the_overlay_repaints_after_a_theme_change(qtbot):
+    from PySide6.QtWidgets import QApplication, QWidget
+    from opaque.view.theme import build_dark_palette, build_light_palette, surface_variant
+    from opaque.view.widgets.busy import BusyOverlay
+
+    parent = QWidget()
+    qtbot.addWidget(parent)
+    QApplication.setPalette(build_light_palette())
+    overlay = BusyOverlay(parent)
+    before = overlay.styleSheet()
+
+    QApplication.setPalette(build_dark_palette())
+    overlay.apply_theme()
+
+    assert overlay.styleSheet() != before
+    assert surface_variant() in overlay.styleSheet()
