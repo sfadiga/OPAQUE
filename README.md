@@ -93,10 +93,10 @@ class GreetingModel(BaseModel):
 
 
 class GreetingView(BaseView):
-    """A feature view is one MDI sub-window. Build the UI before the presenter exists."""
+    """A feature view is one MDI sub-window. setup_ui() builds its widgets;
+    the framework calls it at the end of __init__, once self.context exists."""
 
-    def __init__(self, context, parent=None) -> None:
-        super().__init__(context, parent)
+    def setup_ui(self) -> None:
         self.label = QLabel(self.tr("Hello OPAQUE"))
         content = QWidget()
         layout = QVBoxLayout(content)
@@ -156,7 +156,7 @@ uv run python examples/quickstart/main.py
 |---|---|
 | A configuration | The five `get_application_*` accessors. They are abstract; field declarations do not satisfy them. |
 | A model | `FEATURE_ID`, `feature_name()`, `feature_icon()`, `feature_description()`. |
-| A view | A widget tree, built in `__init__`, handed to `setWidget()`. |
+| A view | A widget tree, built in `setup_ui()`, handed to `setWidget()`. |
 | A presenter | `bind_events()`, `update()`, `on_view_show()`. All three are abstract. `on_view_close()` has a working default; override it only to save state. |
 | Registration | `self.register(MyModel, MyView, MyPresenter)`. Model, then view, then presenter, in that order — the shell does it. |
 

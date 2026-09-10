@@ -55,10 +55,10 @@ class GreetingModel(BaseModel):
 
 
 class GreetingView(BaseView):
-    """A feature view is one MDI sub-window. Build the UI before the presenter exists."""
+    """A feature view is one MDI sub-window. setup_ui() builds its widgets;
+    the framework calls it at the end of __init__, once self.context exists."""
 
-    def __init__(self, context, parent=None) -> None:
-        super().__init__(context, parent)
+    def setup_ui(self) -> None:
         self.label = QLabel(self.tr("Hello OPAQUE"))
         content = QWidget()
         layout = QVBoxLayout(content)
