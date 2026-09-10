@@ -11,13 +11,15 @@
 
 from .closeable_tab_widget import CloseableTabWidget
 from .color_picker import ColorPicker
+from .file_selector import FileSelector
 from .mdi_window import OpaqueMdiSubWindow
 from .notification_widget import SimplifiedNotificationList, ToastWidget
 from .toolbar import OpaqueMainToolbar
 
 __all__ = [
     'CloseableTabWidget',
-    'ColorPicker', 
+    'ColorPicker',
+    'FileSelector',
     'OpaqueMdiSubWindow',
     'SimplifiedNotificationList',
     'ToastWidget',
