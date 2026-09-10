@@ -216,3 +216,19 @@ def test_the_check_is_skipped_when_no_qt_application_exists(monkeypatch):
     model.count = 6
     assert model.count == 6
     model.cleanup()
+
+
+def test_the_validator_callable_rejects_a_write():
+    from opaque.models.abstract_model import AbstractModel
+    from opaque.models.annotations import IntField
+
+    class EvenModel(AbstractModel):
+        FEATURE_ID = "even"
+        value = IntField(default=0, validator=lambda v: v % 2 == 0)
+
+    model = EvenModel()
+    model.value = 4
+    assert model.value == 4
+    with pytest.raises(ValueError, match="validator"):
+        model.value = 3
+    assert model.value == 4

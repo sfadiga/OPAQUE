@@ -81,6 +81,10 @@ class ModelMeta(ABCMeta):
                     if field.max_value is not None and value > field.max_value:
                         raise ValueError(
                             f"Value '{value}' for '{name}' is greater than the maximum allowed value: {field.max_value}")
+                    if field.validator is not None and not field.validator(value):
+                        raise ValueError(
+                            f"Value '{value}' for '{name}' was rejected by "
+                            f"the field's validator callable")
                     # ------------------
 
                     # The fallback matches the getter's default: the field
