@@ -64,6 +64,11 @@ SKIPPED_FILES: dict[str, str] = {
         "before Plan 10 Task 1 deleted that module for having no "
         "production caller. The import was real when this plan ran."
     ),
+    "2026-09-09-review-followup-fixes.md": (
+        "Design plan for opaque.view.widgets.file_selector and "
+        "opaque.view.widgets.list_editor, which do not exist until that "
+        "plan's Tasks 6 and 7 run. Remove this entry when the plan is done."
+    ),
 }
 
 _CODE_BLOCK = re.compile(r"```(?:python|py)\n(.*?)```", re.DOTALL)
