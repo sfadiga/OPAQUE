@@ -105,3 +105,20 @@ def test_display_of_none_is_an_empty_string():
 
 def test_display_of_a_number_is_its_text():
     assert IntField().display(7) == "7"
+
+
+def test_a_list_field_accepts_an_explicit_ui_type():
+    """A comma-text editor is a valid choice; the argument used to raise
+    TypeError ('multiple values for ui_type') at class-definition time."""
+    field = ListField(ui_type=UIType.TEXT)
+    assert field.ui_type is UIType.TEXT
+
+
+def test_a_float_field_accepts_an_explicit_ui_type():
+    field = FloatField(ui_type=UIType.SLIDER)
+    assert field.ui_type is UIType.SLIDER
+
+
+def test_the_ui_type_defaults_are_unchanged():
+    assert ListField().ui_type is UIType.LIST_VIEW
+    assert FloatField().ui_type is UIType.DOUBLE_SPINBOX

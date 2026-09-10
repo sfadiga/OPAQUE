@@ -154,11 +154,12 @@ class IntField(Field):
 class FloatField(Field):
     """Field for float values."""
 
-    def __init__(self, **kwargs: Any):
-        # A float needs a widget with a fraction. It used to declare
-        # UIType.SPINBOX, so the dialog drew a QSpinBox and truncated every
-        # value it read back.
-        super().__init__(ui_type=UIType.DOUBLE_SPINBOX, **kwargs)
+    def __init__(self, ui_type: UIType = UIType.DOUBLE_SPINBOX,
+                 **kwargs: Any):
+        # A float needs a widget with a fraction by default. It used to
+        # declare UIType.SPINBOX, so the dialog drew a QSpinBox and
+        # truncated every value it read back.
+        super().__init__(ui_type=ui_type, **kwargs)
 
     def coerce(self, value: Any) -> Any:
         value = super().coerce(value)
@@ -187,8 +188,8 @@ class ListField(Field):
     """Field for list values. Shown and edited as a list; coerce() still
     accepts comma separated text for old settings files."""
 
-    def __init__(self, **kwargs: Any):
-        super().__init__(ui_type=UIType.LIST_VIEW, **kwargs)
+    def __init__(self, ui_type: UIType = UIType.LIST_VIEW, **kwargs: Any):
+        super().__init__(ui_type=ui_type, **kwargs)
 
     def coerce(self, value: Any) -> Any:
         if value is None:
