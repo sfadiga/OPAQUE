@@ -110,10 +110,9 @@ class TabManagerView(BaseView):
         layout = QVBoxLayout()
 
         # Info label
-        info = QLabel(self.tr(
+        self._info_label = QLabel(self.tr(
             "Use the 'Features > Tab Manager' menu or buttons below."))
-        info.setStyleSheet(f"padding: 5px; color: {muted_on_surface()};")
-        layout.addWidget(info)
+        layout.addWidget(self._info_label)
 
         # Closeable Tab Widget
         self.tab_widget = CloseableTabWidget(
@@ -126,3 +125,10 @@ class TabManagerView(BaseView):
         
         self.setWidget(QWidget())
         self.widget().setLayout(layout)
+
+        self.apply_theme()
+
+    def apply_theme(self) -> None:
+        """Rebuild the info style; its colour token goes stale otherwise."""
+        self._info_label.setStyleSheet(
+            f"padding: 5px; color: {muted_on_surface()};")

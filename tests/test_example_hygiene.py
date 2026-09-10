@@ -60,6 +60,74 @@ def test_no_literal_colour_or_font_size_in_a_stylesheet(path):
     )
 
 
+def _dynamic_stylesheets_outside_apply_theme(
+        path: Path) -> List[Tuple[int, str]]:
+    """
+    Find setStyleSheet calls that bake a computed value outside apply_theme.
+
+    A stylesheet built at run time (an f-string, a variable) embeds token
+    values that go stale after a theme change. Such a stylesheet must be
+    built inside apply_theme(), which the shell calls after every theme
+    change. A plain string constant may stay where it is: the literal-style
+    guard above screens it, and palette(...) roles inside it stay live
+    because the shell repolishes every widget.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    offenders: List[Tuple[int, str]] = []
+    for func in ast.walk(tree):
+        if not isinstance(func, ast.FunctionDef) or func.name == "apply_theme":
+            continue
+        for node in ast.walk(func):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "setStyleSheet"
+                    and node.args
+                    and not isinstance(node.args[0], ast.Constant)):
+                offenders.append((node.lineno, func.name))
+    return offenders
+
+
+@pytest.mark.parametrize(
+    "path", _example_files(),
+    ids=lambda p: str(p.relative_to(EXAMPLES_ROOT)))
+def test_a_dynamic_stylesheet_is_built_only_in_apply_theme(path):
+    offenders = _dynamic_stylesheets_outside_apply_theme(path)
+    assert not offenders, (
+        f"{path}: a computed stylesheet outside apply_theme() at "
+        f"{offenders}. Token values go stale after a theme change; build "
+        f"the stylesheet in apply_theme() and call it from setup_ui()."
+    )
+
+
+@pytest.mark.parametrize(
+    "path", _example_files(),
+    ids=lambda p: str(p.relative_to(EXAMPLES_ROOT)))
+def test_a_class_that_declares_apply_theme_also_calls_it(path):
+    """apply_theme() paints nothing until somebody calls it. The shell
+    calls it on a theme change; the first paint is the class's own job."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        methods = [item for item in node.body
+                   if isinstance(item, ast.FunctionDef)]
+        if "apply_theme" not in {method.name for method in methods}:
+            continue
+        calls_it = any(
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Attribute)
+            and call.func.attr == "apply_theme"
+            and isinstance(call.func.value, ast.Name)
+            and call.func.value.id == "self"
+            for method in methods if method.name != "apply_theme"
+            for call in ast.walk(method)
+        )
+        assert calls_it, (
+            f"{path}: {node.name} declares apply_theme() but never calls "
+            f"it, so the widget is unstyled until the first theme change."
+        )
+
+
 @pytest.mark.parametrize(
     "path", _example_files(),
     ids=lambda p: str(p.relative_to(EXAMPLES_ROOT)))

@@ -11,7 +11,9 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QIcon
 
 from opaque.view.view import BaseView
-from opaque.view.theme import TypeScale, interactive, on_interactive
+from opaque.view.theme import (
+    TypeScale, interactive, on_interactive, readable_foreground,
+)
 
 
 class CalculatorView(BaseView):
@@ -77,20 +79,15 @@ class CalculatorView(BaseView):
         ]
 
         # Create buttons
+        self._operator_buttons: List[QPushButton] = []
+        self._theme_color: Optional[str] = None
         for text, row, col, callback in buttons:
             button = QPushButton(text)
             button.setMinimumSize(60, 60)
             button.clicked.connect(callback)
 
-            # Style operator buttons differently. Colours and sizes come
-            # from the theme tokens; a widget never writes a literal.
             if text in ['+', '-', '*', '/', '=']:
-                button.setStyleSheet(
-                    f"QPushButton {{"
-                    f" background-color: {interactive()};"
-                    f" color: {on_interactive()};"
-                    f" font-weight: bold;"
-                    f" }}")
+                self._operator_buttons.append(button)
             button.setFont(TypeScale.body())
 
             button_layout.addWidget(button, row, col)
@@ -121,6 +118,30 @@ class CalculatorView(BaseView):
         container.setLayout(layout)
         self.setWidget(container)
 
+        self.apply_theme()
+
+    def apply_theme(self) -> None:
+        """Rebuild the operator style from the current theme.
+
+        A token value baked into a stylesheet goes stale after a theme
+        change, so the shell calls this method after every change. The
+        user-picked colour wins over the theme token, and the text colour
+        must then stay readable on whatever the user picked.
+        """
+        background = self._theme_color or interactive()
+        if self._theme_color is None:
+            text_color = on_interactive()
+        else:
+            text_color = readable_foreground(self._theme_color)
+        style = (
+            f"QPushButton {{"
+            f" background-color: {background};"
+            f" color: {text_color};"
+            f" font-weight: bold;"
+            f" }}")
+        for button in self._operator_buttons:
+            button.setStyleSheet(style)
+
     def update_display(self, value: str):
         """Update the calculator display."""
         self.display.setText(value)
@@ -142,21 +163,6 @@ class CalculatorView(BaseView):
         self.status_label.setText(message)
 
     def set_theme_color(self, color: str):
-        """Update the theme color for operator buttons."""
-        operator_style = f"""
-            QPushButton {{
-                background-color: {color};
-                color: white;
-                font-weight: bold;
-                font-size: 18px;
-            }}
-            QPushButton:hover {{
-                background-color: {color};
-                opacity: 0.8;
-            }}
-        """
-
-        # Update operator button styles
-        for button in self.findChildren(QPushButton):
-            if button.text() in ['+', '-', '*', '/', '=']:
-                button.setStyleSheet(operator_style)
+        """Store the user-picked colour and repaint with it."""
+        self._theme_color = color
+        self.apply_theme()
