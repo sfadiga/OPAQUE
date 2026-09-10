@@ -542,3 +542,49 @@ def test_a_file_selector_field_builds_a_file_selector(rich_dialog):
     assert selector.path() == "C:/in.csv"
     selector.path_edit.setText("C:/other.csv")
     assert rich_dialog.pending_value("rich", "source") == "C:/other.csv"
+
+
+class OpenSliderModel(AbstractModel):
+    """A slider without bounds and a float slider; neither is drawable."""
+
+    FEATURE_ID = "open_slider"
+
+    level = IntField(default=500, description="Level", settings=True,
+                     ui_type=UIType.SLIDER)
+    ratio = FloatField(default=0.5, min_value=0.0, max_value=1.0,
+                       description="Ratio", settings=True,
+                       ui_type=UIType.SLIDER)
+
+    def feature_name(self) -> str:
+        return "OpenSlider"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+@pytest.fixture
+def open_slider_dialog(qtbot, service):
+    presenter = DemoPresenter(OpenSliderModel())
+    presenter.feature_id = "open_slider"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    return widget
+
+
+def test_a_slider_without_bounds_falls_back_to_a_spinbox(open_slider_dialog):
+    """Qt's default slider range is 0-99. A stored 500 rendered at 99 and
+    one drag wrote the clamped value back. The spinbox has an open range."""
+    assert _widget_for(open_slider_dialog, "Level").value() == 500
+    assert isinstance(_widget_for(open_slider_dialog, "Level"), QSpinBox)
+
+
+def test_a_float_slider_falls_back_to_a_double_spinbox(open_slider_dialog):
+    """QSlider moves in integer steps and truncates every fraction."""
+    widget = _widget_for(open_slider_dialog, "Ratio")
+    assert isinstance(widget, QDoubleSpinBox)
+    assert widget.value() == 0.5
+
+
+def test_a_bounded_int_slider_is_still_a_slider(rich_dialog):
+    assert isinstance(_widget_for(rich_dialog, "Volume"), QSlider)
