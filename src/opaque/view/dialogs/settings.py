@@ -16,7 +16,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLineEdit, QSplitter,
     QListWidget, QListWidgetItem, QScrollArea, QWidget, QDialogButtonBox, QFormLayout,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QLabel
+    QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QLabel, QPlainTextEdit, QSlider
 )
 from PySide6.QtCore import Qt
 
@@ -24,6 +24,8 @@ from opaque.services.service import ServiceLocator
 from opaque.services.settings_service import SettingsService
 
 from opaque.view.widgets.color_picker import ColorPicker
+from opaque.view.widgets.file_selector import FileSelector
+from opaque.view.widgets.list_editor import ListEditor
 from opaque.models.annotations import Field, UIType
 
 
@@ -476,6 +478,42 @@ class SettingsDialog(QDialog):
                 widget.colorChanged.connect(
                     lambda color, fid=feature_id, name=name: self._record_pending(
                         fid, name, color)
+                )
+            elif hasattr(field, 'ui_type') and field.ui_type == UIType.TEXTAREA:
+                widget = QPlainTextEdit()
+                widget.setPlainText(field.display(current_value))
+                # textChanged carries no argument; read the widget instead.
+                widget.textChanged.connect(
+                    lambda fid=feature_id, name=name,
+                    editor=widget: self._record_pending(
+                        fid, name, editor.toPlainText())
+                )
+            elif hasattr(field, 'ui_type') and field.ui_type == UIType.SLIDER:
+                widget = QSlider(Qt.Orientation.Horizontal)
+                # A slider needs both ends. A field that declares neither
+                # gets the Qt default of 0-99, which is at least visible on
+                # the slider itself, unlike the spinbox case.
+                if hasattr(field, 'min_value') and field.min_value is not None:
+                    widget.setMinimum(int(field.min_value))
+                if hasattr(field, 'max_value') and field.max_value is not None:
+                    widget.setMaximum(int(field.max_value))
+                widget.setValue(int(current_value))
+                widget.valueChanged.connect(
+                    lambda value, fid=feature_id, name=name: self._record_pending(
+                        fid, name, value)
+                )
+            elif hasattr(field, 'ui_type') and field.ui_type == UIType.LIST_VIEW:
+                widget = ListEditor(initial_items=[
+                    str(item) for item in (current_value or [])])
+                widget.itemsChanged.connect(
+                    lambda items, fid=feature_id, name=name: self._record_pending(
+                        fid, name, items)
+                )
+            elif hasattr(field, 'ui_type') and field.ui_type == UIType.FILE_SELECTOR:
+                widget = FileSelector(initial_path=field.display(current_value))
+                widget.pathChanged.connect(
+                    lambda path, fid=feature_id, name=name: self._record_pending(
+                        fid, name, path)
                 )
             else:  # Default to QLineEdit for "text"
                 # field.display() is the inverse of field.coerce(). A list

@@ -23,7 +23,7 @@ class UIType(Enum):
     TEXTAREA = "textarea"
     SLIDER = "slider"
     LIST_VIEW = "list_view"
-    FILE_SELECTOR = "file_selector"  # TODO TBD
+    FILE_SELECTOR = "file_selector"
 
 
 class Field:
@@ -143,8 +143,8 @@ class StringField(Field):
 class IntField(Field):
     """Field for integer values."""
 
-    def __init__(self, **kwargs: Any):
-        super().__init__(ui_type=UIType.SPINBOX, **kwargs)
+    def __init__(self, ui_type: UIType = UIType.SPINBOX, **kwargs: Any):
+        super().__init__(ui_type=ui_type, **kwargs)
 
     def coerce(self, value: Any) -> Any:
         value = super().coerce(value)
@@ -184,10 +184,11 @@ class BoolField(Field):
 
 
 class ListField(Field):
-    """Field for list values. Shown and edited as comma separated text."""
+    """Field for list values. Shown and edited as a list; coerce() still
+    accepts comma separated text for old settings files."""
 
     def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
+        super().__init__(ui_type=UIType.LIST_VIEW, **kwargs)
 
     def coerce(self, value: Any) -> Any:
         if value is None:

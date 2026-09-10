@@ -9,16 +9,20 @@ type(model).get_fields().
 
 import pytest
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QSpinBox,
+    QCheckBox, QComboBox, QDoubleSpinBox, QLineEdit, QPlainTextEdit,
+    QSlider, QSpinBox,
 )
 
 from opaque.models.abstract_model import AbstractModel
 from opaque.models.annotations import (
     BoolField, ChoiceField, FloatField, IntField, ListField, StringField,
+    UIType,
 )
 from opaque.services.service import ServiceLocator
 from opaque.services.settings_service import SettingsService
 from opaque.view.dialogs.settings import SettingsDialog
+from opaque.view.widgets.file_selector import FileSelector
+from opaque.view.widgets.list_editor import ListEditor
 
 
 class DemoModel(AbstractModel):
@@ -310,17 +314,18 @@ def test_a_choice_setting_starts_on_the_current_value(typed_dialog):
     assert widget.currentText() == "2"
 
 
-def test_a_list_setting_is_shown_comma_separated(typed_dialog):
+def test_a_list_setting_is_shown_as_a_list_editor(typed_dialog):
     widget = _widget_for(typed_dialog, "Tags")
-    assert isinstance(widget, QLineEdit)
-    assert widget.text() == "a, b"
+    assert isinstance(widget, ListEditor)
+    assert widget.items() == ["a", "b"]
 
 
 def test_a_list_setting_queues_a_list(typed_dialog):
     widget = _widget_for(typed_dialog, "Tags")
-    widget.setText("x, y, z")
+    widget.list_widget.setCurrentRow(0)
+    widget.remove_button.click()
 
-    assert typed_dialog.pending_value("typed", "tags") == ["x", "y", "z"]
+    assert typed_dialog.pending_value("typed", "tags") == ["b"]
 
 
 def test_an_int_setting_queues_an_int(typed_dialog):
@@ -335,14 +340,16 @@ def test_an_int_setting_queues_an_int(typed_dialog):
 def test_apply_writes_every_typed_value_into_the_model(typed_dialog):
     _widget_for(typed_dialog, "Ratio").setValue(1.75)
     _widget_for(typed_dialog, "Level").setCurrentIndex(0)
-    _widget_for(typed_dialog, "Tags").setText("q")
+    tags_widget = _widget_for(typed_dialog, "Tags")
+    tags_widget.list_widget.setCurrentRow(0)
+    tags_widget.remove_button.click()
 
     typed_dialog._apply_settings()
 
     model = typed_dialog._presenter.model
     assert model.ratio == 1.75
     assert model.level == 1
-    assert model.tags == ["q"]
+    assert model.tags == ["b"]
 
 
 def test_a_value_the_field_refuses_is_reported_and_not_queued(typed_dialog):
@@ -429,3 +436,65 @@ def test_a_spinbox_without_declared_bounds_is_not_clamped_to_99(unbounded_dialog
 def test_a_double_spinbox_without_declared_bounds_keeps_a_large_value(unbounded_dialog):
     spin = _widget_of_type(unbounded_dialog, QDoubleSpinBox)
     assert spin.value() == 1e6
+
+
+class RichModel(AbstractModel):
+    FEATURE_ID = "rich"
+
+    notes = StringField(default="line one", description="Notes",
+                        settings=True, ui_type=UIType.TEXTAREA)
+    volume = IntField(default=3, min_value=0, max_value=10,
+                      description="Volume", settings=True,
+                      ui_type=UIType.SLIDER)
+    tags = ListField(default=["a", "b"], description="Tags", settings=True)
+    source = StringField(default="C:/in.csv", description="Source",
+                         settings=True, ui_type=UIType.FILE_SELECTOR)
+
+    def feature_name(self) -> str:
+        return "Rich"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+@pytest.fixture
+def rich_dialog(qtbot, service):
+    presenter = DemoPresenter(RichModel())
+    presenter.feature_id = "rich"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    return widget
+
+
+def test_a_textarea_field_builds_a_plain_text_edit(rich_dialog):
+    editor = _widget_of_type(rich_dialog, QPlainTextEdit)
+    assert editor is not None
+    assert editor.toPlainText() == "line one"
+    editor.setPlainText("edited")
+    assert rich_dialog.pending_value("rich", "notes") == "edited"
+
+
+def test_a_slider_field_builds_a_slider_with_the_declared_bounds(rich_dialog):
+    slider = _widget_of_type(rich_dialog, QSlider)
+    assert slider is not None
+    assert (slider.minimum(), slider.maximum()) == (0, 10)
+    slider.setValue(7)
+    assert rich_dialog.pending_value("rich", "volume") == 7
+
+
+def test_a_list_field_builds_a_list_editor_and_keeps_the_list_type(rich_dialog):
+    editor = _widget_of_type(rich_dialog, ListEditor)
+    assert editor is not None
+    assert editor.items() == ["a", "b"]
+    editor.list_widget.setCurrentRow(0)
+    editor.remove_button.click()
+    assert rich_dialog.pending_value("rich", "tags") == ["b"]
+
+
+def test_a_file_selector_field_builds_a_file_selector(rich_dialog):
+    selector = _widget_of_type(rich_dialog, FileSelector)
+    assert selector is not None
+    assert selector.path() == "C:/in.csv"
+    selector.path_edit.setText("C:/other.csv")
+    assert rich_dialog.pending_value("rich", "source") == "C:/other.csv"
