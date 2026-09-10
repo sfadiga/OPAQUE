@@ -175,6 +175,8 @@ src/opaque_framework.egg-info/
 # The logs and the single instance lock now live under the per user
 # application data and temporary folders. See LoggerService and
 # SingleInstanceService.
+# Log folders written next to the examples by versions before the move.
+examples/**/logs/
 *.egg-link
 
 # Local git worktrees used for isolated plan execution.
