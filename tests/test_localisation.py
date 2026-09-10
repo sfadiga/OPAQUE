@@ -117,8 +117,29 @@ def _is_a_readable_string(node: ast.AST) -> bool:
     return any(character.isalpha() for character in node.value)
 
 
+def _is_a_bare_format_call(node: ast.AST) -> bool:
+    """True for "...".format(...) or f"...".format(...) on a bare literal.
+
+    This is the tr().format() idiom minus the tr() call: a readable
+    string formatted at the call site, never passed through tr(), so
+    lupdate never sees it.
+    """
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if not isinstance(func, ast.Attribute) or func.attr != "format":
+        return False
+    return _is_a_readable_string(func.value)
+
+
 def _untranslated_strings(path: Path) -> List[int]:
-    """Return the line of every user visible literal that is not in tr()."""
+    """Return the line of every user visible literal that is not in tr().
+
+    Known blind spots: a literal passed as a keyword argument, a
+    QMessageBox static call (information/warning/critical/question), a
+    string built with "+" or "%" concatenation, and a literal inside a
+    nested f-string all escape this scan.
+    """
     tree = ast.parse(path.read_text(encoding="utf-8"))
     offenders: List[int] = []
 
@@ -138,7 +159,8 @@ def _untranslated_strings(path: Path) -> List[int]:
         else:
             continue
 
-        if _is_a_readable_string(node.args[0]):
+        if (_is_a_readable_string(node.args[0])
+                or _is_a_bare_format_call(node.args[0])):
             offenders.append(node.lineno)
 
     return offenders
@@ -250,3 +272,14 @@ def test_an_fstring_of_pure_placeholders_passes(tmp_path):
         encoding="utf-8",
     )
     assert _untranslated_strings(sample) == []
+
+
+def test_the_scanner_catches_a_bare_format_call(tmp_path):
+    """format() on a bare literal is the tr() idiom minus the tr."""
+    sample = tmp_path / "sample.py"
+    sample.write_text(
+        'def build(label, path):\n'
+        '    label.setText("Exported to {0}".format(path))\n',
+        encoding="utf-8",
+    )
+    assert _untranslated_strings(sample) == [2]

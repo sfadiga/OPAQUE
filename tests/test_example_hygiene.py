@@ -4,9 +4,10 @@ The examples must obey the framework's own stated rules.
 
 An example is what a user or an AI agent copies. An example that breaks a
 rule teaches the violation, so the rules that can be checked mechanically
-are checked here: no literal colour or font size inside setStyleSheet, no
-cleanup() call inside on_view_close, no BaseView subclass that overrides
-__init__ instead of setup_ui, and no tr() call without a literal argument.
+are checked here: no literal colour or font size in a string constant
+(stylesheets included), no cleanup() call inside on_view_close, no
+BaseView subclass that overrides __init__ instead of setup_ui, and no
+tr() call without a literal argument.
 """
 
 import ast
@@ -42,7 +43,11 @@ def _stylesheet_offenders(path: Path) -> List[Tuple[int, str]]:
     """The literal-style patterns (hex colours in CSS text, font sizes,
     named CSS colours) only ever appear in stylesheet text, so every
     string constant in the file is scanned. Scanning only inside the
-    setStyleSheet call missed a stylesheet hoisted into a variable."""
+    setStyleSheet call missed a stylesheet hoisted into a variable.
+
+    Accepted false positive: prose that happens to match the hex-colour
+    pattern, such as "see PR #123", is flagged too. A loud false
+    positive here is acceptable; a silent miss is not."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     offenders: List[Tuple[int, str]] = []
     for node in ast.walk(tree):
@@ -60,8 +65,9 @@ def _stylesheet_offenders(path: Path) -> List[Tuple[int, str]]:
 def test_no_literal_colour_or_font_size_in_a_stylesheet(path):
     offenders = _stylesheet_offenders(path)
     assert not offenders, (
-        f"{path}: literal colour or font size in setStyleSheet at "
-        f"{offenders}. Use the tokens in opaque.view.theme instead."
+        f"{path}: literal colour or font size in a string constant "
+        f"(stylesheets included) at {offenders}. Use the tokens in "
+        f"opaque.view.theme instead."
     )
 
 
