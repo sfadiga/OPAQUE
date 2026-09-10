@@ -211,6 +211,10 @@ class SettingsDialog(QDialog):
         0-99, which silently clamps the stored value on the first drag,
         and QSlider moves in integer steps, which truncates a float. In
         both cases the spinbox family draws the field instead.
+
+        A slider field that also declares choices falls back to a
+        spinbox, not to the combo; declare the combo ui_type directly
+        when choices must win.
         """
         ui_type = getattr(field, "ui_type", None)
         if ui_type != UIType.SLIDER:

@@ -584,6 +584,7 @@ def test_a_float_slider_falls_back_to_a_double_spinbox(open_slider_dialog):
     widget = _widget_for(open_slider_dialog, "Ratio")
     assert isinstance(widget, QDoubleSpinBox)
     assert widget.value() == 0.5
+    assert (widget.minimum(), widget.maximum()) == (0.0, 1.0)
 
 
 def test_a_bounded_int_slider_is_still_a_slider(rich_dialog):
