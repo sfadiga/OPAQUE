@@ -16,7 +16,7 @@ from typing import List, Tuple
 
 import pytest
 
-from tests.test_localisation import _non_literal_tr_calls
+from tests.test_localisation import _non_literal_tr_calls, _untranslated_strings
 
 EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / "examples"
 
@@ -32,20 +32,25 @@ def _example_files() -> List[Path]:
     return sorted(EXAMPLES_ROOT.rglob("*.py"))
 
 
+# A string that is one bare colour and nothing else is data (a colour
+# picker default), not a stylesheet. A stylesheet always carries more
+# text around the colour.
+_BARE_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\Z")
+
+
 def _stylesheet_offenders(path: Path) -> List[Tuple[int, str]]:
+    """The literal-style patterns (hex colours in CSS text, font sizes,
+    named CSS colours) only ever appear in stylesheet text, so every
+    string constant in the file is scanned. Scanning only inside the
+    setStyleSheet call missed a stylesheet hoisted into a variable."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     offenders: List[Tuple[int, str]] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        if not isinstance(func, ast.Attribute) or func.attr != "setStyleSheet":
-            continue
-        for part in ast.walk(node):
-            if (isinstance(part, ast.Constant)
-                    and isinstance(part.value, str)
-                    and _LITERAL_STYLE.search(part.value)):
-                offenders.append((node.lineno, part.value.strip()))
+        if (isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and _LITERAL_STYLE.search(node.value)
+                and not _BARE_COLOR.match(node.value.strip())):
+            offenders.append((node.lineno, node.value.strip()))
     return offenders
 
 
@@ -181,4 +186,16 @@ def test_every_tr_call_carries_a_literal(path):
     assert not offenders, (
         f"{path}: tr() without a string literal at {offenders}. "
         f"lupdate cannot extract a variable."
+    )
+
+
+@pytest.mark.parametrize(
+    "path", _example_files(),
+    ids=lambda p: str(p.relative_to(EXAMPLES_ROOT)))
+def test_every_user_visible_string_is_translated(path):
+    offenders = _untranslated_strings(path)
+    assert not offenders, (
+        f"{path}: user-visible string outside self.tr() at lines "
+        f"{offenders}. Wrap the literal in self.tr(); format an "
+        f"f-string as self.tr('... {{0}} ...').format(value)."
     )

@@ -168,7 +168,8 @@ class ConsolePresenter(BasePresenter):
             success = self.model.export_to_file(file_path, include_timestamps)
 
             if success:
-                console_widget.status_label.setText(f"Exported to {file_path}")
+                console_widget.status_label.setText(
+                    console_widget.tr("Exported to {0}").format(file_path))
             else:
                 QMessageBox.warning(
                     self.view,

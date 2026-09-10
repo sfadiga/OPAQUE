@@ -130,10 +130,13 @@ class NotificationTestWidget(QWidget):
                 persistent=(level_text in ["ERROR", "CRITICAL"])
             )
             
-            self.status_label.setText(f"Sent {level_text} notification (ID: {notification_id})")
-            
+            self.status_label.setText(
+                self.tr("Sent {0} notification (ID: {1})").format(
+                    level_text, notification_id))
+
         except Exception as e:
-            self.status_label.setText(f"Error sending notification: {e}")
+            self.status_label.setText(
+                self.tr("Error sending notification: {0}").format(e))
     
     def send_test_log(self):
         """Send a test log message"""
@@ -145,10 +148,12 @@ class NotificationTestWidget(QWidget):
             log_method = getattr(self.main_window.notification_presenter, f"log_{level_text}")
             log_method(message, "TestWidget", notify=(level_text in ["warning", "error", "critical"]))
             
-            self.status_label.setText(f"Logged {level_text} message")
-            
+            self.status_label.setText(
+                self.tr("Logged {0} message").format(level_text))
+
         except Exception as e:
-            self.status_label.setText(f"Error logging message: {e}")
+            self.status_label.setText(
+                self.tr("Error logging message: {0}").format(e))
     
     def run_demo_sequence(self):
         """Run a demonstration sequence of notifications"""
@@ -162,7 +167,8 @@ class NotificationTestWidget(QWidget):
             self.status_label.setText(self.tr("Running demo sequence..."))
             
         except Exception as e:
-            self.status_label.setText(f"Error running demo: {e}")
+            self.status_label.setText(
+                self.tr("Error running demo: {0}").format(e))
     
     def demo_next_step(self):
         """Execute the next step in the demo sequence"""
@@ -202,7 +208,8 @@ class NotificationTestWidget(QWidget):
             
         except Exception as e:
             self.demo_timer.stop()
-            self.status_label.setText(f"Demo error: {e}")
+            self.status_label.setText(
+                self.tr("Demo error: {0}").format(e))
     
     def toggle_notifications(self):
         """Toggle the notifications panel visibility"""
@@ -210,7 +217,8 @@ class NotificationTestWidget(QWidget):
             self.main_window.notification_presenter.toggle_notifications()
             self.status_label.setText(self.tr("Toggled notifications panel"))
         except Exception as e:
-            self.status_label.setText(f"Error toggling notifications: {e}")
+            self.status_label.setText(
+                self.tr("Error toggling notifications: {0}").format(e))
     
     def clear_notifications(self):
         """Clear all notifications"""
@@ -218,7 +226,8 @@ class NotificationTestWidget(QWidget):
             self.main_window.notification_presenter.clear_notifications()
             self.status_label.setText(self.tr("Cleared all notifications"))
         except Exception as e:
-            self.status_label.setText(f"Error clearing notifications: {e}")
+            self.status_label.setText(
+                self.tr("Error clearing notifications: {0}").format(e))
 
 
 class NotificationTestApplication(BaseApplication):

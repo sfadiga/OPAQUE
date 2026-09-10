@@ -407,7 +407,7 @@ class AboutDialog(QDialog):
         title_label.setAlignment(Qt.AlignCenter)
         title_layout.addWidget(title_label)
 
-        version_label = QLabel(f"Version {info.version}")
+        version_label = QLabel(self.tr("Version {0}").format(info.version))
         version_font = version_label.font()
         version_font.setPointSize(version_font.pointSize() + 1)
         version_label.setFont(version_font)

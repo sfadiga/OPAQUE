@@ -102,7 +102,14 @@ _SCAN_SKIP = {"build_tools", "localisation.py"}
 
 
 def _is_a_readable_string(node: ast.AST) -> bool:
-    """True for a string literal that holds at least one letter."""
+    """True for a string literal, or an f-string, holding a letter."""
+    if isinstance(node, ast.JoinedStr):
+        return any(
+            isinstance(part, ast.Constant)
+            and isinstance(part.value, str)
+            and any(character.isalpha() for character in part.value)
+            for part in node.values
+        )
     if not isinstance(node, ast.Constant):
         return False
     if not isinstance(node.value, str):
@@ -221,3 +228,25 @@ def test_a_hebrew_locale_mirrors_the_layout(restored_direction):
     direction = apply_layout_direction(
         restored_direction, QLocale("he_IL"))
     assert direction == Qt.LayoutDirection.RightToLeft
+
+
+def test_the_scanner_catches_an_fstring_with_words(tmp_path):
+    sample = tmp_path / "sample.py"
+    sample.write_text(
+        'def build(label, count):\n'
+        '    label.setText(f"Sent {count} messages")\n',
+        encoding="utf-8",
+    )
+    assert _untranslated_strings(sample) == [2]
+
+
+def test_an_fstring_of_pure_placeholders_passes(tmp_path):
+    """f"{label} ({count})" holds no words of its own; the parts were
+    translated where they were made."""
+    sample = tmp_path / "sample.py"
+    sample.write_text(
+        'def build(label, a, b):\n'
+        '    label.setText(f"{a} ({b})")\n',
+        encoding="utf-8",
+    )
+    assert _untranslated_strings(sample) == []
