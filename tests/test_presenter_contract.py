@@ -44,11 +44,19 @@ class _FakeModel(BaseModel):
 
     value = IntField(default=0)
 
+    def __init__(self, configuration) -> None:
+        super().__init__(configuration)
+        self.detach_call_count = 0
+
     def feature_name(self) -> str:
         return "Contract"
 
     def feature_icon(self) -> QIcon:
         return QIcon()
+
+    def detach(self, observer) -> None:
+        self.detach_call_count += 1
+        super().detach(observer)
 
 
 class _RecordingPresenter(BasePresenter):
@@ -87,6 +95,15 @@ def presenter(qapp):
     model = _FakeModel(None)
     view = _FakeView()
     return _RecordingPresenter(model, view)
+
+
+@pytest.fixture
+def make_presenter(qapp):
+    def _make() -> _RecordingPresenter:
+        model = _FakeModel(None)
+        view = _FakeView()
+        return _RecordingPresenter(model, view)
+    return _make
 
 
 def test_on_view_close_is_not_abstract():
@@ -171,3 +188,21 @@ def test_the_original_attribute_name_survives_in_the_message(qapp):
         _LatePresenter(_FakeModel(None), _FakeView())
 
     assert "widget" in str(error.value)
+
+
+def test_cleanup_runs_once_even_when_called_twice(make_presenter):
+    """Shell closeEvent calls cleanup() after the view already closed.
+
+    The second call must be a no-op: no second detach, no failed
+    disconnect, no libpyside RuntimeWarning.
+    """
+    presenter = make_presenter()
+    presenter.cleanup()
+    detach_calls = presenter.model.detach_call_count
+
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        presenter.cleanup()
+
+    assert presenter.model.detach_call_count == detach_calls

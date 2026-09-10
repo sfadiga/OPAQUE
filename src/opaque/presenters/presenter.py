@@ -63,6 +63,14 @@ class BasePresenter(ABC):
         # window_closed more than once, and cleanup must not run twice.
         self._closed: bool = False
 
+        # True after cleanup() has run. The shell calls cleanup() for every
+        # feature at closeEvent, and a presenter whose view already closed
+        # has run it once by then. Disconnecting twice does not raise (the
+        # RuntimeError is caught below) but libpyside emits a RuntimeWarning
+        # that no except clause can silence, so the second call must not
+        # reach the disconnect at all.
+        self._cleaned: bool = False
+
         # Connect to view events
         self._view.window_opened.connect(self.on_view_show)
         self._view.window_closed.connect(self._handle_view_closed)
@@ -228,8 +236,13 @@ class BasePresenter(ABC):
 
     def cleanup(self) -> None:
         """
-        Clean up presenter resources.
+        Clean up presenter resources. Safe to call twice: the second call
+        returns without touching the model or the view.
         """
+        if self._cleaned:
+            return
+        self._cleaned = True
+
         # Detach from model
         self._model.detach(self)
 
