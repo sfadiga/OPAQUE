@@ -234,7 +234,9 @@ class SettingsDialog(QDialog):
 
         A slider field that also declares choices falls back to a
         spinbox, not to the combo; declare the combo ui_type directly
-        when choices must win.
+        when choices must win. A drawable slider (bounded int) that
+        also declares choices still draws the combo, as before; only
+        the non-drawable fallback loses to the spinbox.
         """
         ui_type = getattr(field, "ui_type", None)
         if ui_type != UIType.SLIDER:

@@ -608,6 +608,9 @@ class PrecisionModel(AbstractModel):
                         settings=True)
     not_a_number = FloatField(default=float("nan"),
                               description="NotANumber", settings=True)
+    combined = FloatField(default=0.25, decimals=9, min_value=0.0,
+                          max_value=1.0, description="Combined",
+                          settings=True, ui_type=UIType.SLIDER)
 
     def feature_name(self) -> str:
         return "Precision"
@@ -660,6 +663,15 @@ def test_a_non_finite_value_does_not_crash_the_dialog_and_keeps_six_places(
         precision_dialog):
     widget = _widget_for(precision_dialog, "NotANumber")
     assert widget.decimals() == 6
+
+
+def test_a_float_slider_with_declared_decimals_composes(precision_dialog):
+    """One field runs the ui_type override, the slider fallback and
+    the declared precision together; this locks the pipeline."""
+    widget = _widget_for(precision_dialog, "Combined")
+    assert isinstance(widget, QDoubleSpinBox)
+    assert widget.decimals() == 9
+    assert widget.value() == 0.25
 
 
 def test_the_default_stays_at_six_decimals(typed_dialog):

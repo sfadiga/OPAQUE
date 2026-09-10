@@ -64,6 +64,7 @@ class MyModel(BaseModel):
 | `min_value`, `max_value`, `choices` | Checked on every assignment. A bad value raises `ValueError`. |
 | `validator` | A callable run on every assignment; a falsy return raises `ValueError`. |
 | `ui_type` | Which widget the Settings dialog builds. See `UIType`. |
+| `FloatField(decimals=N)` | Sets the settings-dialog spinbox precision (default 6, cap 15; the widget widens further when the stored value needs it). |
 
 Every `UIType` member builds a real widget: `TEXT`/`TEXTAREA` a `QLineEdit`/`QPlainTextEdit`, `CHECKBOX` a `QCheckBox`, `SPINBOX`/`DOUBLE_SPINBOX` a `QSpinBox`/`QDoubleSpinBox`, `SLIDER` a `QSlider` when the field is an int with both bounds declared; otherwise the matching spinbox draws it, `COMBOBOX`/`DROPDOWN` a `QComboBox`, `COLOR_PICKER` a `ColorPicker`, `LIST_VIEW` a `ListEditor`, and `FILE_SELECTOR` a `FileSelector`. `ListField` declares `UIType.LIST_VIEW` by default, so it renders as a `ListEditor` with add/remove buttons, not a comma separated line edit.
 
