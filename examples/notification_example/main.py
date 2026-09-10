@@ -29,6 +29,7 @@ from opaque.services.notification_service import NotificationLevel
 from opaque.services.service import ServiceLocator
 from opaque.services.notification_service import NotificationService
 from opaque.services.logger_service import LoggerService
+from opaque.view.theme import TypeScale, surface_variant
 
 
 class NotificationTestConfiguration(DefaultApplicationConfiguration):
@@ -66,47 +67,49 @@ class NotificationTestWidget(QWidget):
         layout = QVBoxLayout()
         
         # Title
-        title = QLabel("Notification System Test")
-        title.setStyleSheet("font-size: 16px; font-weight: bold; margin: 10px;")
+        title = QLabel(self.tr("Notification System Test"))
+        title.setFont(TypeScale.h2())
         layout.addWidget(title)
-        
+
         # Notification level selector
-        level_label = QLabel("Select Notification Level:")
+        level_label = QLabel(self.tr("Select Notification Level:"))
         layout.addWidget(level_label)
-        
+
         self.level_combo = QComboBox()
         self.level_combo.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
         self.level_combo.setCurrentText("INFO")
         layout.addWidget(self.level_combo)
-        
+
         # Test buttons
-        test_notification_btn = QPushButton("Send Test Notification")
+        test_notification_btn = QPushButton(self.tr("Send Test Notification"))
         test_notification_btn.clicked.connect(self.send_test_notification)
         layout.addWidget(test_notification_btn)
-        
-        test_log_btn = QPushButton("Send Test Log Message")
+
+        test_log_btn = QPushButton(self.tr("Send Test Log Message"))
         test_log_btn.clicked.connect(self.send_test_log)
         layout.addWidget(test_log_btn)
-        
-        demo_sequence_btn = QPushButton("Run Demo Sequence")
+
+        demo_sequence_btn = QPushButton(self.tr("Run Demo Sequence"))
         demo_sequence_btn.clicked.connect(self.run_demo_sequence)
         layout.addWidget(demo_sequence_btn)
-        
-        toggle_notifications_btn = QPushButton("Toggle Notifications Panel")
+
+        toggle_notifications_btn = QPushButton(self.tr("Toggle Notifications Panel"))
         toggle_notifications_btn.clicked.connect(self.toggle_notifications)
         layout.addWidget(toggle_notifications_btn)
-        
-        clear_notifications_btn = QPushButton("Clear All Notifications")
+
+        clear_notifications_btn = QPushButton(self.tr("Clear All Notifications"))
         clear_notifications_btn.clicked.connect(self.clear_notifications)
         layout.addWidget(clear_notifications_btn)
-        
+
         # Status
-        self.status_label = QLabel("Ready to test notifications...")
-        self.status_label.setStyleSheet("margin-top: 20px; padding: 10px; background-color: #f0f0f0;")
+        self.status_label = QLabel(self.tr("Ready to test notifications..."))
+        self.status_label.setStyleSheet(
+            f"margin-top: 20px; padding: 10px;"
+            f" background-color: {surface_variant()};")
         layout.addWidget(self.status_label)
-        
+
         self.setLayout(layout)
-        self.setWindowTitle("Notification Test Controls")
+        self.setWindowTitle(self.tr("Notification Test Controls"))
         
     def send_test_notification(self):
         """Send a test notification"""
@@ -151,7 +154,7 @@ class NotificationTestWidget(QWidget):
             self.demo_timer.timeout.connect(self.demo_next_step)
             self.demo_timer.start(2000)  # 2 second intervals
             
-            self.status_label.setText("Running demo sequence...")
+            self.status_label.setText(self.tr("Running demo sequence..."))
             
         except Exception as e:
             self.status_label.setText(f"Error running demo: {e}")
@@ -161,26 +164,33 @@ class NotificationTestWidget(QWidget):
         try:
             if self.demo_step == 0:
                 self.main_window.notification_presenter.notify_info(
-                    "Demo Started", "Beginning notification system demonstration", "Demo"
+                    self.tr("Demo Started"),
+                    self.tr("Beginning notification system demonstration"),
+                    "Demo"
                 )
             elif self.demo_step == 1:
                 self.main_window.notification_presenter.log_info(
-                    "Demo step 1: Info logging", "Demo"
+                    self.tr("Demo step 1: Info logging"), "Demo"
                 )
             elif self.demo_step == 2:
                 self.main_window.notification_presenter.notify_warning(
-                    "Demo Warning", "This is a warning notification", "Demo"
+                    self.tr("Demo Warning"),
+                    self.tr("This is a warning notification"),
+                    "Demo"
                 )
             elif self.demo_step == 3:
                 self.main_window.notification_presenter.log_error(
-                    "Demo error log (this will create a notification)", "Demo", notify=True
+                    self.tr("Demo error log (this will create a notification)"),
+                    "Demo", notify=True
                 )
             elif self.demo_step == 4:
                 self.main_window.notification_presenter.notify_info(
-                    "Demo Complete", "Notification system demonstration finished", "Demo"
+                    self.tr("Demo Complete"),
+                    self.tr("Notification system demonstration finished"),
+                    "Demo"
                 )
                 self.demo_timer.stop()
-                self.status_label.setText("Demo sequence completed!")
+                self.status_label.setText(self.tr("Demo sequence completed!"))
                 return
             
             self.demo_step += 1
@@ -193,7 +203,7 @@ class NotificationTestWidget(QWidget):
         """Toggle the notifications panel visibility"""
         try:
             self.main_window.notification_presenter.toggle_notifications()
-            self.status_label.setText("Toggled notifications panel")
+            self.status_label.setText(self.tr("Toggled notifications panel"))
         except Exception as e:
             self.status_label.setText(f"Error toggling notifications: {e}")
     
@@ -201,7 +211,7 @@ class NotificationTestWidget(QWidget):
         """Clear all notifications"""
         try:
             self.main_window.notification_presenter.clear_notifications()
-            self.status_label.setText("Cleared all notifications")
+            self.status_label.setText(self.tr("Cleared all notifications"))
         except Exception as e:
             self.status_label.setText(f"Error clearing notifications: {e}")
 
@@ -218,7 +228,7 @@ class NotificationTestApplication(BaseApplication):
         
         # Add the test widget as a subwindow in the MDI area
         sub_window = self.mdi_area.addSubWindow(self.test_widget)
-        sub_window.setWindowTitle("Notification Test Controls")
+        sub_window.setWindowTitle(self.tr("Notification Test Controls"))
         sub_window.show()
         
         # Ensure the main window is visible
@@ -231,8 +241,11 @@ class NotificationTestApplication(BaseApplication):
         """Send a welcome notification after the app starts"""
         try:
             self.notification_presenter.notify_info(
-                "Welcome!",
-                "Notification system test application is ready. Use the controls to test different notification types. Check the notification panel at the bottom.",
+                self.tr("Welcome!"),
+                self.tr(
+                    "Notification system test application is ready. Use "
+                    "the controls to test different notification types. "
+                    "Check the notification panel at the bottom."),
                 "System"
             )
         except Exception as e:

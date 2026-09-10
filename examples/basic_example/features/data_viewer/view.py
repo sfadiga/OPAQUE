@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QInputDialog, QMessageBox, QHeaderView
 )
 from PySide6.QtCore import Signal, QDateTime
-from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
 from typing import Any, Dict, List, Optional
 
@@ -23,10 +22,6 @@ class DataViewerView(BaseView):
     export_clicked = Signal()
     import_clicked = Signal()
 
-    def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
-        """Initialize the view."""
-        super().__init__(context, parent)
-
     def feature_id(self) -> str:
         """Return the feature ID."""
         return "data_viewer"
@@ -39,29 +34,29 @@ class DataViewerView(BaseView):
         # Create toolbar
         toolbar_layout = QHBoxLayout()
 
-        self.refresh_btn = QPushButton("Refresh")
+        self.refresh_btn = QPushButton(self.tr("Refresh"))
         self.refresh_btn.clicked.connect(self.refresh_clicked.emit)
         toolbar_layout.addWidget(self.refresh_btn)
 
-        self.add_btn = QPushButton("Add Item")
+        self.add_btn = QPushButton(self.tr("Add Item"))
         self.add_btn.clicked.connect(self.add_clicked.emit)
         toolbar_layout.addWidget(self.add_btn)
 
-        self.remove_btn = QPushButton("Remove Item")
+        self.remove_btn = QPushButton(self.tr("Remove Item"))
         self.remove_btn.clicked.connect(self.remove_clicked.emit)
         toolbar_layout.addWidget(self.remove_btn)
 
-        self.clear_btn = QPushButton("Clear All")
+        self.clear_btn = QPushButton(self.tr("Clear All"))
         self.clear_btn.clicked.connect(self.clear_clicked.emit)
         toolbar_layout.addWidget(self.clear_btn)
 
         toolbar_layout.addStretch()
 
-        self.import_btn = QPushButton("Import")
+        self.import_btn = QPushButton(self.tr("Import"))
         self.import_btn.clicked.connect(self.import_clicked.emit)
         toolbar_layout.addWidget(self.import_btn)
 
-        self.export_btn = QPushButton("Export")
+        self.export_btn = QPushButton(self.tr("Export"))
         self.export_btn.clicked.connect(self.export_clicked.emit)
         toolbar_layout.addWidget(self.export_btn)
 
@@ -69,7 +64,7 @@ class DataViewerView(BaseView):
 
         # Create info bar
         info_layout = QHBoxLayout()
-        self.item_count_label = QLabel("Items: 0")
+        self.item_count_label = QLabel(self.tr("Items: {0}").format(0))
         info_layout.addWidget(self.item_count_label)
         info_layout.addStretch()
         layout.addLayout(info_layout)
@@ -81,7 +76,7 @@ class DataViewerView(BaseView):
         layout.addWidget(self.table)
 
         # Create status bar
-        self.status_label = QLabel("Ready")
+        self.status_label = QLabel(self.tr("Ready"))
         layout.addWidget(self.status_label)
 
         # Set the layout
@@ -111,7 +106,7 @@ class DataViewerView(BaseView):
                     value = item.get(column, '')
                     # Convert to string for display
                     if isinstance(value, bool):
-                        value = "Yes" if value else "No"
+                        value = self.tr("Yes") if value else self.tr("No")
                     elif value is None:
                         value = ""
                     else:
@@ -125,7 +120,7 @@ class DataViewerView(BaseView):
 
     def update_item_count(self, count: int):
         """Update the item count label."""
-        self.item_count_label.setText(f"Items: {count}")
+        self.item_count_label.setText(self.tr("Items: {0}").format(count))
 
     def update_filters(self, filters: Dict[str, Any]):
         """Update filter display (if we had filter UI)."""
@@ -151,8 +146,8 @@ class DataViewerView(BaseView):
         # Simple input dialog for demonstration
         text, ok = QInputDialog.getText(
             self,
-            "Add Item",
-            "Enter item name:"
+            self.tr("Add Item"),
+            self.tr("Enter item name:")
         )
 
         if ok and text:
@@ -171,9 +166,9 @@ class DataViewerView(BaseView):
         """Get file path for export."""
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export Data",
+            self.tr("Export Data"),
             "",
-            "JSON Files (*.json);;All Files (*.*)"
+            self.tr("JSON Files (*.json);;All Files (*.*)")
         )
         return file_path if file_path else None
 
@@ -181,9 +176,9 @@ class DataViewerView(BaseView):
         """Get file path for import."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Import Data",
+            self.tr("Import Data"),
             "",
-            "JSON Files (*.json);;All Files (*.*)"
+            self.tr("JSON Files (*.json);;All Files (*.*)")
         )
         return file_path if file_path else None
 

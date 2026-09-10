@@ -67,8 +67,8 @@ class MyExampleApplication(BaseApplication):
         
         # Welcome notification
         self.notification_presenter.notify_info(
-            "Welcome", 
-            "Basic Example loaded with Console, Tabs, Logging, and more.", 
+            self.tr("Welcome"),
+            self.tr("Basic Example loaded with Console, Tabs, Logging, and more."),
             "System"
         )
 

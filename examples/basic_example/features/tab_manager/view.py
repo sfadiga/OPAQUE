@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QTextEdit, QSpinBox, QPushButton, QListWidget
 )
-from opaque.features.context import FeatureContext
+from opaque.view.theme import muted_on_surface
 from opaque.view.view import BaseView
 from opaque.view.widgets import CloseableTabWidget
 
@@ -15,11 +15,11 @@ class TextWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        label = QLabel("Text Editor Tab")
+        label = QLabel(self.tr("Text Editor Tab"))
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
         self.text_edit = QTextEdit()
-        self.text_edit.setPlainText("Type here...")
+        self.text_edit.setPlainText(self.tr("Type here..."))
         layout.addWidget(self.text_edit)
 
     def get_workspace_data(self):
@@ -35,21 +35,21 @@ class CounterWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        label = QLabel("Counter Tab")
+        label = QLabel(self.tr("Counter Tab"))
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
-        
+
         controls = QHBoxLayout()
         self.spin_box = QSpinBox()
         self.spin_box.setRange(-1000, 1000)
-        controls.addWidget(QLabel("Value:"))
+        controls.addWidget(QLabel(self.tr("Value:")))
         controls.addWidget(self.spin_box)
-        
-        btn_inc = QPushButton("+1")
+
+        btn_inc = QPushButton(self.tr("+1"))
         btn_inc.clicked.connect(lambda: self.spin_box.setValue(self.spin_box.value() + 1))
         controls.addWidget(btn_inc)
-        
-        btn_dec = QPushButton("-1")
+
+        btn_dec = QPushButton(self.tr("-1"))
         btn_dec.clicked.connect(lambda: self.spin_box.setValue(self.spin_box.value() - 1))
         controls.addWidget(btn_dec)
         
@@ -69,26 +69,26 @@ class ListWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        label = QLabel("List Tab")
+        label = QLabel(self.tr("List Tab"))
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(label)
-        
+
         self.list_widget = QListWidget()
-        self.list_widget.addItems(["Item 1", "Item 2"])
+        self.list_widget.addItems([self.tr("Item 1"), self.tr("Item 2")])
         layout.addWidget(self.list_widget)
-        
+
         controls = QHBoxLayout()
-        btn_add = QPushButton("Add")
+        btn_add = QPushButton(self.tr("Add"))
         btn_add.clicked.connect(self._add_item)
         controls.addWidget(btn_add)
-        
-        btn_del = QPushButton("Remove")
+
+        btn_del = QPushButton(self.tr("Remove"))
         btn_del.clicked.connect(self._remove_item)
         controls.addWidget(btn_del)
         layout.addLayout(controls)
 
     def _add_item(self):
-        self.list_widget.addItem(f"Item {self.list_widget.count() + 1}")
+        self.list_widget.addItem(self.tr("Item {0}").format(self.list_widget.count() + 1))
 
     def _remove_item(self):
         row = self.list_widget.currentRow()
@@ -106,21 +106,19 @@ class ListWidget(QWidget):
 
 
 class TabManagerView(BaseView):
-    def __init__(self, context: FeatureContext, parent=None):
-        super().__init__(context, parent)
-
     def setup_ui(self) -> None:
         layout = QVBoxLayout()
-        
+
         # Info label
-        info = QLabel("Use the 'Features > Tab Manager' menu or buttons below.")
-        info.setStyleSheet("padding: 5px; color: gray;")
+        info = QLabel(self.tr(
+            "Use the 'Features > Tab Manager' menu or buttons below."))
+        info.setStyleSheet(f"padding: 5px; color: {muted_on_surface()};")
         layout.addWidget(info)
-        
+
         # Closeable Tab Widget
         self.tab_widget = CloseableTabWidget(
             widget_type=TextWidget,
-            default_tab_name="Text Editor",
+            default_tab_name=self.tr("Text Editor"),
             minimum_tabs=0,
             show_plus_tab=True
         )

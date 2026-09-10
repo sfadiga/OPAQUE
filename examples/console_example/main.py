@@ -217,7 +217,7 @@ def main():
         app = ConsoleExampleApp(config)
 
         # Set window title
-        app.setWindowTitle("OPAQUE Console Example")
+        app.setWindowTitle(app.tr("OPAQUE Console Example"))
 
         # Show the application
         app.show()

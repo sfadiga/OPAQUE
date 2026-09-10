@@ -10,8 +10,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QIcon
 
-from opaque.features.context import FeatureContext
 from opaque.view.view import BaseView
+from opaque.view.theme import TypeScale, interactive, on_interactive
 
 
 class CalculatorView(BaseView):
@@ -26,9 +26,6 @@ class CalculatorView(BaseView):
     backspace_clicked = Signal()
     toggle_sign_clicked = Signal()
     clear_history_clicked = Signal()
-
-    def __init__(self, context: FeatureContext, parent: Optional[QWidget] = None):
-        super().__init__(context, parent)
 
     def setup_ui(self) -> None:
         """Setup the calculator UI."""
@@ -85,25 +82,16 @@ class CalculatorView(BaseView):
             button.setMinimumSize(60, 60)
             button.clicked.connect(callback)
 
-            # Style operator buttons differently
+            # Style operator buttons differently. Colours and sizes come
+            # from the theme tokens; a widget never writes a literal.
             if text in ['+', '-', '*', '/', '=']:
-                button.setStyleSheet("""
-                    QPushButton {
-                        background-color: #4CAF50;
-                        color: white;
-                        font-weight: bold;
-                        font-size: 18px;
-                    }
-                    QPushButton:hover {
-                        background-color: #45a049;
-                    }
-                """)
-            else:
-                button.setStyleSheet("""
-                    QPushButton {
-                        font-size: 16px;
-                    }
-                """)
+                button.setStyleSheet(
+                    f"QPushButton {{"
+                    f" background-color: {interactive()};"
+                    f" color: {on_interactive()};"
+                    f" font-weight: bold;"
+                    f" }}")
+            button.setFont(TypeScale.body())
 
             button_layout.addWidget(button, row, col)
 
