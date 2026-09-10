@@ -394,3 +394,38 @@ def test_a_redraw_after_reject_shows_the_model_again(dialog):
     dialog._on_group_selected()
 
     assert _widget_for(dialog, "Count").value() == 2
+
+
+class UnboundedModel(AbstractModel):
+    FEATURE_ID = "unbounded"
+
+    big = IntField(default=5000, description="Big", settings=True)
+    ratio = FloatField(default=1e6, description="Ratio", settings=True)
+
+    def feature_name(self) -> str:
+        return "Unbounded"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+@pytest.fixture
+def unbounded_dialog(qtbot, service):
+    presenter = DemoPresenter(UnboundedModel())
+    presenter.feature_id = "unbounded"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    return widget
+
+
+def test_a_spinbox_without_declared_bounds_is_not_clamped_to_99(unbounded_dialog):
+    """Qt's default QSpinBox range is 0-99; a stored 5000 was clamped."""
+    spin = _widget_of_type(unbounded_dialog, QSpinBox)
+    assert spin.value() == 5000
+    assert spin.minimum() < 0
+
+
+def test_a_double_spinbox_without_declared_bounds_keeps_a_large_value(unbounded_dialog):
+    spin = _widget_of_type(unbounded_dialog, QDoubleSpinBox)
+    assert spin.value() == 1e6

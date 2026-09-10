@@ -428,6 +428,10 @@ class SettingsDialog(QDialog):
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.SPINBOX:
                 widget = QSpinBox()
+                # Qt's default range is 0-99, which silently clamped every
+                # unbounded field. Open the full int32 range first; a
+                # declared bound then narrows it.
+                widget.setRange(-2**31, 2**31 - 1)
                 if hasattr(field, 'min_value') and field.min_value is not None:
                     widget.setMinimum(int(field.min_value))
                 if hasattr(field, 'max_value') and field.max_value is not None:
@@ -439,6 +443,9 @@ class SettingsDialog(QDialog):
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.DOUBLE_SPINBOX:
                 widget = QDoubleSpinBox()
+                # Same reason as the QSpinBox above: Qt's default is 0-99.
+                widget.setRange(-1.0e15, 1.0e15)
+                widget.setDecimals(6)
                 if hasattr(field, 'min_value') and field.min_value is not None:
                     widget.setMinimum(field.min_value)
                 if hasattr(field, 'max_value') and field.max_value is not None:
