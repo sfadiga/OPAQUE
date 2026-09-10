@@ -103,13 +103,18 @@ class NotificationTestWidget(QWidget):
 
         # Status
         self.status_label = QLabel(self.tr("Ready to test notifications..."))
-        self.status_label.setStyleSheet(
-            f"margin-top: 20px; padding: 10px;"
-            f" background-color: {surface_variant()};")
         layout.addWidget(self.status_label)
 
         self.setLayout(layout)
         self.setWindowTitle(self.tr("Notification Test Controls"))
+
+        self.apply_theme()
+
+    def apply_theme(self) -> None:
+        """Rebuild the status style; its colour token goes stale otherwise."""
+        self.status_label.setStyleSheet(
+            f"margin-top: 20px; padding: 10px;"
+            f" background-color: {surface_variant()};")
         
     def send_test_notification(self):
         """Send a test notification"""

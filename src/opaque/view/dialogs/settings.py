@@ -438,7 +438,10 @@ class SettingsDialog(QDialog):
                     widget.setMinimum(int(field.min_value))
                 if hasattr(field, 'max_value') and field.max_value is not None:
                     widget.setMaximum(int(field.max_value))
-                widget.setValue(int(current_value))
+                # An unset value is None; int(None) raises. Leave the widget
+                # on its minimum and queue nothing.
+                if current_value is not None:
+                    widget.setValue(int(current_value))
                 widget.valueChanged.connect(
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
@@ -452,7 +455,9 @@ class SettingsDialog(QDialog):
                     widget.setMinimum(field.min_value)
                 if hasattr(field, 'max_value') and field.max_value is not None:
                     widget.setMaximum(field.max_value)
-                widget.setValue(float(current_value))
+                # Same as the QSpinBox above: float(None) raises.
+                if current_value is not None:
+                    widget.setValue(float(current_value))
                 widget.valueChanged.connect(
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
@@ -497,14 +502,20 @@ class SettingsDialog(QDialog):
                     widget.setMinimum(int(field.min_value))
                 if hasattr(field, 'max_value') and field.max_value is not None:
                     widget.setMaximum(int(field.max_value))
-                widget.setValue(int(current_value))
+                # An unset value is None; int(None) raises. The slider then
+                # rests on its minimum and queues nothing.
+                if current_value is not None:
+                    widget.setValue(int(current_value))
                 widget.valueChanged.connect(
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
                 )
             elif hasattr(field, 'ui_type') and field.ui_type == UIType.LIST_VIEW:
+                # coerce() turns legacy comma text into a list. Handing the
+                # raw value to the editor exploded a string character by
+                # character.
                 widget = ListEditor(initial_items=[
-                    str(item) for item in (current_value or [])])
+                    str(item) for item in (field.coerce(current_value) or [])])
                 widget.itemsChanged.connect(
                     lambda items, fid=feature_id, name=name: self._record_pending(
                         fid, name, items)

@@ -157,11 +157,10 @@ class TabExampleView(BaseView):
     def setup_ui(self) -> None:
         layout = QVBoxLayout()
 
-        info = QLabel(self.tr(
+        self._info_label = QLabel(self.tr(
             "Use the 'Add Tab' menu in the main window toolbar "
             "or the + button below."))
-        info.setStyleSheet(f"padding: 5px; color: {muted_on_surface()};")
-        layout.addWidget(info)
+        layout.addWidget(self._info_label)
 
         self.tab_widget = CloseableTabWidget(
             widget_type=TextWidget,
@@ -173,6 +172,13 @@ class TabExampleView(BaseView):
 
         self.setWidget(QWidget())
         self.widget().setLayout(layout)
+
+        self.apply_theme()
+
+    def apply_theme(self) -> None:
+        """Rebuild the info style; its colour token goes stale otherwise."""
+        self._info_label.setStyleSheet(
+            f"padding: 5px; color: {muted_on_surface()};")
 
 
 class TabExamplePresenter(BasePresenter):

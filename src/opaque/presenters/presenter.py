@@ -196,6 +196,10 @@ class BasePresenter(ABC):
 
         Do not call cleanup() here and do not call super(). The framework
         calls cleanup() straight after this method returns.
+
+        The hook runs when the sub-window itself closes. At application
+        exit the shell calls cleanup() directly, so a window that is still
+        open at that moment does not run this hook.
         """
 
     def save_workspace(self, workspace_object: dict) -> None:
@@ -231,8 +235,19 @@ class BasePresenter(ABC):
         for key, value in block.items():
             if key == "window_state" or key not in fields:
                 continue
-            setattr(self.model, key, fields[key].coerce(value))
-            self.update(key, value)
+            # One stale or rejected value must not abort the rest of the
+            # restore: a file saved before a validator was added can hold
+            # a value the model now refuses. The settings path skips a bad
+            # stored value per field the same way.
+            try:
+                coerced = fields[key].coerce(value)
+                setattr(self.model, key, coerced)
+            except (TypeError, ValueError) as error:
+                logger.warning(
+                    "workspace value %r for %s.%s was rejected: %s",
+                    value, self.feature_id, key, error)
+                continue
+            self.update(key, coerced)
 
     def cleanup(self) -> None:
         """

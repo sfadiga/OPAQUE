@@ -190,6 +190,41 @@ def test_the_original_attribute_name_survives_in_the_message(qapp):
     assert "widget" in str(error.value)
 
 
+class _WorkspaceModel(BaseModel):
+    """Two workspace fields; the first one rejects negative values."""
+
+    FEATURE_ID = "guarded"
+
+    checked = IntField(default=1, workspace=True,
+                       validator=lambda value: value >= 0)
+    plain = IntField(default=0, workspace=True)
+
+    def feature_name(self) -> str:
+        return "Guarded"
+
+    def feature_icon(self) -> QIcon:
+        return QIcon()
+
+
+def test_one_bad_workspace_value_does_not_abort_the_restore(qapp, caplog):
+    """A .workspace file can hold a value a newer validator rejects.
+
+    That one value must be skipped and logged; every later field in the
+    block must still be restored. The settings path already skips a bad
+    stored value per field, and the workspace path must match it.
+    """
+    presenter = _RecordingPresenter(_WorkspaceModel(None), _FakeView())
+    block = {"guarded": {"checked": -5, "plain": 7}}
+
+    with caplog.at_level(
+            logging.WARNING, logger="opaque.presenters.presenter"):
+        presenter.load_workspace(block)
+
+    assert presenter.model.checked == 1
+    assert presenter.model.plain == 7
+    assert any("checked" in record.message for record in caplog.records)
+
+
 def test_cleanup_runs_once_even_when_called_twice(make_presenter):
     """Shell closeEvent calls cleanup() after the view already closed.
 
