@@ -1,8 +1,8 @@
 # OPAQUE Quick Reference
 
-Every name on this page is checked by `tests/test_documentation.py`. If a name here stops existing, the suite fails.
+Every `opaque` import on this page is checked by `tests/test_documentation.py`; the prose is checked by review, not by a test.
 
-The one worked example is `examples/quickstart/main.py` (smallest) and `examples/basic_example/main.py` (full).
+The worked examples are `examples/quickstart/main.py` (smallest), `examples/basic_example/main.py` (full), plus focused ones: `closeable_tab_example`, `console_example`, `notification_example`.
 
 ## The contract
 
@@ -17,11 +17,11 @@ from opaque import BaseApplication, BaseModel, BasePresenter, BaseView, FeatureC
 | `BaseApplication` | `opaque.shell` | `QMainWindow` shell: service registry, feature registry, toolbar, MDI area | `__init__` that calls `super().__init__(configuration)` then registers features |
 | `BaseModel` | `opaque.models.model` | State plus feature identity | `FEATURE_ID`, `feature_name()`, `feature_icon()`, `feature_description()` |
 | `BaseView` | `opaque.view.view` | One MDI sub-window | `setup_ui()`, the widget tree, called at the end of `__init__` |
-| `BasePresenter` | `opaque.presenters.presenter` | The wiring | `bind_events()`, `update()`, `on_view_show()`, `on_view_close()` |
+| `BasePresenter` | `opaque.presenters.presenter` | The wiring | `bind_events()`, `update()`, `on_view_show()`; `on_view_close()` is optional |
 | `FeatureContext` | `opaque.features.context` | Everything a feature may know about its application | nothing; the shell builds it |
 | `DefaultApplicationConfiguration` | `opaque.models.configuration` | Application metadata | five `get_application_*` accessors |
 
-Each of `BaseModel`, `BaseView` and `BasePresenter` takes a `FeatureContext`, not the application. It offers the configuration (`context.configuration`), a typed service lookup (`context.service(SomeService)`), and one way to put a window on screen (`context.show_window(view)`) — nothing else.
+Each of `BaseModel`, `BaseView` and `BasePresenter` takes a `FeatureContext`, not the application. It offers the configuration (`context.configuration`), typed service lookups (`context.service(SomeService)`, `context.optional_service(...)`), the application icon (`context.application_icon()`), one way to put a window on screen (`context.show_window(view)`), and `context.shell` — a deliberate escape hatch to the main window for the rare feature that must reach shell-level UI; prefer the narrow members.
 
 ## Registering a feature
 
@@ -105,7 +105,7 @@ console = ServiceLocator.get_optional(ConsoleService)     # may be None
 | `LoggerService` | `logger` | `ServiceLocator.get(LoggerService)` |
 | `SingleInstanceService` | `single_instance` | `ServiceLocator.get(SingleInstanceService)` |
 | `ConsoleService` | `console` | `ServiceLocator.get_optional(ConsoleService)` (registered only once a console feature exists) |
-| `VersionManager` | `version` | not registered by the framework; construct directly with `VersionManager()` |
+| `VersionManager` | `version` | `ServiceLocator.get(VersionManager)` — the shell registers it in `BaseApplication.__init__` |
 
 `themes` is plural. There is no `theme`.
 

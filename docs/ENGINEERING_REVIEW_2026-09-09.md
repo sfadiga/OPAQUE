@@ -108,3 +108,11 @@ Everything else checked clean: all eight `SERVICE_NAME` values, every cited path
 4. **Optional structural item.** The `create_services` seam (3.2), only if replaceable services are a real requirement; otherwise write the decision down as D-series and close it.
 
 Nothing here blocks a release. Items 1–3 are a day or two of work in total.
+
+### Decisions taken (2026-09-09), executed by `docs/superpowers/plans/2026-09-09-review-followup-fixes.md`
+
+- `validator=` (2.1): runs in the generated setter.
+- Four dead `UIType` members (2.1): all four built — `TEXTAREA`, `SLIDER`, `LIST_VIEW`, `FILE_SELECTOR` each draw a real widget.
+- `self_check.py` (3.1): wired to the `OPAQUE_SELF_CHECK` environment variable; the shell runs it once, at first show.
+- Examples (4.2): fixed and guarded, not pruned. `examples/my_example` was deleted (it duplicated `basic_example` and carried the double-cleanup defect); the other four were brought up to the theme, i18n and lifecycle rules and are covered by `tests/test_example_hygiene.py`.
+- `create_services` seam (3.2): accepted as not built — see the "Items accepted rather than fixed" table in `docs/ENGINEERING_REVIEW.md` §9.

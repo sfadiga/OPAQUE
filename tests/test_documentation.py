@@ -26,12 +26,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # A document may be kept on purpose while it is being rewritten. Name it
 # here with the reason, or delete it. An empty exception list is the goal.
 #
-# The six files below are design plans in docs/superpowers/plans/, not
+# The files below are design plans in docs/superpowers/plans/, not
 # documentation of the current API. Plans 03, 05, 08, 09, and 10 show code
 # for modules the plan itself has not built yet (opaque.shell,
 # opaque.features.context, opaque.build_tools.config, ...); this plan's own
 # file shows the ghost opaque.core imports it is fixing, as the "before"
-# half of a replace. None of the six claim the current framework has these
+# half of a replace. None of them claim the current framework has these
 # names, so they are not the lie this checker exists to catch.
 SKIPPED_FILES: dict[str, str] = {
     "2026-09-08-techdebt-02-docs-and-examples-truth.md": (
@@ -63,11 +63,6 @@ SKIPPED_FILES: dict[str, str] = {
         "Historical plan that fixed opaque.view.layouts.flow.FlowLayout "
         "before Plan 10 Task 1 deleted that module for having no "
         "production caller. The import was real when this plan ran."
-    ),
-    "2026-09-09-review-followup-fixes.md": (
-        "Design plan for opaque.view.widgets.file_selector and "
-        "opaque.view.widgets.list_editor, which do not exist until that "
-        "plan's Tasks 6 and 7 run. Remove this entry when the plan is done."
     ),
 }
 

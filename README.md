@@ -21,6 +21,8 @@ A flexible, modern MDI (Multiple Document Interface) application framework built
 
 ## 📦 Installation
 
+Requires Python 3.11 or newer.
+
 ```bash
 pip install opaque-framework
 ```
@@ -171,12 +173,15 @@ Two traps that cost an hour each:
 *   [**Developer Guide**](docs/DEVELOPER_GUIDE.md): Bootstrapping, features, and the built-in services.
 *   [**Build Guide**](docs/BUILD_GUIDE.md): How to create standalone executables.
 *   [**Version Management**](docs/VERSION_MANAGEMENT.md): Handling application versions.
-*   [**Engineering Review**](docs/ENGINEERING_REVIEW.md): The current known-defect list.
+*   [**Engineering Review**](docs/ENGINEERING_REVIEW.md): the 2026-09-08 audit (historical); [follow-up verification](docs/ENGINEERING_REVIEW_2026-09-09.md) with the remaining small items.
 
 ## 📂 Examples
 
 *   `examples/quickstart`: The smallest application that runs. The suite builds it on every run.
 *   `examples/basic_example`: Full showcase of MVP, logging, console, tabs, and notifications.
+*   `examples/closeable_tab_example`: `CloseableTabWidget` inside a full application: tabs, factories, renaming.
+*   `examples/console_example`: The internal console feature capturing stdout/stderr.
+*   `examples/notification_example`: The notification system driven from a plain `QWidget`.
 
 ## 🤝 Contributing
 

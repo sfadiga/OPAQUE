@@ -30,9 +30,11 @@ class FeatureContext:
     which is a QMainWindow that also owns the service registry, the feature
     registry, the toolbar and the MDI area. A feature that holds that can
     reach anything, and ApplicationModel did: it read a private attribute
-    through it. The context gives three things and nothing else: the
-    configuration, a typed service lookup, and one way to put a window on
-    screen.
+    through it. The context narrows this to the configuration, typed service
+    lookups (service(), optional_service()), the application icon, one way
+    to put a window on screen (show_window()), and shell — a deliberate
+    escape hatch to the main window for the rare feature that must reach
+    shell-level UI; prefer the narrower members.
 
     A service is looked up on every call, never cached, so nothing here can
     hold a service that has been cleaned up.

@@ -263,13 +263,13 @@ where one commit is not obvious from the index alone.
 | 3.8 dead configuration surface | `addfa0d`, `a72a32a`, `d55c38f`, `c34e1f5`, `798ff42`, `2718b0a` |
 | 3.9 three identity schemes for one feature | `30b4a84`, `16d41ee` |
 | 3.10 theme system has two sources of truth | `459745b`, `d8dfe53`, `4a48eca`, `04cc8e0` |
-| 3.11 (11 sub-items) | see the index's own breakdown table; the two still open at review time — `self_check.py` wiring and the five `print()` calls — are closed by this plan's Task 4 (`4dbbd3b`) and Task 6 (`257e941`) |
+| 3.11 (11 sub-items) | see the index's own breakdown table; the five `print()` calls are closed by this plan's Task 6 (`257e941`). `self_check.py` wiring was NOT closed by `4dbbd3b` (only the hit-target token moved); it was closed later — see `ENGINEERING_REVIEW_2026-09-09.md` and the review-followup plan. |
 
 ### P2 — architecture
 
 | Item | Closed by |
 |---|---|
-| 4.1 shallow, stringly-typed service seam | `2e8387b`, `197c69d`, `85b098d`, `d87c29c` |
+| 4.1 shallow, stringly-typed service seam | `2e8387b`, `197c69d`, `85b098d`, `d87c29c` (typed lookups only; the `create_services` replacement seam was not built — accepted, see the decision below) |
 | 4.2 everything holds the whole application | `0ec6a73`, `51952eb`, `121bd06` |
 | 4.3 feature assembly manual and order-fragile | `c27fbaf`, `6185c7e` |
 | 4.4 layering does not match the package names | `303826f`, `46f4fca` |
@@ -299,3 +299,4 @@ where one commit is not obvious from the index alone.
 | `models`, `presenters`, `services` have no `__init__.py` (implicit namespace packages) | Accepted as latent: no `pkgutil`/`iter_modules`/`collect_submodules` call anywhere in `src/` or `examples/` depends on it, and the wheel ships every module regardless. `tests/test_imports.py` no longer depends on the walk order either. Revisit only if a generated PyInstaller/Nuitka spec starts calling `collect_submodules("opaque")`. |
 | `SingleInstanceService` binds a fixed TCP port (49152) to detect a second instance | Accepted as open: the lock file already moved to a per-user path; the port is still fixed, so two CI runners or a developer with the example already open can still collide. No task in this plan owns it. |
 | Nine pylint design-metric checks (`too-many-instance-attributes`, `too-few-public-methods`, `too-many-branches`/`locals`/`statements`/`arguments`/`positional-arguments`, `duplicate-code`, `attribute-defined-outside-init`) | Disabled project-wide in `pyproject.toml`, not fixed. Real fixes mean splitting classes and methods apart or extracting a shared base between the two build backends — real refactors with behaviour risk, beyond a lint-cleanliness task. See `docs/known-issues/pylint-design-metrics.md`. |
+| `create_services` seam (4.1 second half) | Accepted 2026-09-09: services are constructed inline in the shell and are not replaceable by subclasses. Revisit only if a real application needs to substitute a built-in service. |

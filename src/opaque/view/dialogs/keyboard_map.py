@@ -10,8 +10,9 @@
 
 The keyboard map.
 
-The list is read off the live QAction objects every time the dialog opens, so
-it can never disagree with the application. A hand written list goes stale.
+The list is read off the live QAction and QShortcut objects every time the
+dialog opens, so it can never disagree with the application. A hand written
+list goes stale.
 """
 
 from typing import List, Optional, Tuple
