@@ -55,7 +55,7 @@ def test_a_presenter_is_cleaned_up_before_the_services(app_window):
     order = []
 
     class _Recorder:
-        def cleanup(self):
+        def shutdown(self):
             order.append("presenter")
 
     app_window._registered_features["recorder"] = _Recorder()
@@ -78,7 +78,7 @@ def test_a_presenter_can_still_reach_a_service_while_closing(app_window):
     seen = []
 
     class _Saver:
-        def cleanup(self):
+        def shutdown(self):
             seen.append(ServiceLocator.get(SettingsService))
 
     app_window._registered_features["saver"] = _Saver()
@@ -92,11 +92,11 @@ def test_a_presenter_that_raises_does_not_stop_the_shutdown(app_window):
     seen = []
 
     class _Broken:
-        def cleanup(self):
+        def shutdown(self):
             raise RuntimeError("no")
 
     class _Good:
-        def cleanup(self):
+        def shutdown(self):
             seen.append(True)
 
     app_window._registered_features["broken"] = _Broken()

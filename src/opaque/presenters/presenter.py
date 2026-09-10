@@ -190,6 +190,17 @@ class BasePresenter(ABC):
         self.on_view_close()
         self.cleanup()
 
+    def shutdown(self) -> None:
+        """
+        Run the close sequence for a window that is still open.
+
+        The shell calls this at application exit, so on_view_close() runs
+        for every feature exactly as it runs when the user closes the
+        sub-window by hand. Safe to call after a manual close: the
+        sequence runs once.
+        """
+        self._handle_view_closed()
+
     def on_view_close(self) -> None:
         """
         Called when the view is closed. Override to save state.
@@ -197,9 +208,8 @@ class BasePresenter(ABC):
         Do not call cleanup() here and do not call super(). The framework
         calls cleanup() straight after this method returns.
 
-        The hook runs when the sub-window itself closes. At application
-        exit the shell calls cleanup() directly, so a window that is still
-        open at that moment does not run this hook.
+        The hook runs on a manual window close and at application exit,
+        once per presenter.
         """
 
     def save_workspace(self, workspace_object: dict) -> None:
