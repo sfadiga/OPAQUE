@@ -7,7 +7,6 @@ Licensed under MIT License
 
 import logging
 from typing import Dict, Any, cast
-from PySide6.QtWidgets import QMessageBox
 
 from opaque.presenters.presenter import BasePresenter
 from opaque.models.console_model import ConsoleModel, ConsoleOutputItem
@@ -161,26 +160,18 @@ class ConsolePresenter(BasePresenter):
 
     def _export_console(self, file_path: str):
         """Export console output to file."""
+        console_widget = self.view.get_console_widget()
         try:
-            console_widget = self.view.get_console_widget()
             include_timestamps = console_widget.show_timestamps_checkbox.isChecked()
 
             success = self.model.export_to_file(file_path, include_timestamps)
 
             if success:
-                console_widget.status_label.setText(f"Exported to {file_path}")
+                console_widget.show_export_status(file_path)
             else:
-                QMessageBox.warning(
-                    self.view,
-                    "Export Failed",
-                    "Failed to export console output to file."
-                )
+                console_widget.show_export_failed()
         except Exception as e:
-            QMessageBox.critical(
-                self.view,
-                "Export Error",
-                f"An error occurred while exporting: {e}"
-            )
+            console_widget.show_export_error(e)
 
     def _perform_search(self):
         """Perform search in console output."""

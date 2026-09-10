@@ -1,7 +1,9 @@
-# Known issue: nine pylint design-metric checks are disabled, not fixed
+# Known issue: ten pylint design-metric checks are disabled, not fixed
 
 **Status:** Open. Disabled project-wide in `pyproject.toml`
 (`[tool.pylint."MESSAGES CONTROL"]`) on 2026-09-09, during Plan 10 Task 8.
+`too-many-public-methods` was added to the list on 2026-09-10, during the
+second-review-decisions plan's Task 5.
 
 **Severity:** Low. Nothing here is a defect; each check is a size or
 complexity threshold that a real class or method crosses. The code behind
@@ -33,6 +35,16 @@ plan did not anticipate:
   cleanliness (also finished in this task) to satisfy a check that is
   flagging the framework's own architecture.
 
+`too-many-public-methods` was deferred for a different reason, found later.
+`BaseApplication` is the shell: the documented facade of the framework,
+where `context.shell` and every registration and lifecycle entry point are
+meant to live. `release_features()` (added so application exit runs
+`on_view_close()` for every open window, not just `cleanup()`) pushed the
+count from 20 to 21. Splitting the shell to satisfy the count would scatter
+its one documented facade across several objects. The count on this class
+grows with mandated public API, not with hidden complexity, so it is
+deferred with the others rather than treated as a size problem to fix.
+
 ## The checks and where they fire
 
 | Check | What it flags | Worst offenders |
@@ -45,6 +57,7 @@ plan did not anticipate:
 | `too-many-arguments` / `too-many-positional-arguments` (R0913/R0917) | A function signature with more than 5 parameters | `closeable_tab_widget.py.__init__` (6), `mdi_window.py`'s `OpaqueMdiSubWindow.__init__` (6) |
 | `duplicate-code` (R0801) | Near-identical code blocks across files | `nuitka_builder.py` and `pyinstaller_builder.py` share several boilerplate patterns (finding the built executable, the try/except around a build, computing an output name) |
 | `attribute-defined-outside-init` (W0201) | An attribute first assigned outside `__init__` | Every widget that builds its UI in a `setup_ui()`/`_setup_ui()` helper - by design, per CLAUDE.md |
+| `too-many-public-methods` (R0904) | A class with more than 20 public methods | `shell.py`'s `BaseApplication` (21/20), reached when `release_features()` was added on 2026-09-10 |
 
 ## What real fixes would look like
 
@@ -64,6 +77,10 @@ plan did not anticipate:
   the better fix is a pylint plugin or a narrower per-class disable that
   recognizes `setup_ui()`/`_setup_ui()` as an extension of `__init__`,
   not touching the framework's documented widget-building pattern.
+- **R0904** on `BaseApplication`: not worth fixing as stated either. The
+  class is the framework's one documented shell; a real fix would mean
+  moving some of its methods onto helper objects the shell owns, which is
+  a structural change to the facade itself, not a lint fix.
 
 ## Where this was found
 
@@ -72,3 +89,9 @@ while making `pylint src/opaque` pass cleanly enough to remove CI's
 `continue-on-error: true`. The user chose, mid-task, to document these as
 deferred exceptions rather than refactor now, given the real behaviour risk
 and scope of the alternative.
+
+`too-many-public-methods` was found separately, on 2026-09-10, in the
+second-review-decisions plan's Task 5, while adding `BaseApplication.
+release_features()` so application exit runs `on_view_close()` for every
+open window still on screen. The user chose to defer it with the same
+reasoning as the other nine, rather than restructure the shell.

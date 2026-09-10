@@ -416,3 +416,51 @@ def test_no_model_reaches_a_private_shell_attribute():
     from opaque.models import app_model
 
     assert "_configuration" not in inspect.getsource(app_model)
+
+
+def test_release_features_runs_the_full_close_sequence(qapp):
+    """closeEvent used to call cleanup() directly, skipping
+    on_view_close() for every window still open at exit."""
+    from opaque.shell import BaseApplication
+
+    calls = []
+
+    class _Presenter:
+        feature_id = "fake"
+
+        def shutdown(self):
+            calls.append("shutdown")
+
+    class _ShellStandIn:
+        _registered_features = {"fake": _Presenter()}
+        release_features = BaseApplication.release_features
+
+    _ShellStandIn().release_features()
+
+    assert calls == ["shutdown"]
+
+
+def test_release_features_guards_a_raising_presenter(qapp):
+    from opaque.shell import BaseApplication
+
+    calls = []
+
+    class _Raising:
+        feature_id = "raising"
+
+        def shutdown(self):
+            raise RuntimeError("boom")
+
+    class _Fine:
+        feature_id = "fine"
+
+        def shutdown(self):
+            calls.append("shutdown")
+
+    class _ShellStandIn:
+        _registered_features = {"raising": _Raising(), "fine": _Fine()}
+        release_features = BaseApplication.release_features
+
+    _ShellStandIn().release_features()
+
+    assert calls == ["shutdown"]

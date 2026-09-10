@@ -4,9 +4,10 @@ The examples must obey the framework's own stated rules.
 
 An example is what a user or an AI agent copies. An example that breaks a
 rule teaches the violation, so the rules that can be checked mechanically
-are checked here: no literal colour or font size inside setStyleSheet, no
-cleanup() call inside on_view_close, no BaseView subclass that overrides
-__init__ instead of setup_ui, and no tr() call without a literal argument.
+are checked here: no literal colour or font size in a string constant
+(stylesheets included), no cleanup() call inside on_view_close, no
+BaseView subclass that overrides __init__ instead of setup_ui, and no
+tr() call without a literal argument.
 """
 
 import ast
@@ -16,7 +17,7 @@ from typing import List, Tuple
 
 import pytest
 
-from tests.test_localisation import _non_literal_tr_calls
+from tests.test_localisation import _non_literal_tr_calls, _untranslated_strings
 
 EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / "examples"
 
@@ -32,20 +33,29 @@ def _example_files() -> List[Path]:
     return sorted(EXAMPLES_ROOT.rglob("*.py"))
 
 
+# A string that is one bare colour and nothing else is data (a colour
+# picker default), not a stylesheet. A stylesheet always carries more
+# text around the colour.
+_BARE_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\Z")
+
+
 def _stylesheet_offenders(path: Path) -> List[Tuple[int, str]]:
+    """The literal-style patterns (hex colours in CSS text, font sizes,
+    named CSS colours) only ever appear in stylesheet text, so every
+    string constant in the file is scanned. Scanning only inside the
+    setStyleSheet call missed a stylesheet hoisted into a variable.
+
+    Accepted false positive: prose that happens to match the hex-colour
+    pattern, such as "see PR #123", is flagged too. A loud false
+    positive here is acceptable; a silent miss is not."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     offenders: List[Tuple[int, str]] = []
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        if not isinstance(func, ast.Attribute) or func.attr != "setStyleSheet":
-            continue
-        for part in ast.walk(node):
-            if (isinstance(part, ast.Constant)
-                    and isinstance(part.value, str)
-                    and _LITERAL_STYLE.search(part.value)):
-                offenders.append((node.lineno, part.value.strip()))
+        if (isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and _LITERAL_STYLE.search(node.value)
+                and not _BARE_COLOR.match(node.value.strip())):
+            offenders.append((node.lineno, node.value.strip()))
     return offenders
 
 
@@ -55,8 +65,9 @@ def _stylesheet_offenders(path: Path) -> List[Tuple[int, str]]:
 def test_no_literal_colour_or_font_size_in_a_stylesheet(path):
     offenders = _stylesheet_offenders(path)
     assert not offenders, (
-        f"{path}: literal colour or font size in setStyleSheet at "
-        f"{offenders}. Use the tokens in opaque.view.theme instead."
+        f"{path}: literal colour or font size in a string constant "
+        f"(stylesheets included) at {offenders}. Use the tokens in "
+        f"opaque.view.theme instead."
     )
 
 
@@ -181,4 +192,16 @@ def test_every_tr_call_carries_a_literal(path):
     assert not offenders, (
         f"{path}: tr() without a string literal at {offenders}. "
         f"lupdate cannot extract a variable."
+    )
+
+
+@pytest.mark.parametrize(
+    "path", _example_files(),
+    ids=lambda p: str(p.relative_to(EXAMPLES_ROOT)))
+def test_every_user_visible_string_is_translated(path):
+    offenders = _untranslated_strings(path)
+    assert not offenders, (
+        f"{path}: user-visible string outside self.tr() at lines "
+        f"{offenders}. Wrap the literal in self.tr(); format an "
+        f"f-string as self.tr('... {{0}} ...').format(value)."
     )

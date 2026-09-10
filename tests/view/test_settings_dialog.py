@@ -542,3 +542,138 @@ def test_a_file_selector_field_builds_a_file_selector(rich_dialog):
     assert selector.path() == "C:/in.csv"
     selector.path_edit.setText("C:/other.csv")
     assert rich_dialog.pending_value("rich", "source") == "C:/other.csv"
+
+
+class OpenSliderModel(AbstractModel):
+    """A slider without bounds and a float slider; neither is drawable."""
+
+    FEATURE_ID = "open_slider"
+
+    level = IntField(default=500, description="Level", settings=True,
+                     ui_type=UIType.SLIDER)
+    ratio = FloatField(default=0.5, min_value=0.0, max_value=1.0,
+                       description="Ratio", settings=True,
+                       ui_type=UIType.SLIDER)
+
+    def feature_name(self) -> str:
+        return "OpenSlider"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+@pytest.fixture
+def open_slider_dialog(qtbot, service):
+    presenter = DemoPresenter(OpenSliderModel())
+    presenter.feature_id = "open_slider"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    return widget
+
+
+def test_a_slider_without_bounds_falls_back_to_a_spinbox(open_slider_dialog):
+    """Qt's default slider range is 0-99. A stored 500 rendered at 99 and
+    one drag wrote the clamped value back. The spinbox has an open range."""
+    assert _widget_for(open_slider_dialog, "Level").value() == 500
+    assert isinstance(_widget_for(open_slider_dialog, "Level"), QSpinBox)
+
+
+def test_a_float_slider_falls_back_to_a_double_spinbox(open_slider_dialog):
+    """QSlider moves in integer steps and truncates every fraction."""
+    widget = _widget_for(open_slider_dialog, "Ratio")
+    assert isinstance(widget, QDoubleSpinBox)
+    assert widget.value() == 0.5
+    assert (widget.minimum(), widget.maximum()) == (0.0, 1.0)
+
+
+def test_a_bounded_int_slider_is_still_a_slider(rich_dialog):
+    assert isinstance(_widget_for(rich_dialog, "Volume"), QSlider)
+
+
+class PrecisionModel(AbstractModel):
+    """Floats finer than the default six decimal places."""
+
+    FEATURE_ID = "precision"
+
+    tiny = FloatField(default=1e-7, description="Tiny", settings=True)
+    declared = FloatField(default=0.5, decimals=9,
+                          description="Declared", settings=True)
+    half_significant = FloatField(default=1.5e-7,
+                                  description="HalfSignificant",
+                                  settings=True)
+    floor_value = FloatField(default=1e-20, description="FloorValue",
+                             settings=True)
+    narrow = FloatField(default=1e-7, decimals=2, description="Narrow",
+                        settings=True)
+    not_a_number = FloatField(default=float("nan"),
+                              description="NotANumber", settings=True)
+    combined = FloatField(default=0.25, decimals=9, min_value=0.0,
+                          max_value=1.0, description="Combined",
+                          settings=True, ui_type=UIType.SLIDER)
+
+    def feature_name(self) -> str:
+        return "Precision"
+
+    def feature_icon(self):
+        from PySide6.QtGui import QIcon
+        return QIcon()
+
+
+@pytest.fixture
+def precision_dialog(qtbot, service):
+    presenter = DemoPresenter(PrecisionModel())
+    presenter.feature_id = "precision"
+    widget = SettingsDialog([presenter], parent=None)
+    qtbot.addWidget(widget)
+    return widget
+
+
+def test_a_tiny_float_is_not_rounded_to_zero(precision_dialog):
+    """setDecimals(6) displayed 1e-7 as 0.000000, and the first user
+    interaction wrote the rounded 0.0 back into the model."""
+    widget = _widget_for(precision_dialog, "Tiny")
+    assert widget.value() == 1e-7
+
+
+def test_a_declared_decimals_widens_the_widget(precision_dialog):
+    widget = _widget_for(precision_dialog, "Declared")
+    assert widget.decimals() == 9
+
+
+def test_widening_preserves_every_significant_digit(precision_dialog):
+    """1.5e-7 widened only to its leading digit displayed 0.0000002, and
+    the first edit wrote the rounded 2e-7 back."""
+    widget = _widget_for(precision_dialog, "HalfSignificant")
+    assert widget.decimals() == 8
+    assert widget.value() == 1.5e-7
+
+
+def test_widening_is_capped_at_fifteen_places(precision_dialog):
+    widget = _widget_for(precision_dialog, "FloorValue")
+    assert widget.decimals() == 15
+
+
+def test_widening_wins_over_a_smaller_declared_value(precision_dialog):
+    widget = _widget_for(precision_dialog, "Narrow")
+    assert widget.decimals() == 7
+
+
+def test_a_non_finite_value_does_not_crash_the_dialog_and_keeps_six_places(
+        precision_dialog):
+    widget = _widget_for(precision_dialog, "NotANumber")
+    assert widget.decimals() == 6
+
+
+def test_a_float_slider_with_declared_decimals_composes(precision_dialog):
+    """One field runs the ui_type override, the slider fallback and
+    the declared precision together; this locks the pipeline."""
+    widget = _widget_for(precision_dialog, "Combined")
+    assert isinstance(widget, QDoubleSpinBox)
+    assert widget.decimals() == 9
+    assert widget.value() == 0.25
+
+
+def test_the_default_stays_at_six_decimals(typed_dialog):
+    widget = _widget_for(typed_dialog, "Ratio")
+    assert widget.decimals() == 6

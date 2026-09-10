@@ -241,3 +241,22 @@ def test_cleanup_runs_once_even_when_called_twice(make_presenter):
         presenter.cleanup()
 
     assert presenter.model.detach_call_count == detach_calls
+
+
+def test_shutdown_runs_the_hook_then_the_cleanup(make_presenter):
+    """At application exit the shell used to call cleanup() directly,
+    so a window still open at exit silently lost the state its
+    on_view_close() hook would have saved."""
+    presenter = make_presenter()
+    presenter.shutdown()
+    assert presenter.events[-2:] == ["on_view_close", "cleanup"]
+
+
+def test_shutdown_after_a_manual_close_does_nothing(make_presenter):
+    presenter = make_presenter()
+    presenter.view.window_closed.emit()
+    presenter.events.clear()
+
+    presenter.shutdown()
+
+    assert presenter.events == []

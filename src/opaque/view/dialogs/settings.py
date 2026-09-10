@@ -10,6 +10,8 @@
 """
 
 
+import math
+from decimal import Decimal
 from typing import Any, Dict, List, Optional, Protocol
 
 from PySide6.QtGui import QIcon
@@ -26,7 +28,25 @@ from opaque.services.settings_service import SettingsService
 from opaque.view.widgets.color_picker import ColorPicker
 from opaque.view.widgets.file_selector import FileSelector
 from opaque.view.widgets.list_editor import ListEditor
-from opaque.models.annotations import Field, UIType
+from opaque.models.annotations import Field, FloatField, UIType
+
+
+def _decimal_places(field: Any, current_value: Any) -> int:
+    """
+    Return the decimal places the double spinbox must show.
+
+    The default is six. A field may declare more with decimals=N (the
+    keyword lands in Field.extra_config), and the widget widens to the
+    places the stored value actually uses, so an edit writes the same
+    value back. The cap is 15 places, the useful precision of a double;
+    a finer value still collapses at that limit.
+    """
+    decimals = min(int(field.extra_config.get("decimals", 6)), 15)
+    value = float(current_value) if current_value is not None else 0.0
+    if math.isfinite(value) and value:
+        needed = max(0, -int(Decimal(repr(value)).as_tuple().exponent))
+        decimals = max(decimals, min(needed, 15))
+    return decimals
 
 
 class _FeatureModel(Protocol):
@@ -201,6 +221,31 @@ class SettingsDialog(QDialog):
         if field_name in pending:
             return pending[field_name]
         return getattr(model, field_name)
+
+    def _effective_ui_type(self, field: Any) -> Optional[UIType]:
+        """
+        Return the ui_type the form actually draws for this field.
+
+        A slider can only represent a field faithfully when both bounds
+        are declared and the value is an integer: Qt's default range is
+        0-99, which silently clamps the stored value on the first drag,
+        and QSlider moves in integer steps, which truncates a float. In
+        both cases the spinbox family draws the field instead.
+
+        A slider field that also declares choices falls back to a
+        spinbox, not to the combo; declare the combo ui_type directly
+        when choices must win. A drawable slider (bounded int) that
+        also declares choices still draws the combo, as before; only
+        the non-drawable fallback loses to the spinbox.
+        """
+        ui_type = getattr(field, "ui_type", None)
+        if ui_type != UIType.SLIDER:
+            return ui_type
+        if isinstance(field, FloatField):
+            return UIType.DOUBLE_SPINBOX
+        if field.min_value is None or field.max_value is None:
+            return UIType.SPINBOX
+        return ui_type
 
     def has_pending_changes(self) -> bool:
         """Return True while at least one edit is waiting to be committed."""
@@ -412,6 +457,7 @@ class SettingsDialog(QDialog):
                 continue
 
             current_value = self._effective_value(feature_id, name, target_model)
+            ui_type = self._effective_ui_type(field)
             # The description comes from a model field at run time. The model
             # that declares the field must call tr() on its own literal.
             label_text = field.description or name
@@ -419,7 +465,7 @@ class SettingsDialog(QDialog):
             self._current_form_widgets[label_text.lower()] = label_widget
 
             widget: Optional[QWidget] = None
-            if hasattr(field, 'ui_type') and field.ui_type == UIType.CHECKBOX:
+            if ui_type == UIType.CHECKBOX:
                 widget = QCheckBox()
                 widget.setChecked(bool(current_value))
                 # The 'stateChanged' signal emits an integer (0, 1, or 2).
@@ -428,7 +474,7 @@ class SettingsDialog(QDialog):
                     lambda state, fid=feature_id, name=name: self._record_pending(
                         fid, name, state == Qt.CheckState.Checked.value)
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.SPINBOX:
+            elif ui_type == UIType.SPINBOX:
                 widget = QSpinBox()
                 # Qt's default range is 0-99, which silently clamped every
                 # unbounded field. Open the full int32 range first; a
@@ -446,11 +492,11 @@ class SettingsDialog(QDialog):
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.DOUBLE_SPINBOX:
+            elif ui_type == UIType.DOUBLE_SPINBOX:
                 widget = QDoubleSpinBox()
                 # Same reason as the QSpinBox above: Qt's default is 0-99.
                 widget.setRange(-1.0e15, 1.0e15)
-                widget.setDecimals(6)
+                widget.setDecimals(_decimal_places(field, current_value))
                 if hasattr(field, 'min_value') and field.min_value is not None:
                     widget.setMinimum(field.min_value)
                 if hasattr(field, 'max_value') and field.max_value is not None:
@@ -462,7 +508,7 @@ class SettingsDialog(QDialog):
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
                 )
-            elif (field.ui_type in (UIType.COMBOBOX, UIType.DROPDOWN)
+            elif (ui_type in (UIType.COMBOBOX, UIType.DROPDOWN)
                     or field.choices):
                 widget = QComboBox()
                 # Each item carries the declared choice object as its data,
@@ -478,13 +524,13 @@ class SettingsDialog(QDialog):
                     combo=widget: self._record_pending(
                         fid, name, combo.itemData(position))
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.COLOR_PICKER:
+            elif ui_type == UIType.COLOR_PICKER:
                 widget = ColorPicker(initial_color=str(current_value))
                 widget.colorChanged.connect(
                     lambda color, fid=feature_id, name=name: self._record_pending(
                         fid, name, color)
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.TEXTAREA:
+            elif ui_type == UIType.TEXTAREA:
                 widget = QPlainTextEdit()
                 widget.setPlainText(field.display(current_value))
                 # textChanged carries no argument; read the widget instead.
@@ -493,24 +539,21 @@ class SettingsDialog(QDialog):
                     editor=widget: self._record_pending(
                         fid, name, editor.toPlainText())
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.SLIDER:
+            elif ui_type == UIType.SLIDER:
                 widget = QSlider(Qt.Orientation.Horizontal)
-                # A slider needs both ends. A field that declares neither
-                # gets the Qt default of 0-99, which is at least visible on
-                # the slider itself, unlike the spinbox case.
-                if hasattr(field, 'min_value') and field.min_value is not None:
-                    widget.setMinimum(int(field.min_value))
-                if hasattr(field, 'max_value') and field.max_value is not None:
-                    widget.setMaximum(int(field.max_value))
-                # An unset value is None; int(None) raises. The slider then
-                # rests on its minimum and queues nothing.
+                # _effective_ui_type only lets a slider through with both
+                # bounds declared and an integer value. The assert states
+                # that invariant for mypy; it never fires at run time.
+                minimum, maximum = field.min_value, field.max_value
+                assert minimum is not None and maximum is not None
+                widget.setRange(int(minimum), int(maximum))
                 if current_value is not None:
                     widget.setValue(int(current_value))
                 widget.valueChanged.connect(
                     lambda value, fid=feature_id, name=name: self._record_pending(
                         fid, name, value)
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.LIST_VIEW:
+            elif ui_type == UIType.LIST_VIEW:
                 # coerce() turns legacy comma text into a list. Handing the
                 # raw value to the editor exploded a string character by
                 # character.
@@ -520,7 +563,7 @@ class SettingsDialog(QDialog):
                     lambda items, fid=feature_id, name=name: self._record_pending(
                         fid, name, items)
                 )
-            elif hasattr(field, 'ui_type') and field.ui_type == UIType.FILE_SELECTOR:
+            elif ui_type == UIType.FILE_SELECTOR:
                 widget = FileSelector(initial_path=field.display(current_value))
                 widget.pathChanged.connect(
                     lambda path, fid=feature_id, name=name: self._record_pending(

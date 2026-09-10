@@ -562,8 +562,9 @@ class BaseApplication(QMainWindow):
 
         # A feature window that closes is only hidden, so the feature is still
         # there. Removing it from the registry here would take away its
-        # Settings page and would stop closeEvent from calling its cleanup().
-        # Features are released in closeEvent, never on a window close.
+        # Settings page and would stop closeEvent from running its close
+        # sequence via release_features(). Features are released in
+        # closeEvent, never on a window close.
 
         self.add_feature_window(presenter.view)
 
@@ -683,6 +684,26 @@ class BaseApplication(QMainWindow):
             self._self_check_done = True
             self.run_self_check()
 
+    def release_features(self) -> None:
+        """
+        Run every feature's close sequence: on_view_close(), then cleanup().
+
+        An MDI sub-window receives no closeEvent of its own when the main
+        window closes, so without this call a window still open at exit
+        skipped its on_view_close() hook and silently lost the state the
+        hook saves. One presenter that raises must not stop the others,
+        so each one is guarded.
+
+        A hook may still talk to the shell, for example show a window; the
+        window simply dies with the application.
+        """
+        for feature_id, presenter in list(self._registered_features.items()):
+            try:
+                presenter.shutdown()
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    "The feature %s failed to shut down", feature_id)
+
     def closeEvent(self, event: QCloseEvent):
         """
         Release the features first, then the services.
@@ -694,15 +715,10 @@ class BaseApplication(QMainWindow):
         most likely thing to be lost.
 
         One presenter that raises must not stop the others, and must not stop
-        the services from being released, so each one is guarded.
+        the services from being released, so each one is guarded inside
+        release_features().
         """
-        for feature_id, presenter in list(self._registered_features.items()):
-            try:
-                presenter.cleanup()
-            except Exception:  # pylint: disable=broad-except
-                logger.exception(
-                    "The feature %s failed to clean up", feature_id)
-
+        self.release_features()
         ServiceLocator.cleanup_services()
 
         super().closeEvent(event)

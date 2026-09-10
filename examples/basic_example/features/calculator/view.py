@@ -95,7 +95,7 @@ class CalculatorView(BaseView):
         layout.addLayout(button_layout)
 
         # History section
-        history_group = QGroupBox("History")
+        history_group = QGroupBox(self.tr("History"))
         history_layout = QVBoxLayout()
 
         self.history_display = QTextEdit()
@@ -103,7 +103,7 @@ class CalculatorView(BaseView):
         self.history_display.setMaximumHeight(100)
         history_layout.addWidget(self.history_display)
 
-        clear_history_btn = QPushButton("Clear History")
+        clear_history_btn = QPushButton(self.tr("Clear History"))
         clear_history_btn.clicked.connect(self.clear_history_clicked)
         history_layout.addWidget(clear_history_btn)
 
@@ -111,7 +111,7 @@ class CalculatorView(BaseView):
         layout.addWidget(history_group)
 
         # Status bar
-        self.status_label = QLabel("Ready")
+        self.status_label = QLabel(self.tr("Ready"))
         layout.addWidget(self.status_label)
 
         container = QWidget()

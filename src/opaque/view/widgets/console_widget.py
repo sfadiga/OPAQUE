@@ -8,7 +8,7 @@ Licensed under MIT License
 from typing import Optional, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QToolBar, QLineEdit,
-    QLabel, QCheckBox, QPushButton, QFileDialog, QSplitter
+    QLabel, QCheckBox, QPushButton, QFileDialog, QSplitter, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import (
@@ -353,6 +353,32 @@ class ConsoleWidget(QWidget):
         )
         if file_path:
             self.export_requested.emit(file_path)
+
+    def show_export_status(self, file_path: str) -> None:
+        """Show the export result in the status bar.
+
+        lupdate resolves tr() by the class the call is written in. The
+        presenter is not a QObject, so the message is made here, not
+        passed in translated from the presenter.
+        """
+        self.status_label.setText(
+            self.tr("Exported to {0}").format(file_path))
+
+    def show_export_failed(self) -> None:
+        """Tell the user the export did not write a file."""
+        QMessageBox.warning(
+            self,
+            self.tr("Export Failed"),
+            self.tr("Failed to export console output to file.")
+        )
+
+    def show_export_error(self, error: object) -> None:
+        """Tell the user the export raised an exception."""
+        QMessageBox.critical(
+            self,
+            self.tr("Export Error"),
+            self.tr("An error occurred while exporting: {0}").format(error)
+        )
 
     def add_output_item(self, item: ConsoleOutputItem):
         """

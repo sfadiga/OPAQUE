@@ -154,7 +154,8 @@ class CloseableTabWidget(QWidget):
             # bad tab must not take down the whole tab widget.
             widget = QWidget()
             layout = QVBoxLayout(widget)
-            layout.addWidget(QLabel(f"Error creating widget: {str(e)}"))
+            layout.addWidget(QLabel(
+                self.tr("Error creating widget: {0}").format(e)))
             return widget
 
     def add_tab(self, name: Optional[str] = None, widget: Optional[QWidget] = None) -> int:
