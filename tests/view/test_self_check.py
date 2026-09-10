@@ -68,3 +68,16 @@ def test_a_platform_internal_button_is_not_reported(qtbot, light_palette_app):
     host = _host(qtbot)
     host.layout().addWidget(QTableWidget(2, 2, host))
     assert check_interface(host) == []
+
+
+def test_the_shell_runs_the_check_only_when_the_variable_is_set(
+        app_window, monkeypatch, caplog):
+    import logging
+
+    monkeypatch.delenv("OPAQUE_SELF_CHECK", raising=False)
+    assert app_window.run_self_check() == -1
+
+    monkeypatch.setenv("OPAQUE_SELF_CHECK", "1")
+    with caplog.at_level(logging.WARNING, logger="opaque.view.self_check"):
+        count = app_window.run_self_check()
+    assert count >= 0

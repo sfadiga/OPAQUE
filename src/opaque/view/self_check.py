@@ -12,8 +12,9 @@ A run time interface self check for a debug build.
 
 The test suite checks the widgets the framework ships. An application built on
 the framework can still put a target that is too small, or a control a screen
-reader cannot name, on the screen. Call check_interface on a window in a debug
-build and read the report.
+reader cannot name, on the screen. Set the OPAQUE_SELF_CHECK environment
+variable and the shell runs log_interface_problems on the main window at
+first show. check_interface stays callable directly on any window.
 """
 
 import logging

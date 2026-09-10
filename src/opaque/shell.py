@@ -19,11 +19,13 @@ told every reader the opposite. A feature's own view is opaque.view.view.
 
 
 import logging
+import os
 from typing import Optional, Dict, List, Type, cast
 
 from PySide6.QtWidgets import QFileDialog, QApplication, QDialog, QWidget, QMainWindow, QMessageBox
 from PySide6.QtGui import (
     QAction, QIcon, QCloseEvent, QDragEnterEvent, QDropEvent, QKeySequence,
+    QShowEvent,
 )
 from PySide6.QtCore import QLocale, Qt
 
@@ -31,6 +33,7 @@ from opaque.view.widgets.mdi_window import OpaqueMdiArea
 from opaque.view.widgets.toolbar import OpaqueMainToolbar
 from opaque.view.dialogs.settings import SettingsDialog, SettingsPage
 from opaque.view.dialogs.keyboard_map import KeyboardMapDialog
+from opaque.view.self_check import log_interface_problems
 from opaque.features.context import FeatureContext
 from opaque.models.model import BaseModel
 from opaque.presenters.presenter import BasePresenter
@@ -140,6 +143,11 @@ class BaseApplication(QMainWindow):
 
         # features to be loaded with application
         self._registered_features: Dict[str, BasePresenter] = {}
+
+        # The accessibility self check runs once, on the first show, and
+        # only when OPAQUE_SELF_CHECK is set. It is a debug aid, not a
+        # runtime cost every application pays.
+        self._self_check_done: bool = False
 
         # Initialize the single instance service
         self.single_instance_service = SingleInstanceService()
@@ -655,6 +663,25 @@ class BaseApplication(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             # On cancel, revert any changes by reloading from disk
             self.settings_service.load_all_settings()
+
+    def run_self_check(self) -> int:
+        """
+        Walk the widget tree and log every accessibility problem found.
+
+        Runs only when the OPAQUE_SELF_CHECK environment variable is set to
+        a non-empty value. Returns the number of problems, or -1 when the
+        check is disabled.
+        """
+        if not os.environ.get("OPAQUE_SELF_CHECK"):
+            return -1
+        return log_interface_problems(self)
+
+    def showEvent(self, event: QShowEvent) -> None:
+        """Run the accessibility self check once, the first time the shell shows."""
+        super().showEvent(event)
+        if not self._self_check_done:
+            self._self_check_done = True
+            self.run_self_check()
 
     def closeEvent(self, event: QCloseEvent):
         """
